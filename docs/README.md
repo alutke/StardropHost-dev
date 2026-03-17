@@ -32,7 +32,7 @@ Not required for LAN play
 </div>
 
 ---
-## ✨ What is StardropHost?
+## What is StardropHost?
 
 StardropHost is a self-hosted Stardew Valley server that your friends can join **any time, even when you're not playing**.
 
@@ -42,38 +42,38 @@ Set it up once. Control everything from the Web Dashbord, minimal technical skil
 
 ---
 
-## 🌿 Features
+## Features
 
-### 🖥️ A Web Dashboard that does everything
+### A Web Dashboard that does everything
 Once installed there is no terminal commands, no config file editing, no SSH or VNC sessions. The web panel gives you full control over your server from any browser on your network.
 
-### 🔐 Steam account *OPTIONAL*
+### Steam account *OPTIONAL*
 Drop your game files in during first-run setup and you're good to go. No Steam account is required to run the server.
 
-### ⏱️ Always-on multiplayer
+### Always-on multiplayer
 Keeps the server running around the clock. Friends can drop in and out whenever they want — no host needed.
 
-### 👥 Up to 8 players
+### Up to 8 players
 Invite up to 8 friends to join your farm. Connect over LAN, or share a Steam invite code for internet play.
 
-### 💾 Save management
+### Save management
 Create backups, download saves, upload your own, or switch between multiple farms — all from the **Saves** tab.
 
-### 📊 Live server view
+### Live server view
 The **Farm** tab shows real-time data — current season, weather, in-game time, and active players.
 
-### 🧩 Mod support
+### Mod support
 Upload any SMAPI-compatible mod as a `.zip` directly from the web panel. No extracting or manual file handling required. *Some mods need to be installed on host and client devices
 
-### 🧪 Real-time logs and terminal
+### Real-time logs and terminal
 View the SMAPI console live, filter logs, and run commands — all from your browser.
 
-### 🖥️ VNC when you need it
+### VNC when you need it
 Remote desktop access is available for technical bug fixing cases. Enable it with one click; it automatically shuts off after 30 minutes.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### One-command install
 
@@ -107,7 +107,7 @@ The web panel guides you through setup:
 
 ---
 
-## 🎮 How Friends Connect
+## How Friends Connect
 
 ### Same network (LAN)
 Open Stardew Valley → **Co-op → Join LAN Game**
@@ -121,7 +121,7 @@ No port forwarding required.
 
 ---
 
-## 🧩 What's Included
+## What's Included
 
 StardropHost comes with pre-installed and pre-configured server mods:
 
@@ -135,7 +135,7 @@ StardropHost comes with pre-installed and pre-configured server mods:
 
 ---
 
-## 🖥️ Requirements
+## Requirements
 
 - Linux Device (Virtual Machine or Hardware) 
 - 2GB RAM minimum (4GB recommended for 4+ players)  
@@ -155,7 +155,7 @@ Everything Run on [Docker](https://hub.docker.com/r/tomomotto/stardrophost)
 
 ---
 
-## 📄 License
+## License
 
 MIT — see [LICENSE](LICENSE)
 
