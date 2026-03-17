@@ -119,5 +119,5 @@ Built on [puppy-stardew-server](https://github.com/truman-world/puppy-stardew-se
 
 ## 📄 License
 
-MIT — see [LICENSE](docs/LICENSE).
+MIT — see [LICENSE](LICENSE).
 Stardew Valley is © ConcernedApe. This project is not affiliated with or endorsed by ConcernedApe.
