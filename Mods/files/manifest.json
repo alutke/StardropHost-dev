@@ -1,0 +1,11 @@
+{
+  "Name": "ServerDashboard",
+  "Author": "PuppyStardewFork",
+  "Version": "1.0.0",
+  "Description": "Writes live game state (players, world, weather, cabins) to a JSON file for the web panel dashboard.",
+  "UniqueID": "PuppyStardewFork.ServerDashboard",
+  "EntryDll": "ServerDashboard.dll",
+  "MinimumApiVersion": "4.0.0",
+  "MinimumGameVersion": "1.6.0",
+  "UpdateKeys": []
+}

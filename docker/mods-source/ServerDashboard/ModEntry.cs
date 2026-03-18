@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -121,39 +120,41 @@ namespace ServerDashboard
 
         private LiveStatus CollectStatus()
         {
-            var game = Game1.game1;
-
-            // -- Identify the host --
-            long hostId = Game1.player.UniqueMultiplayerID;
-
             // -- Players --
             var players = new List<PlayerData>();
             foreach (var farmer in Game1.getOnlineFarmers())
             {
-                players.Add(new PlayerData
+                try
                 {
-                    Name         = farmer.Name,
-                    UniqueId     = farmer.UniqueMultiplayerID.ToString(),
-                    IsHost       = farmer.UniqueMultiplayerID == hostId,
-                    IsOnline     = true,
-                    Health       = farmer.health,
-                    MaxHealth    = farmer.maxHealth,
-                    Stamina      = farmer.stamina,
-                    MaxStamina   = farmer.maxStamina,
-                    Money        = farmer.Money,
-                    TotalEarned  = farmer.totalMoneyEarned,
-                    LocationName = farmer.currentLocation?.Name ?? "",
-                    DaysPlayed   = (int)farmer.stats.DaysPlayed,
-                    Skills       = new SkillData
+                    players.Add(new PlayerData
                     {
-                        Farming  = farmer.farmingLevel.Value,
-                        Mining   = farmer.miningLevel.Value,
-                        Foraging = farmer.foragingLevel.Value,
-                        Fishing  = farmer.fishingLevel.Value,
-                        Combat   = farmer.combatLevel.Value,
-                        Luck     = farmer.luckLevel.Value,
-                    },
-                });
+                        Name         = farmer.Name,
+                        UniqueId     = farmer.UniqueMultiplayerID.ToString(),
+                        IsHost       = farmer.IsMainPlayer,
+                        IsOnline     = true,
+                        Health       = farmer.health,
+                        MaxHealth    = farmer.maxHealth,
+                        Stamina      = farmer.stamina,
+                        MaxStamina   = farmer.maxStamina,
+                        Money        = farmer.Money,
+                        TotalEarned  = (long)farmer.totalMoneyEarned,
+                        LocationName = farmer.currentLocation?.Name ?? "",
+                        DaysPlayed   = (int)farmer.stats.DaysPlayed,
+                        Skills       = new SkillData
+                        {
+                            Farming  = farmer.FarmingLevel,
+                            Mining   = farmer.MiningLevel,
+                            Foraging = farmer.ForagingLevel,
+                            Fishing  = farmer.FishingLevel,
+                            Combat   = farmer.CombatLevel,
+                            Luck     = farmer.LuckLevel,
+                        },
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Monitor.Log($"ServerDashboard: Error reading player {farmer?.Name} — {ex.Message}", LogLevel.Trace);
+                }
             }
 
             // -- Cabins --
