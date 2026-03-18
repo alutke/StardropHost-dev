@@ -111,14 +111,26 @@ function getWizardStatus(req, res) {
   const gamePresent = detectGameFiles();
   const hasPassword = auth.isSetupComplete();
 
-  // If everything is already configured, wizard is done
-  if (hasPassword && gamePresent && state.completed) {
+  // Wizard is needed if it was never completed OR if game files have gone missing.
+  // This handles the case where the wizard was completed in a previous session
+  // but the data/game/ directory was wiped (fresh install, clean setup, etc.).
+  const needsWizard = !state.completed || !gamePresent;
+
+  if (!needsWizard) {
     return res.json({ completed: true, needsWizard: false });
+  }
+
+  // If game files disappeared after a previous completion, reset the step
+  // back to 2 (game files) so the user can re-provide them.
+  if (state.completed && !gamePresent) {
+    state.completed   = false;
+    state.currentStep = 2;
+    writeState(state);
   }
 
   res.json({
     completed:    state.completed,
-    needsWizard:  !state.completed,
+    needsWizard:  true,
     currentStep:  state.currentStep,
     steps:        state.steps,
     gamePresent,
@@ -240,12 +252,16 @@ function submitStep3(req, res) {
 
 // Step 4 — Server settings
 function submitStep4(req, res) {
-  const { serverPassword, timezone } = req.body || {};
+  const { serverPassword, timezone, saveName } = req.body || {};
 
   const envUpdates = {};
 
   if (serverPassword && typeof serverPassword === 'string') {
     envUpdates.SERVER_PASSWORD = serverPassword;
+  }
+
+  if (saveName && typeof saveName === 'string' && saveName.trim()) {
+    envUpdates.SAVE_NAME = saveName.trim();
   }
 
   if (timezone && typeof timezone === 'string') {

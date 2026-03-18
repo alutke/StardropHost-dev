@@ -484,6 +484,14 @@ start_server() {
 
     print_success "Images built!"
     echo ""
+    # Open firewall ports if ufw is active
+    if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
+        print_info "Opening firewall ports..."
+        ufw allow "${GAME_PORT}/udp" >/dev/null 2>&1 || true
+        ufw allow "${PANEL_PORT}/tcp" >/dev/null 2>&1 || true
+        print_success "Firewall ports opened (game: ${GAME_PORT}/udp, panel: ${PANEL_PORT}/tcp)"
+    fi
+
     print_step "Step 5: Starting containers..."
 
     if ! $COMPOSE_CMD up -d 2>&1; then

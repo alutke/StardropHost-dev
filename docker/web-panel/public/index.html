@@ -669,11 +669,16 @@
       <!-- Step 4: Server settings -->
       <div id="wiz-step-4" class="wiz-step card" style="display:none">
         <h3 style="margin-bottom:4px">Server Settings <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(optional)</span></h3>
-        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Set a password to restrict who can join. Leave blank for an open server.</p>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Configure how players join your server.</p>
         <div style="display:grid;gap:14px">
           <div>
-            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px">Server Password</label>
-            <input id="wiz-srv-pw" class="input" type="password" placeholder="No password (open server)" style="width:100%">
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px">Server Password <span style="color:var(--text-muted)">(leave blank for open server)</span></label>
+            <input id="wiz-srv-pw" class="input" type="password" placeholder="No password" style="width:100%">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px">Save File to Auto-Load <span style="color:var(--text-muted)">(required for LAN play)</span></label>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px">Copy your save folder to <code style="font-size:11px">./data/saves/Saves/YourSaveName/</code> then enter the folder name here.</p>
+            <input id="wiz-save-name" class="input" type="text" placeholder="e.g. YourFarmName_123456789" style="width:100%">
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
@@ -691,6 +696,7 @@
           <div id="wiz-confirm-game"></div>
           <div id="wiz-confirm-resources"></div>
           <div id="wiz-confirm-server"></div>
+          <div id="wiz-confirm-save"></div>
         </div>
         <button class="btn btn-success" style="width:100%;font-size:15px;padding:12px" onclick="wizComplete()">Launch Server</button>
       </div>

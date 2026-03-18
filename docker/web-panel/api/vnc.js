@@ -54,7 +54,7 @@ function writeState(state) {
 
 function isVncRunning() {
   try {
-    const result = spawnSync('pgrep', ['-x', 'Xvnc'], { encoding: 'utf-8' });
+    const result = spawnSync('pgrep', ['-f', 'x11vnc'], { encoding: 'utf-8' });
     return result.status === 0 && result.stdout.trim().length > 0;
   } catch {
     return false;

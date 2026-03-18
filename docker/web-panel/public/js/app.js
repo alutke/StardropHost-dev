@@ -113,10 +113,12 @@ async function wizSubmitStep3(skip) {
 }
 
 async function wizSubmitStep4(skip) {
-  const pw = skip ? '' : (document.getElementById('wiz-srv-pw').value.trim());
+  const pw       = skip ? '' : (document.getElementById('wiz-srv-pw').value.trim());
+  const saveName = skip ? '' : (document.getElementById('wiz-save-name').value.trim());
   try {
-    await API.post('/api/wizard/step/4', { serverPassword: pw });
+    await API.post('/api/wizard/step/4', { serverPassword: pw, saveName });
     _wizState._srvPw = pw;
+    _wizState._saveName = saveName;
     // Populate confirm screen
     const gm = _wizState._gameMethod;
     document.getElementById('wiz-confirm-game').textContent =
@@ -124,8 +126,11 @@ async function wizSubmitStep4(skip) {
     const cpu = _wizState._cpu, mem = _wizState._mem;
     document.getElementById('wiz-confirm-resources').textContent =
       cpu || mem ? `✅ Resources: CPU=${cpu||'unlimited'}, RAM=${mem||'unlimited'}` : '✅ Resources: no limits set';
+    const sn = _wizState._saveName;
     document.getElementById('wiz-confirm-server').textContent =
       pw ? '✅ Server password set' : '✅ Server: open (no password)';
+    document.getElementById('wiz-confirm-save').textContent =
+      sn ? `✅ Auto-load save: ${sn}` : '⚠️  No save selected — upload one from the Saves tab after setup';
     wizGoToStep(5);
   } catch (e) {
     showToast(e.message || 'Failed to save — try again', 'error');
