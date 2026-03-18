@@ -10,10 +10,139 @@
     if (!data || !data.valid) { window.location.href = '/login.html'; return; }
     const loader = document.getElementById('app-loader');
     if (loader) loader.classList.add('hidden');
-    document.getElementById('app').style.display = 'flex';
-    init();
+    // Check wizard before showing main app
+    API.get('/api/wizard/status').then(wiz => {
+      if (wiz && wiz.needsWizard) {
+        showWizard(wiz);
+      } else {
+        document.getElementById('app').style.display = 'flex';
+        init();
+      }
+    }).catch(() => {
+      document.getElementById('app').style.display = 'flex';
+      init();
+    });
   }).catch(() => { window.location.href = '/login.html'; });
 })();
+
+// ─── Setup Wizard ────────────────────────────────────────────────
+let _wizState = {};
+
+function showWizard(status) {
+  _wizState = status;
+  document.getElementById('wizard-overlay').style.display = 'block';
+  // Step 1 (password) is always done if user is logged in — skip to 2
+  const startStep = (status.currentStep && status.currentStep > 1) ? status.currentStep : 2;
+  // Populate the game path hint
+  const gpEl = document.getElementById('wiz-game-path');
+  if (gpEl) gpEl.textContent = '/home/stardew-server/stardrophost/data/game/';
+  wizGoToStep(startStep);
+}
+
+function wizGoToStep(n) {
+  document.querySelectorAll('.wiz-step').forEach(el => el.style.display = 'none');
+  const step = document.getElementById(`wiz-step-${n}`);
+  if (step) step.style.display = 'block';
+  // Update dots (steps 2-5 → dots 0-3)
+  document.querySelectorAll('.wiz-dot').forEach((dot, i) => {
+    const dotStep = i + 2;
+    dot.classList.toggle('done',   dotStep < n);
+    dot.classList.toggle('active', dotStep === n);
+  });
+  _wizState.currentStep = n;
+}
+
+function wizSetMethod(method) {
+  document.querySelectorAll('.wiz-method-btn').forEach(b => b.classList.toggle('active', b.dataset.method === method));
+  document.getElementById('wiz-method-local').style.display = method === 'local' ? 'block' : 'none';
+  document.getElementById('wiz-method-steam').style.display = method === 'steam' ? 'block' : 'none';
+  _wizState._method = method;
+  // Steam method can always continue; local needs file check
+  const nextBtn = document.getElementById('wiz-step2-next');
+  if (method === 'steam') {
+    nextBtn.disabled = false;
+  } else {
+    // Re-check if files already present from previous check
+    nextBtn.disabled = !_wizState._filesFound;
+  }
+}
+
+async function wizCheckGameFiles() {
+  const statusEl = document.getElementById('wiz-files-status');
+  statusEl.style.color = 'var(--text-secondary)';
+  statusEl.textContent = 'Checking…';
+  try {
+    const data = await API.get('/api/wizard/status');
+    if (data && data.gamePresent) {
+      statusEl.style.color = 'var(--accent)';
+      statusEl.textContent = '✅ Game files found!';
+      _wizState._filesFound = true;
+      document.getElementById('wiz-step2-next').disabled = false;
+    } else {
+      statusEl.style.color = 'var(--accent-error)';
+      statusEl.textContent = '❌ Game files not found yet. Copy them then try again.';
+    }
+  } catch {
+    statusEl.style.color = 'var(--accent-error)';
+    statusEl.textContent = 'Check failed — try again.';
+  }
+}
+
+async function wizSubmitStep2() {
+  const method = _wizState._method;
+  if (!method) { showToast('Select a game file method first', 'error'); return; }
+  try {
+    await API.post('/api/wizard/step/2', { method });
+    _wizState._gameMethod = method;
+    wizGoToStep(3);
+  } catch (e) {
+    showToast(e.message || 'Failed to save — try again', 'error');
+  }
+}
+
+async function wizSubmitStep3(skip) {
+  const cpu = skip ? '' : (document.getElementById('wiz-cpu').value.trim());
+  const mem = skip ? '' : (document.getElementById('wiz-mem').value.trim());
+  try {
+    await API.post('/api/wizard/step/3', { cpuLimit: cpu, memoryLimit: mem });
+    _wizState._cpu = cpu; _wizState._mem = mem;
+    wizGoToStep(4);
+  } catch (e) {
+    showToast(e.message || 'Failed to save — try again', 'error');
+  }
+}
+
+async function wizSubmitStep4(skip) {
+  const pw = skip ? '' : (document.getElementById('wiz-srv-pw').value.trim());
+  try {
+    await API.post('/api/wizard/step/4', { serverPassword: pw });
+    _wizState._srvPw = pw;
+    // Populate confirm screen
+    const gm = _wizState._gameMethod;
+    document.getElementById('wiz-confirm-game').textContent =
+      `✅ Game files: ${gm === 'steam' ? 'Steam download configured' : 'Copied manually'}`;
+    const cpu = _wizState._cpu, mem = _wizState._mem;
+    document.getElementById('wiz-confirm-resources').textContent =
+      cpu || mem ? `✅ Resources: CPU=${cpu||'unlimited'}, RAM=${mem||'unlimited'}` : '✅ Resources: no limits set';
+    document.getElementById('wiz-confirm-server').textContent =
+      pw ? '✅ Server password set' : '✅ Server: open (no password)';
+    wizGoToStep(5);
+  } catch (e) {
+    showToast(e.message || 'Failed to save — try again', 'error');
+  }
+}
+
+async function wizComplete() {
+  try {
+    await API.post('/api/wizard/step/5', {});
+    document.getElementById('wizard-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    init();
+    showToast('Setup complete! Server is starting…', 'success');
+  } catch (e) {
+    showToast(e.message || 'Failed to complete setup', 'error');
+  }
+}
 
 // ─── Global State ────────────────────────────────────────────────
 let ws                     = null;
