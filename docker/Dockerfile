@@ -72,16 +72,16 @@ COPY mods/ /home/steam/preinstalled-mods/
 RUN chown -R steam:steam /home/steam/preinstalled-mods && \
     chmod -R 755 /home/steam/preinstalled-mods
 
-# -- Build and install ServerDashboard mod --
-COPY mods-source/ServerDashboard/ /build/ServerDashboard/
-RUN dotnet build /build/ServerDashboard -c Release \
-    && mkdir -p /home/steam/preinstalled-mods/ServerDashboard \
-    && cp /build/ServerDashboard/bin/Release/net6.0/ServerDashboard.dll \
-          /home/steam/preinstalled-mods/ServerDashboard/ \
-    && cp /build/ServerDashboard/manifest.json \
-          /home/steam/preinstalled-mods/ServerDashboard/ \
-    && chown -R steam:steam /home/steam/preinstalled-mods/ServerDashboard \
-    && rm -rf /build
+# -- Copy ServerDashboard source + pre-restore NuGet packages --
+# The actual dotnet build happens in entrypoint.sh (Step 3.5) after game
+# files are mounted, because ModBuildConfig needs StardewValley.dll which
+# is only available at runtime, not at image build time.
+# Pre-restoring here caches NuGet packages so the runtime build works
+# offline (no internet needed inside the running container).
+COPY mods-source/ServerDashboard/ /home/steam/mod-source/ServerDashboard/
+RUN chown -R root:root /home/steam/mod-source && \
+    cd /home/steam/mod-source/ServerDashboard && \
+    dotnet restore 2>&1 || true
 USER steam
 
 # -- Copy scripts --

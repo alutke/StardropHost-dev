@@ -448,11 +448,8 @@ EOF
         print_info "Directory owned by: $REAL_USER"
     fi
 
-    # Move install log from /tmp into the install directory now that it exists
-    mkdir -p "$INSTALL_DIR/logs"
-    cp "$LOG_FILE" "$INSTALL_DIR/logs/" 2>/dev/null || true
-    # Keep logging to the /tmp file; both locations are kept in sync from this point
-    print_info "Install log: $INSTALL_DIR/logs/$(basename "$LOG_FILE")"
+    # Create the logs directory now so it's ready for the final copy at script end
+    mkdir -p "$INSTALL_DIR/logs" 2>/dev/null || true
 }
 
 # ===========================================
@@ -603,11 +600,24 @@ show_next_steps() {
 # ===========================================
 # Run
 # ===========================================
+
+# Copy the full log into the install directory on exit — whether the
+# script succeeded or failed. This runs even if the script exits early.
+_copy_log_on_exit() {
+    sync 2>/dev/null || true   # flush tee buffer
+    sleep 1                    # give tee a moment to finish writing
+    if [ -f "$LOG_FILE" ] && [ -d "$INSTALL_DIR/logs" ]; then
+        cp "$LOG_FILE" "$INSTALL_DIR/logs/$(basename "$LOG_FILE")" 2>/dev/null || true
+    fi
+}
+trap _copy_log_on_exit EXIT
+
 main() {
     print_header
     print_info "Instance:   $INSTANCE_NUM"
     print_info "Directory:  $INSTALL_DIR"
-    print_info "Install log: $INSTALL_DIR/logs/$(basename "$LOG_FILE")  (temp: $LOG_FILE)"
+    print_info "Temp log:   $LOG_FILE"
+    print_info "Final log:  $INSTALL_DIR/logs/$(basename "$LOG_FILE")  (written on exit)"
     echo ""
     check_docker
     download_files
