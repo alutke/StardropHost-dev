@@ -226,14 +226,12 @@ else
 fi
 
 # ===========================================
-# Logging — tee all output to a timestamped
-# log file in logs/ next to this script.
-# Access logs any time with: ls ./logs/
+# Logging — start in /tmp so INSTALL_DIR is
+# left empty for git clone. After download,
+# the log is copied into INSTALL_DIR/logs/.
 # ===========================================
 LOG_STAMP=$(date +%Y%m%d-%H%M%S)
-LOG_DIR="${INSTALL_DIR}/logs"
-mkdir -p "$LOG_DIR" 2>/dev/null || LOG_DIR="/tmp"
-LOG_FILE="${LOG_DIR}/install-instance${INSTANCE_NUM}-${LOG_STAMP}.log"
+LOG_FILE="/tmp/stardrop-install-${INSTANCE_NUM}-${LOG_STAMP}.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 # ===========================================
@@ -360,6 +358,13 @@ download_files() {
         return
     fi
 
+    # Directory exists but no docker-compose.yml = previous failed/partial install.
+    # Clean it out so git clone has an empty target.
+    if [ -d "$INSTALL_DIR" ] && [ "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
+        print_warning "Found incomplete install at $INSTALL_DIR — cleaning up..."
+        rm -rf "$INSTALL_DIR"
+    fi
+
     mkdir -p "$INSTALL_DIR" || { print_error "Cannot create $INSTALL_DIR"; exit 1; }
     cd "$INSTALL_DIR"      || { print_error "Cannot cd to $INSTALL_DIR"; exit 1; }
 
@@ -442,6 +447,12 @@ EOF
         chown -R 1000:1000 "$INSTALL_DIR/data/" 2>/dev/null || true
         print_info "Directory owned by: $REAL_USER"
     fi
+
+    # Move install log from /tmp into the install directory now that it exists
+    mkdir -p "$INSTALL_DIR/logs"
+    cp "$LOG_FILE" "$INSTALL_DIR/logs/" 2>/dev/null || true
+    # Keep logging to the /tmp file; both locations are kept in sync from this point
+    print_info "Install log: $INSTALL_DIR/logs/$(basename "$LOG_FILE")"
 }
 
 # ===========================================
@@ -596,7 +607,7 @@ main() {
     print_header
     print_info "Instance:   $INSTANCE_NUM"
     print_info "Directory:  $INSTALL_DIR"
-    print_info "Install log: $LOG_FILE"
+    print_info "Install log: $INSTALL_DIR/logs/$(basename "$LOG_FILE")  (temp: $LOG_FILE)"
     echo ""
     check_docker
     download_files
