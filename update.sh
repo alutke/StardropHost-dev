@@ -2,11 +2,20 @@
 # ===========================================
 # StardropHost | update.sh
 # ===========================================
-# Incremental rebuild — only rebuilds layers
-# that have changed. Fast for code updates.
+# Pulls the latest code from GitHub and does
+# an incremental Docker rebuild — only layers
+# that changed are rebuilt, so this is fast
+# for most updates (typically 1–3 minutes).
+#
+# Run this whenever you want to apply the
+# latest StardropHost changes to your server.
 #
 # Usage:
 #   sudo bash update.sh
+#
+# Note: Your server will be offline briefly
+# while containers are stopped and restarted.
+# Game saves are not affected.
 # ===========================================
 
 set +e
@@ -22,10 +31,10 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 BOLD='\033[1m'
 
-print_header()  {
+print_header() {
     echo ""
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}${BOLD}  StardropHost — Incremental Update${NC}"
+    echo -e "${CYAN}${BOLD}  StardropHost — Update${NC}"
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 }
@@ -64,30 +73,65 @@ print_info "Directory:  $SCRIPT_DIR"
 print_info "Container:  ${CONTAINER_PREFIX}-server"
 echo ""
 
-# -- Step 1: Stop containers --
-print_step "Step 1: Stopping containers..."
+# -- Step 1: Pull latest code from GitHub --
+print_step "Step 1: Pulling latest code from GitHub..."
+print_info "Fetching any new commits from the main branch..."
+if command -v git &>/dev/null && [ -d "$SCRIPT_DIR/.git" ]; then
+    BEFORE=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
+    if git -C "$SCRIPT_DIR" pull; then
+        AFTER=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
+        if [ "$BEFORE" != "$AFTER" ]; then
+            print_success "Updated  $BEFORE → $AFTER"
+            git -C "$SCRIPT_DIR" log --oneline "${BEFORE}..${AFTER}" 2>/dev/null \
+                | while read -r line; do print_info "  $line"; done
+        else
+            print_success "Already up to date ($AFTER)"
+        fi
+    else
+        print_warning "Git pull failed — building from current local files"
+        print_info "Check your network connection or resolve any merge conflicts"
+    fi
+else
+    print_info "Not a git repository or git not installed — skipping pull"
+    print_info "Files on disk will be used as-is"
+fi
+
+# -- Step 2: Stop containers --
+print_step "Step 2: Stopping containers..."
+print_info "Gracefully shutting down the server and web panel..."
 $COMPOSE_CMD down
 print_success "Containers stopped"
 
-# -- Step 2: Rebuild server image (incremental) --
-print_step "Step 2: Rebuilding server image..."
-print_info "Unchanged layers load from cache — only changed files rebuild."
+# -- Step 3: Rebuild image (incremental) --
+print_step "Step 3: Rebuilding Docker image..."
+print_info "Docker will reuse cached layers for anything that hasn't changed."
+print_info "Only modified files (scripts, web panel, config) are rebuilt — this is fast."
 echo ""
 
 if ! $COMPOSE_CMD build stardrop-server; then
     echo ""
-    print_error "Build failed! Check the output above for errors."
+    print_error "Build failed — check the output above for the cause."
+    echo ""
+    echo "  Common causes:"
+    echo "    - No internet connection during build"
+    echo "    - Not enough disk space (need ~500 MB free for rebuild)"
+    echo "    - A syntax error in a recently changed file"
+    echo ""
+    echo "  Fix the error and re-run:  sudo bash update.sh"
     exit 1
 fi
 
-print_success "Image built successfully"
+print_success "Image rebuilt successfully"
 
-# -- Step 3: Start containers --
-print_step "Step 3: Starting containers..."
+# -- Step 4: Start containers --
+print_step "Step 4: Starting containers..."
+print_info "Bringing the server and web panel back online..."
 
 if ! $COMPOSE_CMD up -d; then
     print_error "Failed to start containers!"
-    echo "  Check logs: $COMPOSE_CMD logs"
+    echo ""
+    echo "  Check what went wrong:"
+    echo -e "    ${CYAN}$COMPOSE_CMD logs${NC}"
     exit 1
 fi
 
@@ -96,9 +140,11 @@ print_success "Containers started"
 # -- Done --
 echo ""
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}${BOLD}  Update complete! Streaming server logs...${NC}"
+echo -e "${GREEN}${BOLD}  Update complete!${NC}"
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "  ${YELLOW}Press Ctrl+C to stop watching logs (server keeps running)${NC}"
+echo ""
+echo -e "  Streaming live server logs below."
+echo -e "  ${YELLOW}Press Ctrl+C to stop watching — the server keeps running.${NC}"
 echo ""
 
 sleep 2

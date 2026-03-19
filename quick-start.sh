@@ -2,18 +2,25 @@
 # ===========================================
 # StardropHost | quick-start.sh
 # ===========================================
-# Fully automated setup — installs Docker if
-# needed, downloads StardropHost, and launches
-# the server.
+# One-command setup script. Does everything:
+#   1. Installs Docker (if not already present)
+#   2. Downloads StardropHost from GitHub
+#   3. Configures ports and data directories
+#   4. Builds the Docker image and starts the
+#      server and web panel
+#
+# Run it once per server instance. Running it
+# again on the same machine creates a second
+# independent instance on different ports.
 #
 # Usage:
 #   sudo bash quick-start.sh           # first install
-#   sudo bash quick-start.sh           # second run = new instance
+#   sudo bash quick-start.sh           # second run = new instance (different ports)
 #
 # sudo is sufficient — su - is NOT required.
 # If sudo is not installed, the script will
 # install it automatically (root password
-# will be prompted once).
+# prompted once).
 #
 # Supports: Ubuntu, Debian, Raspberry Pi OS,
 #           CentOS, RHEL, Fedora, Amazon Linux
@@ -47,7 +54,7 @@ BOLD='\033[1m'
 print_header()  {
     echo ""
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${CYAN}${BOLD}  StardropHost — Automated Setup${NC}"
+    echo -e "${CYAN}${BOLD}  StardropHost — Quick Start${NC}"
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 }
@@ -226,9 +233,10 @@ else
 fi
 
 # ===========================================
-# Logging — start in /tmp so INSTALL_DIR is
-# left empty for git clone. After download,
-# the log is copied into INSTALL_DIR/logs/.
+# Logging — written to /tmp first so the
+# install directory is empty for git clone.
+# Once the directory exists, the log is
+# copied there on exit so you can review it.
 # ===========================================
 LOG_STAMP=$(date +%Y%m%d-%H%M%S)
 LOG_FILE="/tmp/stardrop-install-${INSTANCE_NUM}-${LOG_STAMP}.log"
@@ -236,14 +244,20 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 
 # ===========================================
 # Step 1 — Install Docker
+# Adds Docker's official apt/dnf/yum repo and
+# installs docker-ce + docker-compose-plugin.
+# Falls back to get.docker.com if the distro
+# isn't recognised.
 # ===========================================
 install_docker() {
     print_step "Step 1: Installing Docker..."
     detect_os
-    print_info "OS: $OS_NAME"
+    print_info "Detected OS: $OS_NAME"
+    print_info "Docker is not installed — fetching from the official Docker repository..."
+    echo ""
 
     if is_debian_based; then
-        print_info "Using apt + official Docker repository..."
+        print_info "Package manager: apt  |  Repo: download.docker.com/linux/${OS_ID}"
         apt-get update -qq
         apt-get install -y -qq \
             ca-certificates curl gnupg lsb-release apt-transport-https
@@ -267,7 +281,7 @@ install_docker() {
         apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
     elif is_rhel_based && command -v dnf &>/dev/null; then
-        print_info "Using dnf + official Docker repository..."
+        print_info "Package manager: dnf  |  Repo: download.docker.com/linux/centos"
         dnf -y install dnf-plugins-core
         dnf config-manager --add-repo \
             https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null \
@@ -276,14 +290,14 @@ install_docker() {
         dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
     elif is_rhel_based && command -v yum &>/dev/null; then
-        print_info "Using yum + official Docker repository..."
+        print_info "Package manager: yum  |  Repo: download.docker.com/linux/centos"
         yum install -y yum-utils
         yum-config-manager --add-repo \
             https://download.docker.com/linux/centos/docker-ce.repo
         yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
     else
-        print_info "Using get.docker.com universal install script..."
+        print_info "Distro not recognised — falling back to get.docker.com universal installer..."
         curl -fsSL https://get.docker.com | sh
         if ! docker compose version &>/dev/null 2>&1; then
             command -v apt-get &>/dev/null && \
@@ -302,6 +316,10 @@ install_docker() {
 
 # ===========================================
 # Step 1 — Check or install Docker
+# Checks for an existing install first so
+# repeat runs don't re-download Docker.
+# Also ensures the daemon is running and
+# Docker Compose is available.
 # ===========================================
 check_docker() {
     print_step "Step 1: Checking Docker..."
@@ -310,11 +328,11 @@ check_docker() {
         install_docker
     else
         DOCKER_VER=$(docker --version 2>/dev/null | awk '{print $3}' | tr -d ',')
-        print_info "Docker already installed: v${DOCKER_VER}"
+        print_info "Docker already installed: v${DOCKER_VER} — skipping install"
     fi
 
     if ! docker ps &>/dev/null 2>&1; then
-        print_info "Starting Docker daemon..."
+        print_info "Docker daemon is not running — starting it now..."
         if command -v systemctl &>/dev/null; then
             systemctl enable docker 2>/dev/null
             systemctl start docker 2>/dev/null
@@ -332,43 +350,90 @@ check_docker() {
     if docker compose version &>/dev/null 2>&1; then
         COMPOSE_CMD="docker compose"
         COMPOSE_VER=$(docker compose version --short 2>/dev/null)
-        print_success "Docker is ready (Compose v${COMPOSE_VER})"
+        print_success "Docker is ready  (Compose v${COMPOSE_VER})"
     elif command -v docker-compose &>/dev/null; then
         COMPOSE_CMD="docker-compose"
-        print_success "Docker is ready (Compose v1 — consider upgrading)"
+        print_success "Docker is ready  (Compose v1 — consider upgrading to v2)"
     else
         print_error "Docker Compose not found!"
-        echo "  Try: sudo apt-get install -y docker-compose-plugin"
+        echo ""
+        echo "  Try installing it manually:"
+        echo "    sudo apt-get install -y docker-compose-plugin"
         exit 1
     fi
 
-    # Add real user to docker group (no sudo needed after next login)
+    # Add the real user to the docker group so they can run docker
+    # commands without sudo. Also open the socket permissions so this
+    # takes effect immediately without requiring a logout/re-login.
     if [ "$REAL_USER" != "root" ] && id "$REAL_USER" &>/dev/null; then
         usermod -aG docker "$REAL_USER" 2>/dev/null || true
+        # Make the socket accessible to the docker group right now.
+        # (Group membership alone only activates on next login.)
+        chmod 660 /var/run/docker.sock 2>/dev/null || true
+        chgrp docker /var/run/docker.sock 2>/dev/null || true
+        print_success "Docker permissions set — '$REAL_USER' can run docker commands immediately"
+    fi
+}
+
+# ===========================================
+# Step 1b — Ensure git is installed
+# git is required for cloning the repo and
+# for update.sh to pull future releases.
+# ===========================================
+check_git() {
+    if command -v git &>/dev/null; then
+        GIT_VER=$(git --version 2>/dev/null | awk '{print $3}')
+        print_info "git already installed: v${GIT_VER}"
+        return
+    fi
+
+    print_info "git not found — installing it now..."
+    detect_os
+
+    if is_debian_based; then
+        apt-get install -y -qq git
+    elif is_rhel_based && command -v dnf &>/dev/null; then
+        dnf install -y git
+    elif is_rhel_based && command -v yum &>/dev/null; then
+        yum install -y git
+    else
+        print_warning "Could not install git automatically on this OS."
+        print_info "Please install git manually, then re-run this script."
+        exit 1
+    fi
+
+    if command -v git &>/dev/null; then
+        print_success "git installed successfully"
+    else
+        print_error "git installation failed — cannot continue"
+        exit 1
     fi
 }
 
 # ===========================================
 # Step 2 — Download StardropHost
+# Clones the GitHub repo into INSTALL_DIR.
+# Falls back to curl/wget if git is missing.
+# Skips if already installed (re-run safe).
 # ===========================================
 download_files() {
     print_step "Step 2: Downloading StardropHost..."
 
     if [ "$INSTANCE_NUM" -gt 1 ]; then
-        print_info "Creating instance $INSTANCE_NUM"
+        print_info "Setting up instance $INSTANCE_NUM alongside existing install"
     fi
     print_info "Install directory: $INSTALL_DIR"
 
     if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
-        print_success "StardropHost already present at $INSTALL_DIR"
+        print_success "StardropHost already present at $INSTALL_DIR — skipping download"
         cd "$INSTALL_DIR" || { print_error "Cannot cd to $INSTALL_DIR"; exit 1; }
         return
     fi
 
-    # Directory exists but no docker-compose.yml = previous failed/partial install.
-    # Clean it out so git clone has an empty target.
+    # A directory with no docker-compose.yml means a previous run failed partway.
+    # Remove it so git clone has a clean empty target.
     if [ -d "$INSTALL_DIR" ] && [ "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
-        print_warning "Found incomplete install at $INSTALL_DIR — cleaning up..."
+        print_warning "Found incomplete install at $INSTALL_DIR — removing and starting fresh..."
         rm -rf "$INSTALL_DIR"
     fi
 
@@ -378,21 +443,21 @@ download_files() {
     BASE_URL="https://raw.githubusercontent.com/Tomomoto10/StardropHost/main"
 
     if command -v git &>/dev/null; then
-        print_info "Cloning repository..."
+        print_info "Cloning from GitHub (git)..."
         git clone https://github.com/Tomomoto10/StardropHost.git . 2>&1 \
-            || { print_error "Git clone failed — check network and retry"; exit 1; }
+            || { print_error "Git clone failed — check your network and retry"; exit 1; }
     elif command -v curl &>/dev/null; then
-        print_info "Downloading via curl..."
+        print_info "git not found — downloading key files via curl..."
         curl -fsSL "$BASE_URL/docker-compose.yml" -o docker-compose.yml \
             || { print_error "Failed to download docker-compose.yml"; exit 1; }
         curl -fsSL "$BASE_URL/.env" -o .env 2>/dev/null || true
     elif command -v wget &>/dev/null; then
-        print_info "Downloading via wget..."
+        print_info "git not found — downloading key files via wget..."
         wget -q "$BASE_URL/docker-compose.yml" -O docker-compose.yml \
             || { print_error "Failed to download docker-compose.yml"; exit 1; }
         wget -q "$BASE_URL/.env" -O .env 2>/dev/null || true
     else
-        print_info "No download tool found — installing curl..."
+        print_info "No download tool found — installing curl first..."
         if command -v apt-get &>/dev/null; then apt-get install -y -qq curl
         elif command -v yum    &>/dev/null; then yum install -y curl
         elif command -v dnf    &>/dev/null; then dnf install -y curl
@@ -408,17 +473,26 @@ download_files() {
 
 # ===========================================
 # Step 3 — Write instance .env and create
-# data directories
+# data directories.
+#
+# Each instance gets unique ports and a
+# unique container prefix so multiple servers
+# can run side-by-side on one machine.
+#
+# data/ is owned by UID 1000 (the steam user
+# inside the container) so the server can
+# read and write saves without permission
+# errors.
 # ===========================================
 setup_instance() {
     print_step "Step 3: Configuring instance..."
 
-    # Write instance-specific settings into .env.
-    # Ports and container prefix let multiple instances
-    # run side-by-side on the same host.
+    # Append instance-specific port and prefix settings to .env.
+    # Docker Compose reads these at startup to name containers and
+    # bind the right host ports.
     cat >> .env <<EOF
 
-# --- Instance settings (written by quick-start.sh) ---
+# --- Instance $INSTANCE_NUM settings (written by quick-start.sh) ---
 CONTAINER_PREFIX=${CONTAINER_PREFIX}
 GAME_PORT=${GAME_PORT}
 PANEL_PORT=${PANEL_PORT}
@@ -426,86 +500,105 @@ VNC_PORT=${VNC_PORT}
 METRICS_PORT=${METRICS_PORT}
 EOF
 
-    if [ "$INSTANCE_NUM" -gt 1 ]; then
-        print_info "Instance $INSTANCE_NUM ports:"
-        print_info "  Web panel:  $PANEL_PORT"
-        print_info "  Game:       $GAME_PORT/udp"
-        print_info "  VNC:        $VNC_PORT"
-        print_info "  Metrics:    $METRICS_PORT"
-    fi
+    print_info "Container prefix: ${CONTAINER_PREFIX}"
+    print_info "Ports assigned:"
+    print_info "  Web panel:  ${PANEL_PORT}/tcp   (open in your browser)"
+    print_info "  Game:       ${GAME_PORT}/udp   (Stardew Valley multiplayer)"
+    print_info "  VNC:        ${VNC_PORT}/tcp   (remote desktop, optional)"
+    print_info "  Metrics:    ${METRICS_PORT}/tcp   (health monitoring, optional)"
 
-    print_step "Step 3b: Setting up data directories..."
+    print_step "Step 3b: Creating data directories..."
+    print_info "Saves, logs, mods, and backups all live under $INSTALL_DIR/data/"
     mkdir -p data/{saves,game,logs,backups,custom-mods,panel,steam-session}
 
+    # The container runs as UID 1000 (steam user) so data/ must be owned by
+    # that UID. The rest of the install dir stays owned by the real user.
     chown -R 1000:1000 data/ 2>/dev/null || true
 
     OWNER=$(stat -c '%u' data/game 2>/dev/null || stat -f '%u' data/game 2>/dev/null)
     if [ "$OWNER" != "1000" ]; then
-        print_warning "Could not set permissions automatically."
-        print_info "If you see write errors, run:"
+        print_warning "Could not set data directory permissions automatically."
+        print_info "If you see write errors at startup, fix them with:"
         echo -e "  ${CYAN}sudo chown -R 1000:1000 $INSTALL_DIR/data/${NC}"
     else
-        print_success "Data directories ready!"
+        print_success "Data directories created and permissions set"
     fi
 
-    # Return install dir to real user; keep data/ at 1000:1000 for container
     if [ "$REAL_USER" != "root" ] && id "$REAL_USER" &>/dev/null; then
         chown -R "$REAL_USER":"$REAL_USER" "$INSTALL_DIR" 2>/dev/null || true
         chown -R 1000:1000 "$INSTALL_DIR/data/" 2>/dev/null || true
-        print_info "Directory owned by: $REAL_USER"
+        print_info "Install directory owned by: $REAL_USER"
     fi
 
-    # Create the logs directory now so it's ready for the final copy at script end
+    # Ensure the logs directory exists so the install log can be copied there on exit
     mkdir -p "$INSTALL_DIR/logs" 2>/dev/null || true
 }
 
 # ===========================================
 # Step 4 — Build and start server
+#
+# The first build pulls base images and
+# installs all dependencies (~4 GB, 10–25
+# min). Subsequent builds are much faster
+# because Docker caches unchanged layers.
+#
+# After building, an init container runs
+# once to set up config files and directories
+# inside the volume, then exits. The main
+# server container starts after that.
 # ===========================================
 start_server() {
-    print_step "Step 4: Building Docker images..."
-    print_info "First build downloads ~4 GB and may take 10–25 minutes."
-    print_info "Everything is logged to: $LOG_FILE"
+    print_step "Step 4: Building Docker image..."
+    print_info "First build: downloads Steam, .NET runtime, SMAPI, and Node.js (~4 GB)."
+    print_info "This can take 10–25 minutes depending on your connection and hardware."
+    print_info "Full build output is being logged to: $LOG_FILE"
     echo ""
 
     if ! $COMPOSE_CMD build 2>&1; then
         echo ""
-        print_error "Docker image build failed!"
+        print_error "Docker image build failed — see output above for the exact error."
         echo ""
         echo "  Common causes:"
-        echo "    - No internet during build"
+        echo "    - No internet connection during build"
         echo "    - Not enough disk space (need ~4 GB free)"
-        echo "    - Docker daemon not running"
+        echo "    - Docker daemon stopped mid-build"
         echo ""
         echo "  Full build log: $LOG_FILE"
-        echo "  Fix the error then re-run: sudo bash quick-start.sh"
+        echo "  Fix the issue, then re-run:  sudo bash quick-start.sh"
         exit 1
     fi
 
-    print_success "Images built!"
+    print_success "Docker image built successfully"
     echo ""
-    # Open firewall ports if ufw is active
+
+    # Open firewall ports if ufw is active so players can reach the server
     if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
-        print_info "Opening firewall ports..."
+        print_info "ufw firewall detected — opening required ports..."
         ufw allow "${GAME_PORT}/udp" >/dev/null 2>&1 || true
         ufw allow "${PANEL_PORT}/tcp" >/dev/null 2>&1 || true
-        print_success "Firewall ports opened (game: ${GAME_PORT}/udp, panel: ${PANEL_PORT}/tcp)"
+        print_success "Firewall rules added  (game: ${GAME_PORT}/udp  |  panel: ${PANEL_PORT}/tcp)"
     fi
 
     print_step "Step 5: Starting containers..."
+    print_info "Starting the web panel, game server, and Steam auth sidecar..."
 
     if ! $COMPOSE_CMD up -d 2>&1; then
         print_error "Failed to start containers!"
-        echo "  Try: cd $INSTALL_DIR && $COMPOSE_CMD logs"
+        echo ""
+        echo "  Check what went wrong:"
+        echo -e "    ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD logs${NC}"
         exit 1
     fi
 
-    # Stream init container output so the user can see first-run activity
-    print_step "Step 6: Waiting for init container..."
-    print_info "Streaming init logs (Ctrl-C is safe — setup continues in background):"
+    print_success "Containers started"
+
+    # The init container runs once, copies default config, sets up the data
+    # volume, then exits with code 0. Stream its logs so the user can watch.
+    print_step "Step 6: Waiting for first-run initialisation..."
+    print_info "The init container is setting up config files and directories."
+    print_info "Streaming its output below  (Ctrl-C is safe — setup continues in background):"
     echo ""
 
-    # Give Docker a moment to create the container
     sleep 2
     docker logs -f "${CONTAINER_PREFIX}-init" 2>/dev/null &
     LOGS_PID=$!
@@ -516,21 +609,21 @@ start_server() {
         EXIT_CODE=$(docker inspect --format='{{.State.ExitCode}}' "${CONTAINER_PREFIX}-init" 2>/dev/null)
 
         if [ "$STATUS" = "exited" ]; then
-            sleep 1           # let the log stream flush
+            sleep 1
             kill $LOGS_PID 2>/dev/null
             wait $LOGS_PID 2>/dev/null
             echo ""
             if [ "$EXIT_CODE" = "0" ]; then
-                print_success "Init complete!"
+                print_success "Initialisation complete!"
                 INIT_DONE=1
             else
-                print_error "Init container exited with code $EXIT_CODE"
+                print_error "Init container exited with error code $EXIT_CODE"
                 echo ""
-                echo "  Quick fix — reset data directory permissions:"
-                echo -e "  ${CYAN}sudo chown -R 1000:1000 $INSTALL_DIR/data/${NC}"
+                echo "  This is usually a permissions issue. Fix it with:"
+                echo -e "    ${CYAN}sudo chown -R 1000:1000 $INSTALL_DIR/data/${NC}"
                 echo ""
-                echo "  Then restart:"
-                echo -e "  ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD up -d${NC}"
+                echo "  Then restart the containers:"
+                echo -e "    ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD up -d${NC}"
                 exit 1
             fi
             break
@@ -543,20 +636,22 @@ start_server() {
 
     if [ "$INIT_DONE" = "0" ]; then
         echo ""
-        print_warning "Init container still running after 3 minutes."
-        print_info "Monitor it with:  docker logs -f ${CONTAINER_PREFIX}-init"
+        print_warning "Init container is still running after 3 minutes — this is unusual."
+        print_info "Monitor it manually:"
+        echo -e "    ${CYAN}docker logs -f ${CONTAINER_PREFIX}-init${NC}"
     fi
 
-    # Verify main container is up
+    # Quick sanity check that the main server container came up
     sleep 3
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_PREFIX}$"; then
-        print_success "Server container is running!"
+        print_success "Server container is up and running!"
     else
-        print_warning "Main container not visible yet — may still be starting."
-        print_info "Check:  docker logs -f ${CONTAINER_PREFIX}"
+        print_warning "Main container not visible yet — it may still be starting."
+        print_info "Check its status with:"
+        echo -e "    ${CYAN}docker logs -f ${CONTAINER_PREFIX}${NC}"
     fi
 
-    print_info "Install log: $LOG_FILE"
+    print_info "Full install log saved to: $LOG_FILE"
 }
 
 # ===========================================
@@ -572,40 +667,45 @@ show_next_steps() {
     echo ""
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     if [ "$INSTANCE_NUM" -gt 1 ]; then
-        echo -e "${GREEN}${BOLD}  StardropHost instance $INSTANCE_NUM is running!${NC}"
+        echo -e "${GREEN}${BOLD}  StardropHost instance $INSTANCE_NUM is up and running!${NC}"
     else
-        echo -e "${GREEN}${BOLD}  StardropHost is running!${NC}"
+        echo -e "${GREEN}${BOLD}  StardropHost is up and running!${NC}"
     fi
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "  Open the web panel from any device on this network:"
+    echo -e "  Open the web panel from any device on your network:"
     echo ""
-    echo -e "  ${CYAN}${BOLD}http://${SERVER_IP}:${PANEL_PORT}${NC}"
+    echo -e "    ${CYAN}${BOLD}http://${SERVER_IP}:${PANEL_PORT}${NC}"
     echo ""
-    echo -e "  The setup wizard will guide you through:"
-    echo -e "    - Installing your game files"
-    echo -e "    - Creating your admin password"
-    echo -e "    - Configuring server resources"
-    echo -e "    - Setting up Steam invite codes (optional)"
+    echo -e "  The setup wizard will walk you through:"
+    echo -e "    1. Installing your Stardew Valley game files"
+    echo -e "       (via Steam login, local copy, or mounted path)"
+    echo -e "    2. Setting your admin password"
+    echo -e "    3. Configuring server resource limits (CPU / RAM)"
+    echo -e "    4. Naming your farm and choosing settings"
+    echo -e "    5. Starting the server"
     echo ""
 
     if [ "$INSTANCE_NUM" -gt 1 ]; then
-        echo -e "  Instance $INSTANCE_NUM ports:"
-        echo -e "    Web panel: ${CYAN}http://${SERVER_IP}:${PANEL_PORT}${NC}"
-        echo -e "    Game UDP:  ${PANEL_PORT%?}$((GAME_PORT))"
+        echo -e "  Instance $INSTANCE_NUM port summary:"
+        echo -e "    Web panel:  ${CYAN}http://${SERVER_IP}:${PANEL_PORT}${NC}"
+        echo -e "    Game UDP:   ${SERVER_IP}:${GAME_PORT}"
+        echo -e "    VNC:        ${SERVER_IP}:${VNC_PORT}  (remote desktop)"
         echo ""
     fi
 
     echo -e "${BOLD}  Useful commands:${NC}"
-    echo -e "    Logs:      ${CYAN}docker logs -f ${CONTAINER_PREFIX}${NC}"
-    echo -e "    Restart:   ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD restart${NC}"
-    echo -e "    Stop:      ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD down${NC}"
-    echo -e "    Directory: ${CYAN}$INSTALL_DIR${NC}"
+    echo -e "    Live logs:   ${CYAN}docker logs -f ${CONTAINER_PREFIX}${NC}"
+    echo -e "    Restart:     ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD restart${NC}"
+    echo -e "    Stop:        ${CYAN}cd $INSTALL_DIR && $COMPOSE_CMD down${NC}"
+    echo -e "    Update:      ${CYAN}cd $INSTALL_DIR && sudo bash update.sh${NC}"
+    echo -e "    Directory:   ${CYAN}$INSTALL_DIR${NC}"
     echo ""
 
     if [ "$REAL_USER" != "root" ]; then
-        echo -e "${YELLOW}  Note: Log out and back in for docker commands to work without sudo.${NC}"
-        echo -e "${YELLOW}  (Your account was added to the docker group.)${NC}"
+        echo -e "${YELLOW}  Tip: You can run docker commands now without sudo.${NC}"
+        echo -e "${YELLOW}       If you ever open a new terminal and get a permission error,${NC}"
+        echo -e "${YELLOW}       log out and back in to fully activate the 'docker' group.${NC}"
         echo ""
     fi
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -629,12 +729,13 @@ trap _copy_log_on_exit EXIT
 
 main() {
     print_header
-    print_info "Instance:   $INSTANCE_NUM"
-    print_info "Directory:  $INSTALL_DIR"
-    print_info "Temp log:   $LOG_FILE"
-    print_info "Final log:  $INSTALL_DIR/logs/$(basename "$LOG_FILE")  (written on exit)"
+    print_info "Instance:     $INSTANCE_NUM"
+    print_info "Directory:    $INSTALL_DIR"
+    print_info "Install log:  $INSTALL_DIR/logs/$(basename "$LOG_FILE")  (written on exit)"
     echo ""
     check_docker
+    print_step "Step 1b: Checking git..."
+    check_git
     download_files
     setup_instance
     start_server
