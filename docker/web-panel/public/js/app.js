@@ -470,14 +470,12 @@ function updateDashboardUI(data) {
   cpuBar.style.width  = Math.min(cpu, 100) + '%';
   cpuBar.className    = 'progress-fill' + (cpu > 80 ? ' danger' : cpu > 60 ? ' warn' : '');
 
-  // RAM — display in GB
+  // RAM
   const memUsedMB  = Math.round(data.memory?.used  || 0);
   const memLimitMB = data.memory?.limit || 2048;
   const memPct     = Math.round((memUsedMB / memLimitMB) * 100);
-  const memUsedGB  = (memUsedMB  / 1024).toFixed(1);
-  const memLimitGB = (memLimitMB / 1024).toFixed(1);
-  setText('ram-value', `${memUsedGB} / ${memLimitGB} GB`);
-  const ramBar = document.getElementById('ram-bar');
+  setText('ram-value', `${memUsedMB} / ${memLimitMB} MB`);
+  const ramBar   = document.getElementById('ram-bar');
   ramBar.style.width = Math.min(memPct, 100) + '%';
   ramBar.className   = 'progress-fill' + (memPct > 80 ? ' danger' : memPct > 60 ? ' warn' : '');
 
