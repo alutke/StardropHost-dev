@@ -286,15 +286,26 @@ function _wizShowStep3BackBtn(msg) {
   logEl.parentElement.appendChild(wrap);
 }
 
-// Stream setup.log lines into the step-3 log box, starting from the first
-// "Steam credentials detected" line so earlier boot noise is excluded.
+// Returns the index of the LAST "Steam credentials detected" line in the log,
+// or 0 if not found. Using the last occurrence means each new download attempt
+// resets the view — old sentinels from earlier attempts are excluded.
+function _wizLatestAttemptStart(lines) {
+  let idx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (/Steam credentials detected/i.test(lines[i].text)) idx = i;
+  }
+  return idx;
+}
+
+// Stream setup.log lines into the step-3 log box, starting from the most
+// recent "Steam credentials detected" line so old attempts are hidden.
 function _wizStreamLogs(lines, logEl, cntEl) {
   if (!logEl || !lines?.length) return;
 
-  // Find the starting index once (from "Steam credentials detected" onwards)
+  // Recalculate start on first display or after a retry reset
   if (_steamDlLogLines === 0) {
-    const startIdx = lines.findIndex(l => /Steam credentials detected/i.test(l.text));
-    if (startIdx > 0) _steamDlLogLines = startIdx; // skip earlier lines
+    const startIdx = _wizLatestAttemptStart(lines);
+    if (startIdx > 0) _steamDlLogLines = startIdx;
     logEl.innerHTML = ''; // clear placeholder
   }
 
@@ -394,9 +405,12 @@ async function wizPollDownloadProgress() {
     }
 
     // Check setup.log for status and errors
-    const log = await API.get('/api/logs/setup?lines=200');
+    const log = await API.get('/api/logs/setup?lines=300');
     if (log?.lines?.length) {
-      const allText = log.lines.map(l => l.text).join('\n');
+      // Only check sentinels in lines from the latest attempt onwards —
+      // this prevents old STEAM_GUARD_REQUIRED etc. from re-triggering.
+      const attemptStart = _wizLatestAttemptStart(log.lines);
+      const allText = log.lines.slice(attemptStart).map(l => l.text).join('\n');
 
       // Detect steamcmd Guard requirement — show inline input, pause polling.
       // Always show (even on retry) so the user can correct a wrong code.
