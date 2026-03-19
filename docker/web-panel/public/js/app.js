@@ -302,33 +302,44 @@ async function wizLaunchServer() {
   wizPollGameReady(0);
 }
 
-function wizPollGameReady(pct) {
-  const bar    = document.getElementById('wiz-launch-bar');
-  const lbl    = document.getElementById('wiz-launch-status');
-  const btn    = document.getElementById('wiz-complete-btn');
+const _STAGE_PCT = { waiting: 5, downloading: 20, installing: 40, starting: 55, loading: 65, running: 75, hosting: 90, ready: 100 };
+const _STAGE_TXT = {
+  waiting:     'Waiting for server to start…',
+  downloading: 'Downloading game files via Steam… (may take 5–15 min)',
+  installing:  'Installing SMAPI and building mods… (first run only)',
+  starting:    'Starting game server…',
+  loading:     'Game is loading…',
+  running:     'Creating your farm… (FarmAutoCreate mod is running)',
+  hosting:     'Farm loaded, enabling multiplayer hosting…',
+  ready:       '✅ Server is live — players can join!',
+};
 
-  // Animate progress bar slowly until game is ready
-  const nextPct = Math.min(pct + 2, 90);
-  if (bar) bar.style.width = nextPct + '%';
+function wizPollGameReady(prevPct) {
+  const bar = document.getElementById('wiz-launch-bar');
+  const lbl = document.getElementById('wiz-launch-status');
+  const btn = document.getElementById('wiz-complete-btn');
 
   _gameReadyTimer = setTimeout(async () => {
     try {
       const data = await API.get('/api/wizard/game-ready');
+      const stage = data?.stage || 'waiting';
+      const pct   = Math.max(prevPct, _STAGE_PCT[stage] || prevPct);
+
+      if (bar) bar.style.width = pct + '%';
+      if (lbl) {
+        lbl.textContent  = _STAGE_TXT[stage] || lbl.textContent;
+        lbl.style.color  = stage === 'ready' ? 'var(--accent)' : '';
+      }
+
       if (data?.ready) {
         if (bar) bar.style.width = '100%';
-        if (lbl) { lbl.style.color = 'var(--accent)'; lbl.textContent = '✅ Server is live — players can join!'; }
+        if (lbl) { lbl.style.color = 'var(--accent)'; lbl.textContent = _STAGE_TXT.ready; }
         if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Go to Dashboard'; }
       } else {
-        // Update label based on partial progress
-        if (lbl) {
-          if (data?.gameRunning && !data?.saveLoaded) lbl.textContent = 'Game running, loading save…';
-          else if (!data?.gameRunning) lbl.textContent = 'Waiting for game to start…';
-          else if (data?.saveLoaded && !data?.hosting) lbl.textContent = 'Save loaded, enabling hosting…';
-        }
-        wizPollGameReady(nextPct);
+        wizPollGameReady(pct);
       }
     } catch {
-      wizPollGameReady(nextPct);
+      wizPollGameReady(prevPct);
     }
   }, 5000);
 }

@@ -389,6 +389,39 @@ else
     log_warn "⚠️  ServerDashboard source not found at $SD_SRC — skipping"
 fi
 
+# -- Step 3.6: Build FarmAutoCreate mod --
+# Headless new-farm creation: reads new-farm.json and uses Stardew's own
+# C# API to create the farm programmatically (no xdotool, no VNC needed).
+log_step "Step 3.6: Building FarmAutoCreate mod..."
+
+FAC_SRC="/home/steam/mod-source/FarmAutoCreate"
+FAC_DEST="/home/steam/preinstalled-mods/FarmAutoCreate"
+
+if [ -f "$FAC_DEST/FarmAutoCreate.dll" ]; then
+    log_info "✅ FarmAutoCreate already built"
+elif [ -d "$FAC_SRC" ]; then
+    log_info "Building FarmAutoCreate against game files..."
+    dotnet build "$FAC_SRC" -c Release \
+        /p:GamePath=/home/steam/stardewvalley \
+        /p:EnableModDeploy=false \
+        /p:EnableModZip=false \
+        2>&1
+
+    FAC_OUT="$FAC_SRC/bin/Release/net6.0"
+    if [ -f "$FAC_OUT/FarmAutoCreate.dll" ]; then
+        mkdir -p "$FAC_DEST"
+        cp "$FAC_OUT/FarmAutoCreate.dll" "$FAC_DEST/"
+        cp "$FAC_SRC/manifest.json"      "$FAC_DEST/"
+        chown -R steam:steam "$FAC_DEST" 2>/dev/null || true
+        log_info "✅ FarmAutoCreate built and staged"
+    else
+        log_warn "⚠️  FarmAutoCreate build failed — new farm wizard step won't auto-create"
+        log_warn "    You can still set up the farm manually once the game starts"
+    fi
+else
+    log_warn "⚠️  FarmAutoCreate source not found at $FAC_SRC — skipping"
+fi
+
 # -- Step 4: Install mods --
 log_step "Step 4: Installing mods..."
 
@@ -551,15 +584,16 @@ cd /home/steam/stardewvalley
 log_info "Starting event handler..."
 /home/steam/scripts/event-handler.sh &
 
-# Auto-create new farm if wizard configured one and no save exists yet
+# New farm config — FarmAutoCreate SMAPI mod handles creation automatically.
+# The mod reads new-farm.json once the title screen appears and creates
+# the farm using Stardew's own C# API (no xdotool required).
 NEW_FARM_CONFIG="/home/steam/web-panel/data/new-farm.json"
 SAVES_DIR="/home/steam/.config/StardewValley/Saves"
 if [ -f "$NEW_FARM_CONFIG" ]; then
     if [ ! "$(ls -A "$SAVES_DIR" 2>/dev/null)" ]; then
-        log_info "New farm config detected — will create farm after SMAPI loads..."
-        /home/steam/scripts/create-farm.sh &
+        log_info "New farm config detected — FarmAutoCreate mod will create it on title screen"
     else
-        log_info "Save files already exist — skipping new farm creation"
+        log_info "Save files already exist — removing new-farm.json"
         rm -f "$NEW_FARM_CONFIG"
     fi
 fi

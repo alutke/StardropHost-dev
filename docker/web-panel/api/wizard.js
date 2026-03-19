@@ -364,20 +364,40 @@ function listSaves(req, res) {
 
 // Poll whether the game is loaded and hosting (wizard step 5)
 function getGameReadyStatus(req, res) {
+  const { spawnSync } = require('child_process');
+
+  function pgrepRunning(pattern) {
+    try { return spawnSync('pgrep', ['-f', pattern], { encoding: 'utf-8' }).status === 0; } catch { return false; }
+  }
+
   const smapi = config.SMAPI_LOG || '/home/steam/.config/StardewValley/ErrorLogs/SMAPI-latest.txt';
   let loaded = false;
   let hosting = false;
+  let smapiLogExists = false;
   try {
     if (fs.existsSync(smapi)) {
+      smapiLogExists = true;
       const content = fs.readFileSync(smapi, 'utf-8');
       loaded  = /SAVE LOADED SUCCESSFULLY|Context: loaded save/i.test(content);
       hosting = /Starting LAN server|Auto [Mm]ode [Oo]n/i.test(content);
     }
   } catch {}
-  const { spawnSync } = require('child_process');
-  let gameRunning = false;
-  try { gameRunning = spawnSync('pgrep', ['-f', 'StardewModdingAPI'], { encoding: 'utf-8' }).status === 0; } catch {}
-  res.json({ gameRunning, saveLoaded: loaded, hosting, ready: loaded && hosting });
+
+  const gameRunning   = pgrepRunning('StardewModdingAPI');
+  const steamRunning  = pgrepRunning('steamcmd');
+  const smapiInstalled = fs.existsSync('/home/steam/stardewvalley/StardewModdingAPI');
+
+  // Determine stage
+  let stage = 'waiting';
+  if      (steamRunning)                            stage = 'downloading';
+  else if (!smapiInstalled)                         stage = 'installing';
+  else if (!gameRunning)                            stage = 'starting';
+  else if (gameRunning && !smapiLogExists)          stage = 'loading';
+  else if (gameRunning && !loaded)                  stage = 'running';
+  else if (gameRunning && loaded && !hosting)       stage = 'hosting';
+  else if (hosting)                                 stage = 'ready';
+
+  res.json({ gameRunning, saveLoaded: loaded, hosting, ready: loaded && hosting, stage, smapiInstalled });
 }
 
 // Reset wizard (dev/recovery use)

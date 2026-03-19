@@ -75,16 +75,16 @@ COPY mods/ /home/steam/preinstalled-mods/
 RUN chown -R steam:steam /home/steam/preinstalled-mods && \
     chmod -R 755 /home/steam/preinstalled-mods
 
-# -- Copy ServerDashboard source + pre-restore NuGet packages --
-# The actual dotnet build happens in entrypoint.sh (Step 3.5) after game
-# files are mounted, because ModBuildConfig needs StardewValley.dll which
-# is only available at runtime, not at image build time.
-# Pre-restoring here caches NuGet packages so the runtime build works
-# offline (no internet needed inside the running container).
-COPY mods-source/ServerDashboard/ /home/steam/mod-source/ServerDashboard/
+# -- Copy SMAPI mod sources + pre-restore NuGet packages --
+# The actual dotnet builds happen in entrypoint.sh (Steps 3.5/3.6) after
+# game files are mounted, because ModBuildConfig needs StardewValley.dll
+# which is only available at runtime, not at image build time.
+# Pre-restoring here caches NuGet packages so runtime builds work offline.
+COPY mods-source/ServerDashboard/  /home/steam/mod-source/ServerDashboard/
+COPY mods-source/FarmAutoCreate/   /home/steam/mod-source/FarmAutoCreate/
 RUN chown -R root:root /home/steam/mod-source && \
-    cd /home/steam/mod-source/ServerDashboard && \
-    dotnet restore 2>&1 || true
+    cd /home/steam/mod-source/ServerDashboard && dotnet restore 2>&1 || true && \
+    cd /home/steam/mod-source/FarmAutoCreate  && dotnet restore 2>&1 || true
 USER steam
 
 # -- Copy scripts --
