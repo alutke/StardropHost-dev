@@ -202,9 +202,26 @@ function submitStep2(req, res) {
   }
 
   if (method === 'steam') {
-    // Steam download — credentials will be handled by the steam-auth container (Phase 4).
-    // For now just flag it so entrypoint.sh knows to download.
-    writeEnvValues({ STEAM_DOWNLOAD: 'true' });
+    const { steamUsername, steamPassword, steamGuardCode } = req.body || {};
+    if (!steamUsername || typeof steamUsername !== 'string' || !steamUsername.trim()) {
+      return res.status(400).json({ error: 'Steam username is required' });
+    }
+    if (!steamPassword || typeof steamPassword !== 'string') {
+      return res.status(400).json({ error: 'Steam password is required' });
+    }
+    // Write credentials + flag to runtime.env — the entrypoint.sh waiting loop
+    // re-reads this every 30s and runs steamcmd to download the game.
+    const envUpdates = {
+      STEAM_DOWNLOAD:  'true',
+      STEAM_USERNAME:  steamUsername.trim(),
+      STEAM_PASSWORD:  steamPassword,
+    };
+    if (steamGuardCode && typeof steamGuardCode === 'string' && steamGuardCode.trim()) {
+      envUpdates.STEAM_GUARD_CODE = steamGuardCode.trim();
+    }
+    writeEnvValues(envUpdates);
+    // Respond immediately — download is async via entrypoint waiting loop
+    return res.json({ success: true, message: 'Credentials saved — download starting', nextStep: 3 });
   }
 
   const state = readState();

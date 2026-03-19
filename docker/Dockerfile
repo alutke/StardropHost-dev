@@ -16,16 +16,19 @@ LABEL maintainer="tomomotto" \
       version="1.0.0"
 
 # -- Install dependencies --
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN dpkg --add-architecture i386 && \
+    apt-get update && apt-get install -y --no-install-recommends \
     # Core tools
     wget curl unzip ca-certificates \
+    # SteamCMD 32-bit runtime requirements
+    lib32gcc-s1 libcurl3-gnutls:i386 \
     # Game rendering
     libsdl2-2.0-0 \
     libgl1-mesa-dri libgl1-mesa-glx libegl1-mesa \
     # X11 display
     xserver-xorg-core xserver-xorg-video-modesetting \
     x11-xserver-utils xvfb x11vnc openbox xdotool \
-    # .NET runtime (game) + SDK (building ServerDashboard mod)
+    # .NET runtime (game) + SDK (building SMAPI mods)
     dotnet-runtime-6.0 \
     dotnet-sdk-6.0 \
     # Utilities
@@ -43,7 +46,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 
 # -- Create user and directories --
 RUN useradd -m -s /bin/bash steam && \
-    mkdir -p /home/steam/stardewvalley \
+    mkdir -p /home/steam/steamcmd \
+             /home/steam/stardewvalley \
              /home/steam/.config/StardewValley \
              /home/steam/.local/share/stardrop/logs \
              /home/steam/.local/share/stardrop/backups \
@@ -64,8 +68,10 @@ EOF
 WORKDIR /home/steam
 USER steam
 
-# -- Download SMAPI --
-RUN wget -qO smapi.zip 'https://github.com/Pathoschild/SMAPI/releases/download/4.3.2/SMAPI-4.3.2-installer.zip' && \
+# -- Download SteamCMD + SMAPI --
+RUN wget -qO- 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | \
+        tar zxf - -C /home/steam/steamcmd && \
+    wget -qO smapi.zip 'https://github.com/Pathoschild/SMAPI/releases/download/4.3.2/SMAPI-4.3.2-installer.zip' && \
     unzip -q smapi.zip -d smapi && \
     rm smapi.zip
 
@@ -121,7 +127,7 @@ USER root
 EXPOSE 24642/udp 5900/tcp 9090/tcp 18642/tcp
 
 # -- Health check --
-HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=900s --retries=3 \
     CMD pgrep -f "StardewModdingAPI" > /dev/null || exit 1
 
 ENTRYPOINT ["/home/steam/entrypoint.sh"]

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/user/Documents/StardropHost/StardropHost/docker/mods -type f -name *.json -o -name *.dll)"
+    ]
+  }
+}

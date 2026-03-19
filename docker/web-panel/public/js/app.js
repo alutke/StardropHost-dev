@@ -57,14 +57,12 @@ function wizSetMethod(method) {
   document.getElementById('wiz-method-local').style.display = method === 'local' ? 'block' : 'none';
   document.getElementById('wiz-method-steam').style.display = method === 'steam' ? 'block' : 'none';
   _wizState._method = method;
-  // Steam method can always continue; local needs file check
+  // Steam: hide the Continue row entirely — download button auto-advances
+  // Local/path: show Continue row, enable once files are verified
+  const continueRow = document.getElementById('wiz-step2-continue-row');
+  if (continueRow) continueRow.style.display = method === 'steam' ? 'none' : '';
   const nextBtn = document.getElementById('wiz-step2-next');
-  if (method === 'steam') {
-    nextBtn.disabled = false;
-  } else {
-    // Re-check if files already present from previous check
-    nextBtn.disabled = !_wizState._filesFound;
-  }
+  if (nextBtn) nextBtn.disabled = !_wizState._filesFound;
 }
 
 async function wizScanGamePath() {
@@ -90,71 +88,107 @@ async function wizScanGamePath() {
   }
 }
 
-let _steamPollTimer = null;
+let _steamDlPollTimer = null;
+let _steamDlLogLines  = 0;
 
 async function wizStartSteamDownload() {
-  const user = document.getElementById('wiz-steam-user')?.value?.trim();
-  const pass = document.getElementById('wiz-steam-pass')?.value?.trim();
+  const user    = document.getElementById('wiz-steam-user')?.value?.trim();
+  const pass    = document.getElementById('wiz-steam-pass')?.value?.trim();
+  const guard   = document.getElementById('wiz-steam-guard')?.value?.trim();
   const statusEl = document.getElementById('wiz-steam-status');
-  if (!user || !pass) { statusEl.textContent = 'Enter your Steam username and password.'; return; }
+  const btn      = document.getElementById('wiz-steam-dl-btn');
 
+  if (!user || !pass) {
+    statusEl.style.color = 'var(--accent-error)';
+    statusEl.textContent = 'Enter your Steam username and password.';
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting download…'; }
   statusEl.style.color = 'var(--text-secondary)';
-  statusEl.textContent = 'Connecting to Steam…';
+  statusEl.textContent = 'Sending credentials to server…';
 
   try {
-    // Initiate login via steam-auth container (proxied through web panel)
-    const data = await API.post('/api/steam/login', { username: user, password: pass });
+    const body = { method: 'steam', steamUsername: user, steamPassword: pass };
+    if (guard) body.steamGuardCode = guard;
+    const data = await API.post('/api/wizard/step/2', body);
+
     if (data?.success) {
-      statusEl.textContent = 'Logging in… waiting for Steam Guard if required.';
-      _steamPollTimer = setInterval(wizPollSteamStatus, 3000);
+      statusEl.style.color = 'var(--accent)';
+      statusEl.textContent = '✅ Credentials sent — download starting (may take 5–15 min)…';
+      document.getElementById('wiz-steam-log-wrap').style.display = 'block';
+      document.getElementById('wiz-step2-continue-row').style.display = 'none';
+      _wizState._method = 'steam';
+      _steamDlLogLines = 0;
+      clearInterval(_steamDlPollTimer);
+      _steamDlPollTimer = setInterval(wizPollSteamDownload, 4000);
     } else {
+      if (btn) { btn.disabled = false; btn.textContent = 'Login & Download Game'; }
       statusEl.style.color = 'var(--accent-error)';
-      statusEl.textContent = data?.error || 'Login failed.';
+      statusEl.textContent = data?.error || 'Failed to start download.';
     }
   } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Login & Download Game'; }
     statusEl.style.color = 'var(--accent-error)';
-    statusEl.textContent = e.message || 'Failed to reach Steam auth service.';
+    statusEl.textContent = e.message || 'Request failed — try again.';
   }
 }
 
-async function wizPollSteamStatus() {
+async function wizPollSteamDownload() {
   const statusEl = document.getElementById('wiz-steam-status');
-  try {
-    const data = await API.get('/api/steam/status');
-    if (!data) return;
+  const logEl    = document.getElementById('wiz-steam-log');
+  const btn      = document.getElementById('wiz-steam-dl-btn');
 
-    if (data.state === 'guard_required') {
-      statusEl.textContent = data.lastError || 'Steam Guard code required.';
-      document.getElementById('wiz-steam-guard-row').style.display = '';
-    } else if (data.state === 'online') {
-      clearInterval(_steamPollTimer);
+  // Check if game files have appeared
+  try {
+    const ready = await API.get('/api/wizard/game-ready');
+    if (ready?.gameFilesExist) {
+      clearInterval(_steamDlPollTimer);
+      _steamDlPollTimer = null;
       statusEl.style.color = 'var(--accent)';
-      statusEl.textContent = '✅ Steam logged in! Game download will begin on server start.';
-      document.getElementById('wiz-steam-guard-row').style.display = 'none';
-      await API.post('/api/wizard/step/2', { method: 'steam' });
+      statusEl.textContent = '✅ Game files downloaded!';
       _wizState._filesFound = true;
-      _wizState._method = 'steam';
-      document.getElementById('wiz-step2-next').disabled = false;
-    } else if (data.state === 'error') {
-      clearInterval(_steamPollTimer);
-      statusEl.style.color = 'var(--accent-error)';
-      statusEl.textContent = data.lastError || 'Steam login error.';
+      _wizState._gameMethod = 'steam';
+      setTimeout(() => wizGoToStep(3), 800);
+      return;
     }
   } catch {}
-}
 
-async function wizSubmitSteamGuard() {
-  const code = document.getElementById('wiz-steam-guard')?.value?.trim();
-  const statusEl = document.getElementById('wiz-steam-status');
-  if (!code) return;
-  statusEl.style.color = 'var(--text-secondary)';
-  statusEl.textContent = 'Submitting Steam Guard code…';
+  // Pull latest setup.log lines for progress display
   try {
-    await API.post('/api/steam/guard', { code });
-  } catch (e) {
-    statusEl.style.color = 'var(--accent-error)';
-    statusEl.textContent = e.message || 'Failed to submit code.';
-  }
+    const log = await API.get('/api/logs/setup?lines=60');
+    if (log?.lines?.length) {
+      const newLines = log.lines.slice(_steamDlLogLines);
+      if (newLines.length && logEl) {
+        newLines.forEach(l => {
+          const div = document.createElement('div');
+          div.style.color = l.level === 'error' ? 'var(--accent-error)' :
+                            l.level === 'warn'  ? 'var(--accent-warning,#f59e0b)' :
+                                                   'var(--text-secondary)';
+          div.textContent = l.text;
+          logEl.appendChild(div);
+        });
+        logEl.scrollTop = logEl.scrollHeight;
+        _steamDlLogLines = log.lines.length;
+
+        // Detect Steam Guard prompt in log
+        const allText = log.lines.map(l => l.text).join('\n');
+        if (/steam guard|two-factor|2fa|enter.*code/i.test(allText) && statusEl) {
+          statusEl.style.color = 'var(--accent-warning,#f59e0b)';
+          statusEl.textContent = '⚠️ Steam Guard required — enter your code above and click the button again.';
+          if (btn) { btn.disabled = false; btn.textContent = 'Submit Guard Code & Retry'; }
+        }
+
+        // Detect login failure
+        if (/invalid password|login failure|rate limit/i.test(allText)) {
+          clearInterval(_steamDlPollTimer);
+          statusEl.style.color = 'var(--accent-error)';
+          statusEl.textContent = '❌ Steam login failed — check your credentials and try again.';
+          if (btn) { btn.disabled = false; btn.textContent = 'Login & Download Game'; }
+        }
+      }
+    }
+  } catch {}
 }
 
 async function wizCheckGameFiles() {
@@ -772,6 +806,11 @@ async function loadLogs(filter, search) {
 
   if (!data.exists) {
     output.innerHTML = '<div class="log-line info">Log file not found yet — server may still be starting...</div>';
+    return;
+  }
+
+  if (!data.lines.length) {
+    output.innerHTML = '<div class="log-line info">No log entries yet — waiting for server activity...</div>';
     return;
   }
 

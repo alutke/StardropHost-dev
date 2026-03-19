@@ -17,8 +17,9 @@ StardropHost/
 │   │   ├── ServerAutoLoad/
 │   │   └── SkillLevelGuard/
 │   ├── mods-source/
-│   │   ├── AutoHideHost_v1.0.1/    # C# source for AutoHideHost
-│   │   └── ServerDashboard/        # C# source — built at image build time
+│   │   ├── AutoHideHost_v1.0.1/    # C# source for AutoHideHost (reference)
+│   │   ├── ServerDashboard/        # C# source — built at container startup (Step 3.5)
+│   │   └── FarmAutoCreate/         # C# source — built at container startup (Step 3.6)
 │   ├── scripts/
 │   │   ├── entrypoint.sh           # Container startup (main logic)
 │   │   ├── init-container.sh       # One-shot: permissions + directory setup
@@ -32,30 +33,30 @@ StardropHost/
 │   │   ├── vnc-monitor.sh          # VNC lifecycle management
 │   │   └── set-resolution.sh       # Xvfb resolution control
 │   ├── manager/
-│   │   └── server.js               # Manager sidecar (port 3001)
+│   │   └── server.js               # Manager sidecar (port 18700 internal)
 │   ├── steam-auth/
-│   │   └── server.js               # Steam auth sidecar (port 3000)
+│   │   └── server.js               # Steam auth sidecar — invite codes only (port 18700 internal)
 │   └── web-panel/
 │       ├── server.js               # Express entry point (port 18642)
 │       ├── auth.js                 # JWT + bcrypt auth
 │       └── api/
-│           ├── wizard.js           # 5-step first-run wizard
-│           ├── status.js           # Live server status
-│           ├── logs.js             # Log streaming
-│           ├── mods.js             # Mod management
-│           ├── saves.js            # Save management
-│           ├── farm.js             # Farm/player info
-│           ├── players.js          # Player list
-│           ├── config.js           # Runtime config
-│           ├── vnc.js              # VNC control
-│           ├── terminal.js         # WebSocket terminal
-│           └── steam.js            # Steam status relay
+│           ├── wizard.js           # 5-step first-run setup wizard
+│           ├── status.js           # Live server status + start/stop/restart
+│           ├── logs.js             # Log streaming (SMAPI, setup, mods, game)
+│           ├── mods.js             # Mod management (install, delete, pending state)
+│           ├── saves.js            # Save management (upload, backup, delete)
+│           ├── farm.js             # Farm overview + live status
+│           ├── players.js          # Player list, kick, ban
+│           ├── config.js           # Runtime config (env file read/write)
+│           ├── vnc.js              # VNC toggle + one-time password
+│           ├── terminal.js         # WebSocket PTY terminal
+│           └── steam.js            # Steam invite-code relay (steam-auth sidecar proxy)
 ├── tests/
 │   ├── test-new-features.sh        # Offline script logic tests
 │   ├── test-steam-guard.sh         # steam-auth API tests (needs container)
 │   ├── cleanup-tests.sh            # Remove test containers + tmp dirs
 │   └── README.md
-├── Docs/
+├── docs/
 ├── docker-compose.yml
 ├── verify-deployment.sh
 └── backup.sh
@@ -100,28 +101,43 @@ StardropHost/
 
 ```
 entrypoint.sh
-  Phase 1 (root):  GPU Xorg config → switch to steam user
-  Phase 2 (steam): Detect game files
-  Phase 3:         Install SMAPI (skip if already installed)
-  Phase 4:         Deploy mods (preinstalled + custom)
-  Phase 5:         Write startup_preferences (SAVE_NAME, resolution)
-  Phase 6:         Start Xvfb
-  Phase 7:         Start x11vnc (if ENABLE_VNC=true)
-  Phase 8:         Start background services
-                     crash-monitor.sh  (if ENABLE_CRASH_RESTART=true)
-                     auto-backup.sh    (if ENABLE_AUTO_BACKUP=true)
-                     log-monitor.sh    (if ENABLE_LOG_MONITOR=true)
-                     status-reporter.sh (always)
-  Phase 9:         Launch StardewModdingAPI --server
+  Phase 1 (root):   GPU Xorg config (if USE_GPU=true) → switch to steam user
+
+  Phase 2 (steam):  [Step 0]   Start web panel early (port 18642)
+                               Wizard is reachable before game files exist
+                    [Step 1]   Load runtime.env overrides
+                    [Step 2]   Setup game files:
+                                 - Already present → continue
+                                 - GAME_PATH set → copy from path
+                                 - STEAM_DOWNLOAD=true → run steamcmd
+                                 - None → wait loop (re-reads env every 30s,
+                                   picks up credentials written by wizard)
+                    [Step 3]   Install SMAPI (skip if already installed)
+                    [Step 3.5] Build ServerDashboard mod from source
+                               (needs game DLLs, so runs after Step 2)
+                    [Step 3.6] Build FarmAutoCreate mod from source
+                               (headless new-farm creation, no xdotool)
+                    [Step 4]   Install preinstalled mods + custom mods
+                    [Step 5]   Start Xvfb (or use GPU Xorg if running)
+                    [Step 6]   Start x11vnc (if ENABLE_VNC=true)
+                    [Step 7]   Write startup_preferences (resolution, display)
+                    [Step 7.5] Run save-selector.sh (if SAVE_NAME set)
+                    [Step 8]   Start log-monitor.sh (if ENABLE_LOG_MONITOR=true)
+                    [Step 9]   Launch StardewModdingAPI --server
+                               (wrapped in crash-monitor.sh if ENABLE_CRASH_RESTART=true)
 ```
 
 ---
 
 ## Key Design Decisions
 
-### ServerDashboard mod (built at image build time)
+### ServerDashboard and FarmAutoCreate mods (built at container startup)
 
-The web panel reads live status from `/home/steam/web-panel/data/live-status.json`, written by the `ServerDashboard` C# mod. The mod is built from source during `docker build` using `dotnet-sdk-6.0`, so the DLL is always in sync with the target game/SMAPI version. The build step in `Dockerfile` copies `ServerDashboard.dll` and `manifest.json` separately — there is no `ServerDashboard/` subdirectory under `net6.0/`.
+Both mods are built from source inside the running container (Steps 3.5/3.6 in entrypoint.sh), **not** at image build time. This is intentional: `ModBuildConfig` needs `StardewValley.dll` and `StardewModdingAPI.dll`, which only exist after game files are mounted at runtime. NuGet packages are pre-restored during `docker build` (the `dotnet restore` layer in Dockerfile) so the runtime builds work offline.
+
+**ServerDashboard** writes live server status to `/home/steam/web-panel/data/live-status.json`, which the web panel reads for the dashboard.
+
+**FarmAutoCreate** reads `/home/steam/web-panel/data/new-farm.json` when the title screen appears and creates a new multiplayer farm programmatically using Stardew's own C# API — no xdotool or VNC interaction required. Technique adapted from Junimo Host's `GameCreatorService`.
 
 ### Player ID regex
 
@@ -139,9 +155,13 @@ SMAPI logs player IDs as large negative integers (e.g. `-123456789012345`). All 
 
 This endpoint is called by `vnc-monitor.sh` running inside the container and does not go through the JWT middleware. This is intentional.
 
-### steam-auth isolation
+### Two separate Steam integrations
 
-Steam credentials are only ever present in the `stardrop-steam-auth` container. The game container never sees them. The steam-auth sidecar writes a refresh token to a shared volume so subsequent startups don't require re-authentication.
+There are two distinct Steam integrations that serve different purposes:
+
+1. **steamcmd (game container)** — Downloads Stardew Valley game files during first-run setup. The wizard writes credentials to `runtime.env`; the entrypoint.sh waiting loop reads them and runs `steamcmd +app_update 413150`. Credentials are deleted from the env file immediately after the download attempt, successful or not.
+
+2. **stardrop-steam-auth (sidecar)** — Handles Steam network authentication for generating invite codes so players can join via Steam friends. This is entirely separate from game download. The auth sidecar is only used post-setup when the server is running and players want a Steam invite link.
 
 ---
 

@@ -644,7 +644,7 @@
         </div>
 
         <div id="wiz-method-steam" style="display:none">
-          <div style="display:grid;gap:12px;margin-bottom:12px">
+          <div style="display:grid;gap:12px;margin-bottom:14px">
             <div>
               <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:5px">Steam Username</label>
               <input id="wiz-steam-user" class="input" type="text" placeholder="your_steam_username" style="width:100%">
@@ -653,19 +653,31 @@
               <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:5px">Steam Password</label>
               <input id="wiz-steam-pass" class="input" type="password" placeholder="Steam password" style="width:100%">
             </div>
-          </div>
-          <div id="wiz-steam-guard-row" style="display:none;margin-bottom:12px">
-            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:5px">Steam Guard Code</label>
-            <div style="display:flex;gap:8px">
-              <input id="wiz-steam-guard" class="input" type="text" placeholder="Enter your Steam Guard code" style="flex:1">
-              <button class="btn btn-primary" onclick="wizSubmitSteamGuard()">Submit</button>
+            <div>
+              <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px">
+                Steam Guard Code
+                <span style="font-weight:400;color:var(--text-muted)"> — leave blank on first attempt; check email/app if prompted</span>
+              </label>
+              <input id="wiz-steam-guard" class="input" type="text" placeholder="e.g. AB12C" style="width:100%;letter-spacing:0.1em">
             </div>
           </div>
-          <div id="wiz-steam-status" style="font-size:13px;color:var(--text-muted);margin-bottom:12px;min-height:16px"></div>
-          <button class="btn btn-primary" style="width:100%" onclick="wizStartSteamDownload()">Login &amp; Download Game</button>
+          <div id="wiz-steam-status" style="font-size:13px;color:var(--text-muted);margin-bottom:10px;min-height:16px"></div>
+          <!-- Live download log — shown once download starts -->
+          <div id="wiz-steam-log-wrap" style="display:none;margin-bottom:12px">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;display:flex;justify-content:space-between">
+              <span>Download log</span><span id="wiz-steam-log-hint" style="opacity:0.6"></span>
+            </div>
+            <div id="wiz-steam-log" style="
+              background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;
+              padding:8px 10px;font-family:monospace;font-size:10.5px;line-height:1.6;
+              max-height:180px;overflow-y:auto;color:var(--text-secondary);
+            "><span style="opacity:0.5">Connecting to Steam…</span></div>
+          </div>
+          <button id="wiz-steam-dl-btn" class="btn btn-primary" style="width:100%" onclick="wizStartSteamDownload()">Login &amp; Download Game</button>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;margin-top:20px">
+        <!-- Continue only shown for local/path methods; steam auto-advances -->
+        <div id="wiz-step2-continue-row" style="display:flex;justify-content:flex-end;margin-top:20px">
           <button class="btn btn-success" id="wiz-step2-next" onclick="wizSubmitStep2()" disabled>Continue →</button>
         </div>
       </div>
