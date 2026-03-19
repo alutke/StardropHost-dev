@@ -2,129 +2,106 @@
 # ===========================================
 # StardropHost | update.sh
 # ===========================================
+# Stops containers, rebuilds the server image,
+# restarts everything, and tails the logs.
+#
 # Usage:
-#   ./update.sh          # Update to latest
-#   ./update.sh v1.0.0   # Update to specific version
+#   sudo bash update.sh
 # ===========================================
 
+set +e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+
+# -- Colors --
+RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-RED='\033[0;31m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-BOLD='\033[1m'
 NC='\033[0m'
+BOLD='\033[1m'
 
-IMAGE="tomomotto/stardrophost"
-CONTAINER="stardrop"
-VERSION="${1:-latest}"
-
-print_success() { echo -e "${GREEN}✅ $1${NC}"; }
-print_error()   { echo -e "${RED}❌ $1${NC}"; }
-print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-print_info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
+print_header()  {
+    echo ""
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}${BOLD}  StardropHost — Rebuild & Update${NC}"
+    echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+}
+print_success() { echo -e "${GREEN}[OK]   $1${NC}"; }
+print_error()   { echo -e "${RED}[ERR]  $1${NC}"; }
+print_warning() { echo -e "${YELLOW}[WARN] $1${NC}"; }
+print_info()    { echo -e "${BLUE}[>>]   $1${NC}"; }
 print_step()    { echo ""; echo -e "${BOLD}$1${NC}"; }
 
-echo ""
-echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}${BOLD}  🌟 StardropHost Updater${NC}"
-echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-
-# -- Step 1: Check current version --
-print_step "Step 1: Checking current version..."
-
-CURRENT_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER" 2>/dev/null)
-if [ -n "$CURRENT_IMAGE" ]; then
-    print_info "  Current: $CURRENT_IMAGE"
-else
-    print_warning "  Container not found"
-fi
-print_info "  Target:  $IMAGE:$VERSION"
-
-# -- Step 2: Backup saves --
-print_step "Step 2: Backing up saves..."
-
-mkdir -p backups
-
-if [ -d "data/saves" ]; then
-    BACKUP_FILE="backups/saves-pre-update-$(date +%Y%m%d-%H%M%S).tar.gz"
-    if tar -czf "$BACKUP_FILE" data/saves/ 2>/dev/null; then
-        print_success "Backup saved to: $BACKUP_FILE"
-    else
-        print_warning "Backup failed, continuing anyway"
-    fi
-else
-    print_warning "No saves directory found, skipping backup"
+# -- Require root --
+if [ "$(id -u)" != "0" ]; then
+    exec sudo bash "$0" "$@"
 fi
 
-# -- Step 3: Stop server --
-print_step "Step 3: Stopping server..."
-
-if docker ps -q -f name="$CONTAINER" | grep -q .; then
-    docker compose down 2>/dev/null || docker stop "$CONTAINER" 2>/dev/null
-    print_success "Server stopped"
+# -- Resolve compose command --
+if docker compose version &>/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+elif command -v docker-compose &>/dev/null; then
+    COMPOSE_CMD="docker-compose"
 else
-    print_info "Server not running, skipping"
-fi
-
-# -- Step 4: Pull new image --
-print_step "Step 4: Pulling new image ($VERSION)..."
-
-if ! docker pull "$IMAGE:$VERSION"; then
-    print_error "Failed to pull image"
-    print_error "Check your network connection and try again"
+    echo -e "${RED}[ERR]  Docker Compose not found. Is Docker installed?${NC}"
     exit 1
 fi
-print_success "Image pulled successfully"
 
-# -- Step 5: Update image tag if specific version --
-print_step "Step 5: Updating configuration..."
-
-if [ "$VERSION" != "latest" ]; then
-    if [ -f "docker-compose.yml" ]; then
-        sed -i "s|image: ${IMAGE}:.*|image: ${IMAGE}:${VERSION}|" docker-compose.yml
-        print_success "Updated image tag to $VERSION"
-    fi
-else
-    print_info "Using latest tag, no changes needed"
+# -- Detect container prefix from .env --
+CONTAINER_PREFIX="stardrop"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    _prefix=$(grep -E '^CONTAINER_PREFIX=' "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+    [ -n "$_prefix" ] && CONTAINER_PREFIX="$_prefix"
 fi
 
-# -- Step 6: Start server --
-print_step "Step 6: Starting server..."
+cd "$SCRIPT_DIR" || { echo -e "${RED}[ERR]  Cannot cd to $SCRIPT_DIR${NC}"; exit 1; }
 
-if ! docker compose up -d 2>/dev/null; then
-    print_error "Failed to start server"
+print_header
+print_info "Directory:  $SCRIPT_DIR"
+print_info "Container:  ${CONTAINER_PREFIX}-server"
+echo ""
+
+# -- Step 1: Stop containers --
+print_step "Step 1: Stopping containers..."
+$COMPOSE_CMD down
+print_success "Containers stopped"
+
+# -- Step 2: Rebuild server image --
+print_step "Step 2: Rebuilding server image (no cache)..."
+print_info "This may take a few minutes on first run (downloads deps)."
+echo ""
+
+if ! $COMPOSE_CMD build --no-cache stardrop-server; then
     echo ""
-    echo "Check logs: docker logs $CONTAINER"
+    print_error "Build failed! Check the output above for errors."
     exit 1
 fi
-print_success "Server started"
+
+print_success "Image built successfully"
+
+# -- Step 3: Start containers --
+print_step "Step 3: Starting containers..."
+
+if ! $COMPOSE_CMD up -d; then
+    print_error "Failed to start containers!"
+    echo "  Check logs: $COMPOSE_CMD logs"
+    exit 1
+fi
+
+print_success "Containers started"
+
+# -- Done --
+echo ""
+echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}${BOLD}  Update complete! Streaming server logs...${NC}"
+echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "  ${YELLOW}Press Ctrl+C to stop watching logs (server keeps running)${NC}"
+echo ""
 
 sleep 2
-INIT_EXIT=$(docker inspect --format='{{.State.ExitCode}}' stardrop-init 2>/dev/null)
-if [ "$INIT_EXIT" != "0" ] && [ -n "$INIT_EXIT" ]; then
-    print_warning "Init container exit code: $INIT_EXIT"
-    print_warning "Check: docker logs stardrop-init"
-fi
-
-# -- Step 7: Verify --
-print_step "Step 7: Verifying update..."
-
-sleep 3
-NEW_IMAGE=$(docker inspect --format='{{.Config.Image}}' "$CONTAINER" 2>/dev/null)
-print_info "  Running: $NEW_IMAGE"
-
-# -- Cleanup --
-print_step "Cleaning up old images..."
-docker image prune -f 2>/dev/null
-print_success "Cleanup complete"
-
-echo ""
-echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}${BOLD}  🌟 Update complete!${NC}"
-echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo ""
-print_info "View logs:  docker logs -f $CONTAINER"
-print_info "Backup at:  $BACKUP_FILE"
-echo ""
+docker logs -f "${CONTAINER_PREFIX}-server" 2>/dev/null \
+    || docker logs -f "${CONTAINER_PREFIX}" 2>/dev/null \
+    || $COMPOSE_CMD logs -f stardrop-server
