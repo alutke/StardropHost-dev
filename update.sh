@@ -137,11 +137,28 @@ fi
 
 print_success "Containers started"
 
+# -- Resolve IP and panel port for the done message --
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+if [ -z "$LOCAL_IP" ] && command -v ip &>/dev/null; then
+    LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1);exit}}')
+fi
+SERVER_IP="${LOCAL_IP:-your-server-ip}"
+
+PANEL_PORT="18642"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    _port=$(grep -E '^PANEL_PORT=' "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'")
+    [ -n "$_port" ] && PANEL_PORT="$_port"
+fi
+
 # -- Done --
 echo ""
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}${BOLD}  Update complete!${NC}"
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "  Web panel:"
+echo ""
+echo -e "    ${CYAN}${BOLD}http://${SERVER_IP}:${PANEL_PORT}${NC}"
 echo ""
 echo -e "  Streaming live server logs below."
 echo -e "  ${YELLOW}Press Ctrl+C to stop watching — the server keeps running.${NC}"
@@ -150,4 +167,9 @@ echo ""
 sleep 2
 docker logs -f "${CONTAINER_PREFIX}-server" 2>/dev/null \
     || docker logs -f "${CONTAINER_PREFIX}" 2>/dev/null \
-    || $COMPOSE_CMD logs -f stardrop-server
+    || $COMPOSE_CMD logs -f stardrop-server || true
+
+echo ""
+echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "    ${CYAN}${BOLD}cd ./$(basename "$SCRIPT_DIR")${NC}"
+echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
