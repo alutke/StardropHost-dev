@@ -530,6 +530,27 @@ if [ -d "$CUSTOM_MODS_DIR" ] && [ "$(ls -A "$CUSTOM_MODS_DIR" 2>/dev/null)" ]; t
     log_info "✅ Custom mods installed"
 fi
 
+# -- Step 4.7: Steam SDK setup --
+# Links steamcmd's steamclient.so to the location the game's Steam runtime
+# expects, and writes steam_appid.txt so the SDK targets Stardew Valley.
+# Without this the game cannot connect to Steam and getInviteCode() returns null.
+log_step "Step 4.7: Setting up Steam SDK for multiplayer..."
+
+STEAM_SDK_SRC="/home/steam/steamcmd/linux64/steamclient.so"
+STEAM_SDK_DEST_DIR="/home/steam/.steam/sdk64"
+STEAM_APPID_FILE="/home/steam/stardewvalley/steam_appid.txt"
+
+if [ -f "$STEAM_SDK_SRC" ]; then
+    mkdir -p "$STEAM_SDK_DEST_DIR"
+    ln -sf "$STEAM_SDK_SRC" "$STEAM_SDK_DEST_DIR/steamclient.so"
+    log_info "✅ Steam SDK linked ($STEAM_SDK_DEST_DIR/steamclient.so)"
+else
+    log_warn "⚠️  steamclient.so not found at $STEAM_SDK_SRC — Steam invite codes may not work"
+fi
+
+echo "413150" > "$STEAM_APPID_FILE"
+log_info "✅ steam_appid.txt written (413150)"
+
 # -- Step 5: Virtual display --
 log_step "Step 5: Starting virtual display..."
 
