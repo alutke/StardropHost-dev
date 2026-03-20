@@ -1969,10 +1969,21 @@ function renderSteamPanel(data, inviteCode) {
   const panel = document.getElementById('steamPanel');
   if (!panel) return;
 
-  // Guard input check — don't wipe what the user typed during guard_required
+  // Don't wipe active inputs — only update dynamic text in-place
   if (data?.state === 'guard_required' && document.getElementById('steamGuardInput')) {
     const errEl = panel.querySelector('.steam-guard-error');
     if (errEl) errEl.textContent = data.lastError || '';
+    // Update invite code in-place if it arrived
+    const codeEl = panel.querySelector('.steam-invite-code-value');
+    if (codeEl && inviteCode) codeEl.textContent = inviteCode;
+    startSteamPolling();
+    return;
+  }
+  if ((data?.state === 'offline' || data?.state === 'error') && document.getElementById('steamUsername')) {
+    const errEl = panel.querySelector('.steam-login-error');
+    if (errEl) errEl.textContent = data.lastError || '';
+    const codeEl = panel.querySelector('.steam-invite-code-value');
+    if (codeEl && inviteCode) codeEl.textContent = inviteCode;
     startSteamPolling();
     return;
   }
@@ -1981,7 +1992,7 @@ function renderSteamPanel(data, inviteCode) {
   const codeHtml = `
     <div style="margin-bottom:12px">
       <div class="detail-label">Steam Invite Code</div>
-      <div class="detail-value" style="font-size:15px;font-family:monospace;letter-spacing:1px;margin:4px 0">
+      <div class="detail-value steam-invite-code-value" style="font-size:15px;font-family:monospace;letter-spacing:1px;margin:4px 0">
         ${inviteCode ? escapeHtml(inviteCode) : '<span style="color:var(--text-muted)">Waiting for server...</span>'}
       </div>
       ${inviteCode ? `<div class="detail-note">Players: Stardew Valley → Co-op → Enter Invite Code</div>` : ''}
@@ -2017,7 +2028,7 @@ function renderSteamPanel(data, inviteCode) {
     authHtml = `
       <div style="margin-bottom:8px;font-size:13px;color:var(--text-secondary)">
         Sign in to Steam (optional — only required if your server needs it).
-        ${data.lastError ? `<div style="color:var(--accent-error);margin-top:4px">${escapeHtml(data.lastError)}</div>` : ''}
+        <div class="steam-login-error" style="color:var(--accent-error);margin-top:4px">${escapeHtml(data.lastError || '')}</div>
       </div>
       <div class="form-row">
         <input type="text"     id="steamUsername" class="input" placeholder="Steam username" style="width:160px"
