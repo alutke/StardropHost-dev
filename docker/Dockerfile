@@ -89,13 +89,13 @@ RUN rm -rf /home/steam/preinstalled-mods/ServerAutoLoad && \
 # The actual dotnet builds happen in entrypoint.sh (Steps 3.5/3.6) after
 # game files are mounted, because ModBuildConfig needs StardewValley.dll
 # which is only available at runtime, not at image build time.
-# Pre-restoring here caches NuGet packages so runtime builds work offline.
-COPY mods-source/ServerDashboard/       /home/steam/mod-source/ServerDashboard/
-COPY mods-source/StardropGameManager/   /home/steam/mod-source/StardropGameManager/
-RUN chown -R root:root /home/steam/mod-source && \
-    cd /home/steam/mod-source/ServerDashboard     && dotnet restore 2>&1 || true && \
-    cd /home/steam/mod-source/StardropGameManager && dotnet restore 2>&1 || true
+# Pre-restoring HERE (as steam) caches NuGet packages into /home/steam/.nuget
+# so the runtime dotnet build (also run as steam) can find them offline.
+COPY --chown=steam:steam mods-source/ServerDashboard/       /home/steam/mod-source/ServerDashboard/
+COPY --chown=steam:steam mods-source/StardropGameManager/   /home/steam/mod-source/StardropGameManager/
 USER steam
+RUN cd /home/steam/mod-source/ServerDashboard     && dotnet restore 2>&1 || true && \
+    cd /home/steam/mod-source/StardropGameManager && dotnet restore 2>&1 || true
 
 # -- Copy scripts --
 COPY --chown=steam:steam scripts/entrypoint.sh /home/steam/entrypoint.sh

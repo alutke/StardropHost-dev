@@ -96,11 +96,126 @@ else
     print_info "Files on disk will be used as-is"
 fi
 
+# -- Step 1.5: SMAPI version check --
+print_step "Step 1.5: Checking SMAPI version..."
+
+SMAPI_LOG_PATH="$SCRIPT_DIR/data/saves/ErrorLogs/SMAPI-latest.txt"
+_SMAPI_NEEDS_UPDATE=false
+
+# Read current installed version from the last SMAPI session log
+_CURRENT_SMAPI=""
+if [ -f "$SMAPI_LOG_PATH" ]; then
+    _CURRENT_SMAPI=$(grep -oE 'SMAPI [0-9]+\.[0-9]+\.[0-9]+' "$SMAPI_LOG_PATH" 2>/dev/null \
+        | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+fi
+
+# Fetch latest release tag from GitHub
+_LATEST_SMAPI=$(curl -s --max-time 10 \
+    https://api.github.com/repos/Pathoschild/SMAPI/releases/latest 2>/dev/null \
+    | grep -o '"tag_name": "[^"]*"' | head -1 | cut -d'"' -f4)
+
+if [ -z "$_LATEST_SMAPI" ]; then
+    print_warning "Could not check latest SMAPI version (network unavailable?)"
+elif [ -z "$_CURRENT_SMAPI" ]; then
+    print_info "SMAPI not yet installed — will install v$_LATEST_SMAPI on first start"
+elif [ "$_CURRENT_SMAPI" = "$_LATEST_SMAPI" ]; then
+    print_success "SMAPI is up to date (v$_CURRENT_SMAPI)"
+else
+    print_info "SMAPI update: v$_CURRENT_SMAPI → v$_LATEST_SMAPI"
+    _SMAPI_NEEDS_UPDATE=true
+    print_success "SMAPI will be updated when the server restarts"
+fi
+
 # -- Step 2: Stop containers --
 print_step "Step 2: Stopping containers..."
 print_info "Gracefully shutting down the server and web panel..."
 $COMPOSE_CMD down
 print_success "Containers stopped"
+
+# -- Step 2.5: Stardew Valley game update (optional) --
+if [ -f "$SCRIPT_DIR/data/game/StardewValley" ]; then
+    print_step "Step 2.5: Stardew Valley update check..."
+
+    _CURRENT_SDV=""
+    if [ -f "$SMAPI_LOG_PATH" ]; then
+        _CURRENT_SDV=$(grep -oE 'Stardew Valley [0-9]+\.[0-9]+\.[0-9]+' "$SMAPI_LOG_PATH" 2>/dev/null \
+            | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+    fi
+    [ -n "$_CURRENT_SDV" ] && print_info "Installed: Stardew Valley v$_CURRENT_SDV"
+    echo ""
+    read -r -p "  Update Stardew Valley via Steam? (saves, mods, and config are preserved) [y/N] " _UPDATE_SDV
+    echo ""
+
+    if [[ "$_UPDATE_SDV" =~ ^[Yy]$ ]]; then
+        if ! docker image inspect stardrop-server:local >/dev/null 2>&1; then
+            print_warning "Docker image not yet built — game update skipped."
+            print_info "Re-run update.sh after the first build to update the game."
+        else
+            print_info "Enter your Steam credentials to update Stardew Valley."
+            print_info "(Used once for this update only — never stored)"
+            echo ""
+            read -r  -p "  Steam username: " _STEAM_USER
+            read -s -r -p "  Steam password: " _STEAM_PASS
+            echo ""
+            echo ""
+            print_info "Connecting to Steam — this may take a few minutes..."
+            _STEAMCMD_LOG=$(mktemp)
+
+            docker run --rm \
+                -v "$SCRIPT_DIR/data/game:/home/steam/stardewvalley" \
+                stardrop-server:local \
+                bash -c "/home/steam/steamcmd/steamcmd.sh \
+                    +force_install_dir /home/steam/stardewvalley \
+                    +login \"$_STEAM_USER\" \"$_STEAM_PASS\" \
+                    +app_update 413150 validate +quit" \
+                2>&1 | tee "$_STEAMCMD_LOG"
+            _SDV_EXIT=${PIPESTATUS[0]}
+
+            # Handle Steam Guard if prompted
+            if grep -qi "two.factor\|steam.guard\|invalid.*auth.*code\|Enter.*Steam Guard\|STEAM_GUARD" \
+                    "$_STEAMCMD_LOG" 2>/dev/null; then
+                echo ""
+                print_warning "Steam Guard code required."
+                read -r -p "  Enter Steam Guard code: " _STEAM_CODE
+                echo ""
+                print_info "Retrying with Steam Guard code..."
+                docker run --rm \
+                    -v "$SCRIPT_DIR/data/game:/home/steam/stardewvalley" \
+                    stardrop-server:local \
+                    bash -c "/home/steam/steamcmd/steamcmd.sh \
+                        +force_install_dir /home/steam/stardewvalley \
+                        +set_steam_guard_code \"$_STEAM_CODE\" \
+                        +login \"$_STEAM_USER\" \"$_STEAM_PASS\" \
+                        +app_update 413150 validate +quit"
+                _SDV_EXIT=$?
+            fi
+
+            rm -f "$_STEAMCMD_LOG"
+
+            if [ "$_SDV_EXIT" -eq 0 ]; then
+                print_success "Stardew Valley updated"
+                _SMAPI_NEEDS_UPDATE=true
+                print_info "SMAPI will be reinstalled to match the updated game files"
+            else
+                print_warning "Game update may not have completed — check output above"
+            fi
+        fi
+    else
+        print_info "Skipping game update"
+    fi
+else
+    print_info "No game installed yet — skipping game update check"
+fi
+
+# Remove old SMAPI binary so entrypoint installs the latest version
+if [ "$_SMAPI_NEEDS_UPDATE" = "true" ]; then
+    rm -f "$SCRIPT_DIR/data/game/StardewModdingAPI"
+    if [ -n "$_LATEST_SMAPI" ]; then
+        print_success "Old SMAPI removed — v$_LATEST_SMAPI will be installed on next start"
+    else
+        print_success "Old SMAPI removed — latest version will be installed on next start"
+    fi
+fi
 
 # -- Step 3: Rebuild image (incremental) --
 print_step "Step 3: Rebuilding Docker image..."
