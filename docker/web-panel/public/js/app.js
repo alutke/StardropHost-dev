@@ -735,10 +735,11 @@ async function wizSubmitStep3(skip) {
 }
 
 async function wizSubmitStep4(skip) {
-  const pw = skip ? '' : (document.getElementById('wiz-srv-pw').value.trim());
-  const tz = tzPickerValue('wiz-tz-picker');
+  const pw   = skip ? '' : (document.getElementById('wiz-srv-pw').value.trim());
+  const tz   = tzPickerValue('wiz-tz-picker');
+  const mode = document.getElementById('wiz-server-mode')?.value || 'lan';
   try {
-    await API.post('/api/wizard/step/4', { serverPassword: pw, timezone: tz || undefined });
+    await API.post('/api/wizard/step/4', { serverPassword: pw, timezone: tz || undefined, serverMode: mode });
     _wizState._srvPw = pw;
     // Populate confirm lines for step 6
     const gm = _wizState._gameMethod;
@@ -1188,7 +1189,7 @@ function navigateTo(page) {
     case 'saves':     loadSaves();                             break;
     case 'mods':      loadMods();                              break;
     case 'logs':      loadLogs('all'); subscribeToLogs('all'); break;
-    case 'config':    loadConfig(); loadVnc();                 break;
+    case 'config':    loadConfig(); loadVnc(); loadServerModeCard(); break;
   }
 }
 
@@ -1322,12 +1323,20 @@ function renderSteamPanel(serverStatus, inviteCode) {
   const card  = document.getElementById('steamCard');
   if (!panel) return;
 
-  // LAN mode or skipped — hide the card entirely
+  if (card) card.style.display = '';
+  const titleEl = document.getElementById('steamCardTitle');
+
+  // LAN mode or skipped — show simple LAN indicator
   if (!serverStatus?.steamMode || serverStatus?.state === 'skipped') {
-    if (card) card.style.display = 'none';
+    if (titleEl) titleEl.textContent = 'Server Mode';
+    panel.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:16px;font-weight:700;color:var(--text-secondary)">● LAN</span>
+        <span style="font-size:13px;color:var(--text-muted)">Players join via local network or direct IP. Switch to Steam mode in Settings for invite codes.</span>
+      </div>`;
     return;
   }
-  if (card) card.style.display = '';
+  if (titleEl) titleEl.textContent = 'Steam Invite Code';
 
   const state = serverStatus?.state || 'unauthenticated';
 
@@ -1890,6 +1899,47 @@ function startBackupStatusPolling() {
 
 function stopBackupStatusPolling() {
   if (backupStatusPoll) { clearInterval(backupStatusPoll); backupStatusPoll = null; }
+}
+
+// ─── Server Mode Toggle ──────────────────────────────────────────
+async function loadServerModeCard() {
+  const card = document.getElementById('serverModeCard');
+  if (!card) return;
+  const data = await API.get('/api/steam/server-status').catch(() => null);
+  const isSteam = data?.steamMode === true;
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:600;font-size:15px;margin-bottom:4px">Server Mode</div>
+        <div style="font-size:13px;color:var(--text-secondary)">
+          ${isSteam
+            ? 'Steam — authenticate on the dashboard to get a Steam invite code for friends.'
+            : 'LAN — server starts immediately, no Steam login required.'}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <span style="font-size:13px;font-weight:700;color:${isSteam ? 'var(--accent)' : 'var(--text-secondary)'}">
+          ● ${isSteam ? 'Steam' : 'LAN'}
+        </span>
+        <button class="btn btn-sm btn-secondary" onclick="switchServerMode('${isSteam ? 'lan' : 'steam'}')">
+          Switch to ${isSteam ? 'LAN' : 'Steam'}
+        </button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin:10px 0 0">Changes take effect after a container restart.</p>
+  `;
+}
+
+async function switchServerMode(newMode) {
+  const label = newMode === 'steam' ? 'Steam' : 'LAN';
+  if (!confirm(`Switch to ${label} mode? The container will need to restart.`)) return;
+  const data = await API.put('/api/config', { SERVER_MODE: newMode });
+  if (data?.success) {
+    await loadServerModeCard();
+    showRestartModal(`Switched to ${label} mode. Restart the container to apply.`);
+  } else {
+    showToast(data?.error || 'Failed to update mode', 'error');
+  }
 }
 
 // ─── Config ──────────────────────────────────────────────────────

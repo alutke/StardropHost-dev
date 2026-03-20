@@ -417,7 +417,7 @@
           </div>
 
           <div class="card" id="steamCard">
-            <h3>Steam Invite Code</h3>
+            <h3 id="steamCardTitle">Server Mode</h3>
             <div id="steamPanel">
               <div class="empty-state">Loading...</div>
             </div>
@@ -565,6 +565,7 @@
 
         <!-- ── Config ─────────────────────────────────────────── -->
         <section id="page-config" class="page">
+          <div id="serverModeCard" class="card" style="margin-bottom:16px"></div>
           <div id="configContainer"></div>
           <div class="card" style="margin-top:16px">
             <h3>Change Panel Password</h3>
@@ -758,6 +759,14 @@
         <h3 style="margin-bottom:4px">Server Settings <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(optional)</span></h3>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Configure how players join your server.</p>
         <div style="display:grid;gap:14px">
+          <div>
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px">Connection Mode</label>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px">LAN: server starts immediately, no Steam needed. Steam: log in via the web panel dashboard to get a Steam invite code so friends can join online.</p>
+            <select id="wiz-server-mode" class="input" style="width:100%">
+              <option value="lan">LAN — no Steam required (default)</option>
+              <option value="steam">Steam — authenticate for invite codes</option>
+            </select>
+          </div>
           <div>
             <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px">Server Password <span style="color:var(--text-muted)">(leave blank for open server)</span></label>
             <input id="wiz-srv-pw" class="input" type="password" placeholder="No password" style="width:100%">

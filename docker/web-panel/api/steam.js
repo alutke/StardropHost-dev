@@ -136,8 +136,24 @@ async function getInviteCode(req, res) {
 
 let _pendingAuth = null; // { username, password } held between guard_required and code submit
 
+// Read SERVER_MODE from runtime.env fresh on each request so dashboard/wizard changes
+// take effect without needing a process restart.
+function _readServerMode() {
+  const candidates = [
+    process.env.ENV_FILE,
+    '/home/steam/web-panel/data/runtime.env',
+  ];
+  for (const p of candidates) {
+    if (!p || !fs.existsSync(p)) continue;
+    const line = fs.readFileSync(p, 'utf-8').split('\n')
+      .find(l => /^SERVER_MODE=/.test(l));
+    if (line) return line.replace(/^SERVER_MODE=/, '').replace(/['"]/g, '').trim();
+  }
+  return process.env.SERVER_MODE || 'lan';
+}
+
 function serverAuthStatus(req, res) {
-  const steamMode = (process.env.SERVER_MODE || 'lan') === 'steam';
+  const steamMode = _readServerMode() === 'steam';
   const ready     = fs.existsSync('/tmp/steam-ready');
   const skipped   = fs.existsSync('/tmp/steam-skip');
   res.json({

@@ -136,6 +136,7 @@ print_success "Containers stopped"
 if [ -f "$SCRIPT_DIR/data/game/StardewValley" ]; then
     print_step "Step 2.5: Stardew Valley update check..."
 
+    # Read installed version from SMAPI log
     _CURRENT_SDV=""
     if [ -f "$SMAPI_LOG_PATH" ]; then
         _CURRENT_SDV=$(grep -oE 'Stardew Valley [0-9]+\.[0-9]+\.[0-9]+' "$SMAPI_LOG_PATH" 2>/dev/null \
@@ -143,49 +144,56 @@ if [ -f "$SCRIPT_DIR/data/game/StardewValley" ]; then
     fi
     [ -n "$_CURRENT_SDV" ] && print_info "Installed: Stardew Valley v$_CURRENT_SDV"
 
-    # Check Steam for the latest build ID via public API (no credentials, no Docker needed)
-    _SDV_BUILD_FILE="$SCRIPT_DIR/data/game/.steam_build_id"
-    _STORED_BUILD=$(cat "$_SDV_BUILD_FILE" 2>/dev/null || true)
+    # Read installed build ID from the steamapps manifest — written by steamcmd at download time,
+    # always accurate, no separate tracking file needed.
+    _SDV_MANIFEST="$SCRIPT_DIR/data/game/steamapps/appmanifest_413150.acf"
+    _STORED_BUILD=$(grep '"buildid"' "$_SDV_MANIFEST" 2>/dev/null | grep -oE '[0-9]+' | head -1 || true)
+    [ -n "$_STORED_BUILD" ] && print_info "Installed build ID: $_STORED_BUILD"
+
+    print_info "Checking Steam for latest build..."
     _LATEST_BUILD=""
 
-    print_info "Checking Steam for Stardew Valley updates..."
-
-    # Method 1: steamcmd.net public API (mirrors Steam depot data, no auth needed)
-    _LATEST_BUILD=$(curl -sSL --max-time 10 \
-        "https://api.steamcmd.net/v1/info/413150" \
-        2>/dev/null \
-        | grep -oE '"buildid":"[0-9]+"' | head -1 | grep -oE '[0-9]+' || true)
-
-    # Method 2: steamcmd in Docker (bypasses entrypoint, reads app info anonymously)
-    if [ -z "$_LATEST_BUILD" ] && docker image inspect stardrop-server:local >/dev/null 2>&1; then
-        print_info "(API unavailable — checking via steamcmd, this may take ~20s...)"
-        _sdv_info=$(timeout 60 docker run --rm --entrypoint bash stardrop-server:local \
-            -c "/home/steam/steamcmd/steamcmd.sh \
-                +login anonymous +app_info_update 1 +app_info_print 413150 +quit 2>/dev/null" \
-            2>/dev/null | tr -d '\r')
-        _LATEST_BUILD=$(echo "$_sdv_info" \
-            | grep '"buildid"' \
-            | grep -oE '"[0-9]{6,}"' | tr -d '"' | head -1)
+    # Method 1: Python3 stdlib — robust JSON parsing, no extra deps
+    if command -v python3 &>/dev/null; then
+        _LATEST_BUILD=$(python3 - 2>/dev/null <<'PYEOF'
+import urllib.request, json, sys
+try:
+    req = urllib.request.Request(
+        'https://api.steamcmd.net/v1/info/413150',
+        headers={'User-Agent': 'StardropHost/1.0'}
+    )
+    with urllib.request.urlopen(req, timeout=10) as r:
+        d = json.loads(r.read())
+        print(d['data']['413150']['appinfo']['depots']['branches']['public']['buildid'])
+except Exception:
+    sys.exit(1)
+PYEOF
+        )
     fi
 
-    # Seed stored build ID on first run
-    if [ -n "$_LATEST_BUILD" ] && [ -z "$_STORED_BUILD" ]; then
-        echo "$_LATEST_BUILD" > "$_SDV_BUILD_FILE"
-        _STORED_BUILD="$_LATEST_BUILD"
+    # Method 2: curl fallback (handles spacing variants in JSON)
+    if [ -z "$_LATEST_BUILD" ]; then
+        _LATEST_BUILD=$(curl -sSL --max-time 10 \
+            "https://api.steamcmd.net/v1/info/413150" 2>/dev/null \
+            | grep -oE '"buildid"[[:space:]]*:[[:space:]]*"[0-9]+"' \
+            | grep -oE '[0-9]+' | head -1 || true)
     fi
 
     _SDV_UPDATE_AVAILABLE=false
     if [ -z "$_LATEST_BUILD" ]; then
-        if [ -n "$_STORED_BUILD" ]; then
-            print_info "Could not reach Steam — update check skipped (last known build: $_STORED_BUILD)"
-        else
-            print_info "Could not reach Steam — skipping game update check"
-        fi
-    elif [ "$_STORED_BUILD" != "$_LATEST_BUILD" ]; then
+        print_warning "Could not reach Steam to check for updates."
+        echo ""
+        read -r -p "  Run a game update anyway? [y/N] " _FORCE_UPDATE
+        echo ""
+        [[ "$_FORCE_UPDATE" =~ ^[Yy]$ ]] && _SDV_UPDATE_AVAILABLE=true
+    elif [ -z "$_STORED_BUILD" ]; then
+        print_warning "Could not read installed build ID (manifest missing) — assuming update needed"
         _SDV_UPDATE_AVAILABLE=true
-        print_info "Stardew Valley update available (build $_STORED_BUILD → $_LATEST_BUILD)"
-    else
+    elif [ "$_STORED_BUILD" = "$_LATEST_BUILD" ]; then
         print_success "Stardew Valley is up to date (build $_LATEST_BUILD)"
+    else
+        _SDV_UPDATE_AVAILABLE=true
+        print_info "Update available: build $_STORED_BUILD → $_LATEST_BUILD"
     fi
 
     echo ""

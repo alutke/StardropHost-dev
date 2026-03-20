@@ -282,9 +282,13 @@ function submitStep3(req, res) {
 
 // Step 4 — Server settings
 function submitStep4(req, res) {
-  const { serverPassword, timezone, saveName } = req.body || {};
+  const { serverPassword, timezone, saveName, serverMode } = req.body || {};
 
   const envUpdates = {};
+
+  if (serverMode === 'lan' || serverMode === 'steam') {
+    envUpdates.SERVER_MODE = serverMode;
+  }
 
   if (serverPassword && typeof serverPassword === 'string') {
     envUpdates.SERVER_PASSWORD = serverPassword;
