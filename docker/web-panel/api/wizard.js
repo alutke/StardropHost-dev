@@ -121,9 +121,13 @@ function getWizardStatus(req, res) {
   const hasPassword = auth.isSetupComplete();
   const savesExist  = detectSaves();
 
+  // SMAPI being installed is proof the setup ran — even if state was reset or save is still being created.
+  const smapiInstalled = fs.existsSync('/home/steam/stardewvalley/StardewModdingAPI');
+
   // Wizard is needed if: never completed (and no saves to prove setup already ran), or game missing.
-  // Saves existing is treated as proof the wizard ran, even if state file is missing/reset.
-  const needsWizard = (!state.completed && !savesExist) || !gamePresent;
+  // Saves OR SMAPI installed are treated as proof the wizard ran, even if state file is missing/reset.
+  const setupRan    = state.completed || savesExist || smapiInstalled;
+  const needsWizard = !setupRan || !gamePresent;
 
   if (!needsWizard) {
     return res.json({ completed: true, needsWizard: false });
@@ -501,6 +505,14 @@ function getWizardSmapiLog(req, res) {
 }
 
 // Reset wizard (dev/recovery use)
+function forceComplete(_req, res) {
+  const state = readState();
+  state.completed   = true;
+  state.completedAt = new Date().toISOString();
+  writeState(state);
+  res.json({ success: true });
+}
+
 function resetWizard(req, res) {
   writeState(defaultState());
   res.json({ success: true, message: 'Wizard reset' });
@@ -539,6 +551,7 @@ module.exports = {
   listSaves,
   getGameReadyStatus,
   getWizardSmapiLog,
+  forceComplete,
   resetWizard,
   factoryReset,
 };

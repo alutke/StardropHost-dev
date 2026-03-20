@@ -965,13 +965,22 @@ function wizPollGameReady(prevPct) {
 async function wizComplete() {
   if (_gameReadyTimer) { clearTimeout(_gameReadyTimer); _gameReadyTimer = null; }
 
-  // Auto-select the new save if none is currently active
-  try {
-    const savesData = await API.get('/api/saves');
-    if (savesData?.saves?.length && !savesData.selectedSave) {
-      await API.post('/api/saves/select', { saveName: savesData.saves[0].name });
-    }
-  } catch {}
+  // Mark wizard complete in backend state regardless of step-check results
+  try { await API.post('/api/wizard/force-complete'); } catch {}
+
+  // Poll for the new save and auto-select it (SMAPI may still be writing the save folder)
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      const savesData = await API.get('/api/saves');
+      if (savesData?.saves?.length) {
+        if (!savesData.selectedSave) {
+          await API.post('/api/saves/select', { saveName: savesData.saves[0].name });
+        }
+        break;
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 3000));
+  }
 
   document.getElementById('wizard-overlay').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
