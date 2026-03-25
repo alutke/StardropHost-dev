@@ -173,12 +173,11 @@ function wizGoToStep(n) {
   // Step 2: auto-scan on entry
   if (n === 2) wizInitStep2();
 
-  // Step 5: build timezone picker and scan for importable saves
+  // Step 5: build timezone picker
   if (n === 5) {
     if (!document.getElementById('wiz-tz-picker-search')) {
       buildTzPicker('wiz-tz-picker', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
     }
-    wizScanInstanceSaves();
   }
 }
 
@@ -815,7 +814,8 @@ async function wizImportSaveFromScan(savePath, saveName, btnIdx) {
     const data = await API.post('/api/wizard/import-save', { savePath, saveName });
     if (data?.success) {
       if (btn) { btn.textContent = '✓ Imported'; btn.disabled = true; btn.style.color = 'var(--accent)'; btn.style.borderColor = 'var(--accent)'; }
-      if (statusEl) { statusEl.style.color = 'var(--accent)'; statusEl.textContent = `✅ "${saveName}" imported — select it in the farm setup step.`; }
+      if (statusEl) { statusEl.style.color = 'var(--accent)'; statusEl.textContent = `✅ "${saveName}" imported — select it below to use it.`; }
+      wizRefreshSaveDropdown();
     } else {
       if (statusEl) { statusEl.style.color = 'var(--accent-error)'; statusEl.textContent = '❌ ' + (data?.error || 'Import failed.'); }
     }
@@ -880,20 +880,27 @@ function wizFarmTab(tab) {
   document.getElementById('wiz-farm-existing').style.display = tab === 'existing' ? '' : 'none';
   document.getElementById('farm-tab-new').classList.toggle('active',      tab === 'new');
   document.getElementById('farm-tab-existing').classList.toggle('active', tab === 'existing');
+  if (tab === 'existing') {
+    wizScanInstanceSaves();
+    wizRefreshSaveDropdown();
+  }
+}
+
+async function wizRefreshSaveDropdown() {
+  try {
+    const data = await API.get('/api/wizard/saves');
+    const sel  = document.getElementById('wiz-existing-save');
+    if (!sel) return;
+    if (data?.saves?.length) {
+      sel.innerHTML = data.saves.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    } else {
+      sel.innerHTML = '<option value="">No saves found — copy or import a save above</option>';
+    }
+  } catch {}
 }
 
 async function wizLoadFarmStep() {
   wizFarmTab('new');
-  // Load existing saves for the existing-save tab
-  try {
-    const data = await API.get('/api/wizard/saves');
-    const sel  = document.getElementById('wiz-existing-save');
-    if (data?.saves?.length) {
-      sel.innerHTML = data.saves.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
-    } else {
-      sel.innerHTML = '<option value="">No saves found — upload via Saves tab first</option>';
-    }
-  } catch {}
 }
 
 function wizPetToggle() {
