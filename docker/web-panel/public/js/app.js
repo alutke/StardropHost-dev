@@ -518,7 +518,7 @@ function _wizShowStep3BackBtn(msg) {
   const btn = document.createElement('button');
   btn.id = 'wiz-dl-back-btn';
   btn.className = 'btn btn-secondary';
-  btn.textContent = '← Back to Step 2';
+  btn.textContent = 'Back to Step 2';
   btn.onclick = () => { wizGoToStep(2); };
   wrap.appendChild(btn);
   logEl.parentElement.appendChild(wrap);
@@ -1122,7 +1122,7 @@ function wizPollGameReady(prevPct) {
         if (lbl) { lbl.style.color = 'var(--accent-error, #ef4444)'; lbl.textContent = _STAGE_TXT.no_game_files; }
         if (btn) {
           btn.disabled = false; btn.style.opacity = '1';
-          btn.textContent = '← Back to Game Files';
+          btn.textContent = 'Back to Game Files';
           btn.className = 'btn btn-warning';
           btn.onclick = () => wizGoToStep(2);
         }

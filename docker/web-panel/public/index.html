@@ -678,7 +678,7 @@
 
         <!-- Continue only shown for local/path methods; steam auto-advances -->
         <div id="wiz-step2-continue-row" style="display:flex;justify-content:flex-end;margin-top:20px">
-          <button class="btn btn-success" id="wiz-step2-next" onclick="wizSubmitStep2()" disabled>Continue →</button>
+          <button class="btn btn-success" id="wiz-step2-next" onclick="wizSubmitStep2()" disabled>Continue</button>
         </div>
       </div>
 
@@ -742,9 +742,9 @@
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-          <button class="btn btn-secondary" onclick="wizGoToStep(2)">← Back</button>
+          <button class="btn btn-secondary" onclick="wizGoToStep(2)">Back</button>
           <button class="btn btn-secondary" onclick="wizSubmitStep3(true)">Skip</button>
-          <button class="btn btn-success" onclick="wizSubmitStep3(false)">Continue →</button>
+          <button class="btn btn-success" onclick="wizSubmitStep3(false)">Continue</button>
         </div>
       </div>
 
@@ -772,8 +772,8 @@
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-          <button class="btn btn-secondary" onclick="wizGoToStep(4)">← Back</button>
-          <button class="btn btn-success" onclick="wizSubmitStep4()">Continue →</button>
+          <button class="btn btn-secondary" onclick="wizGoToStep(4)">Back</button>
+          <button class="btn btn-success" onclick="wizSubmitStep4()">Continue</button>
         </div>
       </div>
 
@@ -782,7 +782,7 @@
         <h3 style="margin-bottom:4px">Farm Setup</h3>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Create a new co-op farm, or load an existing save.</p>
         <div style="display:flex;justify-content:flex-start;margin-bottom:12px">
-          <button class="btn btn-secondary" style="font-size:12px;padding:4px 12px" onclick="wizGoToStep(5)">← Back</button>
+          <button class="btn btn-secondary" style="font-size:12px;padding:4px 12px" onclick="wizGoToStep(5)">Back</button>
         </div>
 
         <!-- Mode tabs -->
@@ -968,7 +968,7 @@
             </div>
 
           </div>
-          <button class="btn btn-success" style="width:100%;margin-top:16px" onclick="wizCreateNewFarm()">Save Farm Config →</button>
+          <button class="btn btn-success" style="width:100%;margin-top:16px" onclick="wizCreateNewFarm()">Save Farm Config</button>
           <div id="wiz-farm-status" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;min-height:16px"></div>
         </div>
 
@@ -989,7 +989,7 @@
           <select id="wiz-existing-save" class="input" style="width:100%;margin-bottom:12px">
             <option value="">Loading saves...</option>
           </select>
-          <button class="btn btn-success" style="width:100%" onclick="wizSelectExistingSave()">Use This Save →</button>
+          <button class="btn btn-success" style="width:100%" onclick="wizSelectExistingSave()">Use This Save</button>
           <div id="wiz-existing-status" style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px;min-height:16px"></div>
         </div>
       </div>
