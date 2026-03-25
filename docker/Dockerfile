@@ -75,6 +75,7 @@ RUN wget -qO- 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.t
         | grep -o '"browser_download_url": "[^"]*installer\.zip"' | head -1 | cut -d'"' -f4) && \
     wget -qO smapi.zip "$SMAPI_URL" && \
     unzip -q smapi.zip -d smapi && \
+    (cd smapi && for f in *.zip; do [ -f "$f" ] && unzip -q "$f" && rm "$f"; done) && \
     rm smapi.zip
 
 # -- Copy pre-built mods (AlwaysOnServer, AutoHideHost, SkillLevelGuard) --
