@@ -147,6 +147,8 @@ app.post('/api/wizard/reset',         auth.verifyMiddleware, wizardAPI.resetWiza
 app.post('/api/wizard/factory-reset', auth.verifyMiddleware, wizardAPI.factoryReset);
 app.get( '/api/wizard/scan-saves',    wizardAPI.scanSaveImport);
 app.post('/api/wizard/import-save',   wizardAPI.importSave);
+app.get( '/api/wizard/scan-installs', wizardAPI.scanInstalls);
+app.get( '/api/wizard/browse-dir',    wizardAPI.browseDir);
 
 // -- Static files --
 app.use(express.static(path.join(__dirname, 'public')));

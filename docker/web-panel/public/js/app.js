@@ -194,16 +194,55 @@ function wizSetMethod(method) {
   if (continueRow) continueRow.style.display = method === 'steam' ? 'none' : '';
   const nextBtn = document.getElementById('wiz-step2-next');
   if (nextBtn) nextBtn.disabled = !_wizState._filesFound;
+  if (method === 'local') wizScanInstalls();
 }
 
-async function wizScanGamePath() {
-  const pathInput = document.getElementById('wiz-scan-path');
-  const statusEl  = document.getElementById('wiz-scan-status');
-  const gamePath  = pathInput?.value?.trim();
-  if (!gamePath) { statusEl.textContent = 'Enter a path first.'; return; }
+// Auto-scan /host-parent for sibling stardrophost installs with game files
+async function wizScanInstalls() {
+  const loadingEl = document.getElementById('wiz-scan-loading');
+  const listEl    = document.getElementById('wiz-scan-list');
+  if (!loadingEl || !listEl) return;
 
+  loadingEl.textContent = 'Scanning for existing StardropHost installs…';
+  loadingEl.style.display = 'block';
+  listEl.style.display = 'none';
+
+  let data;
+  try { data = await API.get('/api/wizard/scan-installs'); } catch { data = null; }
+
+  if (!data?.available) {
+    loadingEl.textContent = 'No existing StardropHost installs found on this server.';
+    return;
+  }
+
+  const found = (data.installs || []).filter(i => i.hasGame);
+  if (found.length === 0) {
+    loadingEl.textContent = 'No existing StardropHost game installs found on this server.';
+    return;
+  }
+
+  loadingEl.style.display = 'none';
+  listEl.style.display = 'block';
+  listEl.innerHTML = `
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 8px">Found game files in existing installs:</p>
+    ${found.map(i => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg-tertiary);border-radius:6px;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:500">${escapeHtml(i.name)}</div>
+          <div style="font-size:11px;color:var(--text-muted);font-family:monospace">${escapeHtml(i.displayPath)}</div>
+        </div>
+        <button class="btn btn-secondary" style="font-size:12px;padding:4px 12px"
+          onclick="wizUseGamePath(${JSON.stringify(i.gamePath)})">Use This</button>
+      </div>
+    `).join('')}
+  `;
+}
+
+// Register a game path via the wizard step 2 API
+async function wizUseGamePath(gamePath) {
+  const statusEl = document.getElementById('wiz-scan-status');
   statusEl.style.color = 'var(--text-secondary)';
-  statusEl.textContent = 'Scanning…';
+  statusEl.textContent = 'Registering…';
   try {
     const data = await API.post('/api/wizard/step/2', { method: 'path', gamePath });
     if (data?.success) {
@@ -217,6 +256,69 @@ async function wizScanGamePath() {
     statusEl.style.color = 'var(--accent-error)';
     statusEl.textContent = e.message || '❌ Path not found or missing game files.';
   }
+}
+
+// ─── Directory browser ─────────────────────────────────────────────
+let _dirBrowserPath    = '';
+let _dirBrowserHasGame = false;
+
+function wizOpenDirBrowser() {
+  const modal = document.getElementById('dir-browser-modal');
+  modal.style.display = 'flex';
+  wizBrowseDirLoad('/host-parent');
+}
+
+function closeDirBrowser() {
+  document.getElementById('dir-browser-modal').style.display = 'none';
+}
+
+async function wizBrowseDirLoad(p) {
+  const listEl  = document.getElementById('dir-browser-list');
+  const pathEl  = document.getElementById('dir-browser-path');
+  const badge   = document.getElementById('dir-browser-badge');
+  const selBtn  = document.getElementById('dir-browser-select-btn');
+
+  listEl.innerHTML = '<div style="padding:12px;color:var(--text-muted);font-size:13px">Loading…</div>';
+
+  let data;
+  try {
+    data = await API.get(`/api/wizard/browse-dir?path=${encodeURIComponent(p)}`);
+  } catch (e) {
+    listEl.innerHTML = `<div style="padding:12px;color:var(--accent-error);font-size:13px">${escapeHtml(e.message || 'Failed to load directory')}</div>`;
+    return;
+  }
+
+  _dirBrowserPath    = data.path;
+  _dirBrowserHasGame = data.hasGame;
+
+  pathEl.textContent = data.path.replace('/host-parent', '~');
+  badge.style.display  = data.hasGame ? 'block' : 'none';
+  selBtn.disabled      = !data.hasGame;
+
+  const rows = [];
+  if (data.parent) {
+    rows.push(`<div onclick="wizBrowseDirLoad(${JSON.stringify(data.parent)})"
+      style="padding:8px 12px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)"
+      onmouseover="this.style.background='var(--bg-overlay)'" onmouseout="this.style.background=''">
+      <span>↑</span><span>.. (parent directory)</span>
+    </div>`);
+  }
+  for (const e of data.entries) {
+    const full = data.path + '/' + e.name;
+    rows.push(`<div onclick="wizBrowseDirLoad(${JSON.stringify(full)})"
+      style="padding:8px 12px;cursor:pointer;border-radius:4px;display:flex;align-items:center;gap:8px;font-size:13px"
+      onmouseover="this.style.background='var(--bg-overlay)'" onmouseout="this.style.background=''">
+      <span>📁</span><span>${escapeHtml(e.name)}</span>
+    </div>`);
+  }
+
+  listEl.innerHTML = rows.length ? rows.join('') : '<div style="padding:12px;color:var(--text-muted);font-size:13px">No subdirectories</div>';
+}
+
+async function selectFromDirBrowser() {
+  if (!_dirBrowserHasGame) return;
+  closeDirBrowser();
+  await wizUseGamePath(_dirBrowserPath);
 }
 
 let _steamAuthPollTimer = null;

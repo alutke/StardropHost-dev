@@ -580,6 +580,53 @@ function factoryReset(_req, res) {
   }
 }
 
+// Scan /host-parent for sibling stardrophost install directories that contain game files
+function scanInstalls(req, res) {
+  const hostParent = '/host-parent';
+  const results = [];
+  if (!fs.existsSync(hostParent)) return res.json({ installs: [], available: false });
+
+  try {
+    for (const entry of fs.readdirSync(hostParent, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !entry.name.startsWith('stardrophost')) continue;
+      const gamePath   = path.join(hostParent, entry.name, 'data', 'game');
+      const hasGame    = fs.existsSync(path.join(gamePath, 'StardewValley'));
+      const displayPath = path.join('~', entry.name, 'data', 'game');
+      results.push({ name: entry.name, gamePath, displayPath, hasGame });
+    }
+  } catch {}
+
+  res.json({ installs: results, available: true });
+}
+
+// Browse a directory on the server (restricted to /host-parent and /home/steam)
+function browseDir(req, res) {
+  const reqPath  = req.query.path || '/host-parent';
+  const resolved = path.resolve(reqPath);
+
+  const ALLOWED = ['/host-parent', '/home/steam'];
+  if (!ALLOWED.some(a => resolved === a || resolved.startsWith(a + '/'))) {
+    return res.status(403).json({ error: 'Path not allowed' });
+  }
+  if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'Path not found' });
+
+  const entries = [];
+  try {
+    for (const e of fs.readdirSync(resolved, { withFileTypes: true })) {
+      if (e.isDirectory() && !e.name.startsWith('.')) entries.push({ name: e.name });
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {}
+
+  const hasGame = fs.existsSync(path.join(resolved, 'StardewValley'));
+  const parent  = resolved === '/host-parent' ? null
+    : ALLOWED.some(a => path.dirname(resolved) === a || path.dirname(resolved).startsWith(a + '/'))
+      ? path.dirname(resolved)
+      : null;
+
+  res.json({ path: resolved, parent, entries, hasGame });
+}
+
 // Scan a server directory for Stardew Valley save folders
 function scanSaveImport(req, res) {
   const dir = req.query.dir;
@@ -626,6 +673,8 @@ function importSave(req, res) {
 
 module.exports = {
   getWizardStatus,
+  scanInstalls,
+  browseDir,
   submitStep1,
   submitStep2,
   submitStep3,

@@ -81,6 +81,7 @@ services:
       - ./data/backups:/home/steam/.local/share/stardrop/backups:rw
       - ./data/panel:/home/steam/web-panel/data:rw
       - ./data/custom-mods:/home/steam/custom-mods:ro
+      - ${PWD}/..:/host-parent:ro
 
   # --- Steam Auth ---
   # Handles Steam login + 2FA for game download via the wizard.

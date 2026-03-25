@@ -638,18 +638,19 @@
           </div>
 
           <div id="wiz-method-local" style="display:none">
-            <div style="margin-bottom:12px">
-              <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px">Option A — Scan an existing install on this server</label>
-              <div style="display:flex;gap:8px;margin-bottom:6px">
-                <input id="wiz-scan-path" class="input" type="text" placeholder="/path/to/Stardew Valley" style="flex:1">
-                <button class="btn btn-secondary" onclick="wizScanGamePath()">Scan</button>
-              </div>
-              <div id="wiz-scan-status" style="font-size:12px;color:var(--text-muted);min-height:16px"></div>
-            </div>
-            <div class="card" style="background:var(--bg-tertiary);margin-bottom:8px">
-              <p style="font-size:13px;margin:0 0 8px;color:var(--text-secondary)">Option B — Copy files manually to this path on the server:</p>
+            <!-- Auto-scan: sibling stardrophost installs -->
+            <div id="wiz-scan-loading" style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Scanning for existing installs…</div>
+            <div id="wiz-scan-list" style="display:none;margin-bottom:12px"></div>
+
+            <!-- Directory browser -->
+            <button class="btn btn-secondary" style="width:100%;margin-bottom:10px" onclick="wizOpenDirBrowser()">Browse for Game Directory…</button>
+
+            <div id="wiz-scan-status" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:10px"></div>
+
+            <!-- Manual copy fallback -->
+            <div class="card" style="background:var(--bg-tertiary)">
+              <p style="font-size:13px;margin:0 0 6px;color:var(--text-secondary)">Or copy your game files manually to this path on the server:</p>
               <code id="wiz-game-path" style="display:block;font-size:12px;background:var(--bg-primary);padding:8px 10px;border-radius:6px;color:var(--accent);word-break:break-all"></code>
-              <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0">On Windows the game is usually at <code>C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\</code></p>
             </div>
           </div>
 
@@ -1065,6 +1066,23 @@
     .wiz-dot.done   { background: var(--accent-dark); }
     .wiz-method-btn.active { background: var(--bg-overlay); border-color: var(--accent); color: var(--accent); }
   </style>
+
+  <!-- ── Directory browser modal ──────────────────────────────── -->
+  <div id="dir-browser-modal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.75);align-items:center;justify-content:center">
+    <div style="background:var(--bg-secondary);border-radius:12px;padding:20px;width:520px;max-width:calc(100vw - 32px);max-height:80vh;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h4 style="margin:0">Select Game Directory</h4>
+        <button onclick="closeDirBrowser()" style="background:none;border:none;color:var(--text-secondary);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+      </div>
+      <div id="dir-browser-path" style="font-size:12px;color:var(--text-muted);font-family:monospace;padding:6px 10px;background:var(--bg-tertiary);border-radius:4px;word-break:break-all"></div>
+      <div id="dir-browser-badge" style="display:none;background:rgba(167,139,250,0.12);color:var(--accent);border-radius:6px;padding:6px 10px;font-size:13px">✅ Game files found in this directory</div>
+      <div id="dir-browser-list" style="overflow-y:auto;flex:1;min-height:180px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn btn-secondary" onclick="closeDirBrowser()">Cancel</button>
+        <button id="dir-browser-select-btn" class="btn btn-primary" onclick="selectFromDirBrowser()" disabled>Select This Directory</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Restart modal ─────────────────────────────────────────── -->
   <div id="restartModal" class="modal-overlay" style="display:none">
