@@ -652,6 +652,45 @@ function browseDir(req, res) {
   res.json({ path: resolved, parent, entries, hasGame });
 }
 
+// Scan sibling stardrophost installs for Stardew Valley saves
+function scanInstanceSaves(req, res) {
+  const hostParent = '/host-parent';
+  if (!fs.existsSync(hostParent)) return res.json({ saves: [], available: false });
+
+  let currentSavesIno = null;
+  try { currentSavesIno = fs.statSync('/home/steam/.config/StardewValley').ino; } catch {}
+
+  const results = [];
+
+  function findSavesIn(dir, instanceName, depth) {
+    if (depth > 3 || !fs.existsSync(dir)) return;
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (!e.isDirectory() || e.name.startsWith('.')) continue;
+      const full = path.join(dir, e.name);
+      if (fs.existsSync(path.join(full, 'SaveGameInfo'))) {
+        results.push({ saveName: e.name, savePath: full, instanceName });
+      } else if (depth < 2) {
+        findSavesIn(full, instanceName, depth + 1);
+      }
+    }
+  }
+
+  try {
+    for (const entry of fs.readdirSync(hostParent, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !entry.name.startsWith('stardrophost')) continue;
+      const savesDir = path.join(hostParent, entry.name, 'data', 'saves');
+      if (currentSavesIno) {
+        try { if (fs.statSync(savesDir).ino === currentSavesIno) continue; } catch {}
+      }
+      findSavesIn(savesDir, entry.name, 0);
+    }
+  } catch {}
+
+  res.json({ saves: results, available: true });
+}
+
 // Scan a server directory for Stardew Valley save folders
 function scanSaveImport(req, res) {
   const dir = req.query.dir;
@@ -700,6 +739,7 @@ module.exports = {
   getWizardStatus,
   scanInstalls,
   browseDir,
+  scanInstanceSaves,
   submitStep1,
   submitStep2,
   submitStep3,

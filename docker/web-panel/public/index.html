@@ -749,15 +749,15 @@
 
       <!-- Step 5: Server settings -->
       <div id="wiz-step-5" class="wiz-step card" style="display:none">
-        <h3 style="margin-bottom:4px">Server Settings <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(optional)</span></h3>
+        <h3 style="margin-bottom:4px">Server Settings</h3>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:20px">Configure how players join your server.</p>
         <div style="display:grid;gap:14px">
           <div>
             <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px">Connection Mode</label>
-            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px">LAN: server starts immediately, no Steam needed. Steam: log in via the web panel dashboard to get a Steam invite code so friends can join online.</p>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 6px">LAN works on your local network or over a VPN (e.g. Tailscale, ZeroTier). Online uses anonymous Steam / GOG lobbies so friends can join via invite code — no port forwarding needed.</p>
             <select id="wiz-server-mode" class="input" style="width:100%">
-              <option value="lan">LAN — no Steam required (default)</option>
-              <option value="steam">Steam — authenticate for invite codes</option>
+              <option value="lan">LAN — local network or VPN tunneling</option>
+              <option value="steam">Online — anonymous Steam / GOG lobbies</option>
             </select>
           </div>
           <div>
@@ -769,27 +769,18 @@
             <div id="wiz-tz-picker" class="tz-picker"></div>
           </div>
           <div>
-            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px">Import Existing Save <span style="color:var(--text-muted)">(optional)</span></label>
-            <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px">Scan a directory on this server to find and import an existing Stardew Valley save.</p>
-            <div style="display:flex;gap:8px;margin-bottom:6px">
-              <select id="wiz-import-dir" class="input" style="flex:1">
-                <option value="/home/steam">/home/steam</option>
-                <option value="/root">/root</option>
-                <option value="/home/user">/home/user</option>
-                <option value="/tmp">/tmp</option>
-                <option value="/mnt">/mnt</option>
-              </select>
-              <button class="btn btn-secondary" onclick="wizScanImportDir()">Scan</button>
-            </div>
-            <div id="wiz-import-status" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>
-            <div id="wiz-import-results" style="display:none">
-              <select id="wiz-import-save" class="input" style="width:100%;margin-bottom:6px"></select>
-              <button class="btn btn-secondary" style="width:100%" onclick="wizImportSave()">Import Save →</button>
+            <label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:4px">Import Existing Save</label>
+            <div id="wiz-save-scan-loading" style="font-size:13px;color:var(--text-muted);margin-bottom:8px">Scanning for existing saves…</div>
+            <div id="wiz-save-scan-list" style="display:none;margin-bottom:8px"></div>
+            <div id="wiz-import-status" style="font-size:13px;min-height:20px;margin-bottom:8px"></div>
+            <div class="card" style="background:var(--bg-tertiary)">
+              <p style="font-size:13px;margin:0 0 6px;color:var(--text-secondary)">Or copy your save folder manually to this path on the server:</p>
+              <code style="display:block;font-size:12px;background:var(--bg-primary);padding:8px 10px;border-radius:6px;color:var(--accent);word-break:break-all">./data/saves/Saves/</code>
+              <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0">Each save is a folder named e.g. <code>FarmName_123456789</code></p>
             </div>
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-          <button class="btn btn-secondary" onclick="wizSubmitStep4(true)">Skip</button>
           <button class="btn btn-success" onclick="wizSubmitStep4(false)">Continue →</button>
         </div>
       </div>

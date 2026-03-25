@@ -173,9 +173,12 @@ function wizGoToStep(n) {
   // Step 2: auto-scan on entry
   if (n === 2) wizInitStep2();
 
-  // Ensure timezone picker is built when step 5 is shown (handles refresh mid-wizard)
-  if (n === 5 && !document.getElementById('wiz-tz-picker-search')) {
-    buildTzPicker('wiz-tz-picker', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+  // Step 5: build timezone picker and scan for importable saves
+  if (n === 5) {
+    if (!document.getElementById('wiz-tz-picker-search')) {
+      buildTzPicker('wiz-tz-picker', Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+    }
+    wizScanInstanceSaves();
   }
 }
 
@@ -765,50 +768,59 @@ async function wizCheckGameFiles() {
   }
 }
 
-async function wizScanImportDir() {
-  const dir      = document.getElementById('wiz-import-dir')?.value;
-  const statusEl = document.getElementById('wiz-import-status');
-  const resultsEl = document.getElementById('wiz-import-results');
-  if (!dir) return;
-  statusEl.style.color = 'var(--text-secondary)';
-  statusEl.textContent = 'Scanning…';
-  if (resultsEl) resultsEl.style.display = 'none';
-  try {
-    const data = await API.get(`/api/wizard/scan-saves?dir=${encodeURIComponent(dir)}`);
-    if (data?.saves?.length) {
-      statusEl.style.color = 'var(--accent)';
-      statusEl.textContent = `Found ${data.saves.length} save(s).`;
-      const sel = document.getElementById('wiz-import-save');
-      sel.innerHTML = data.saves.map(s =>
-        `<option value="${encodeURIComponent(s.path)}" data-name="${s.name}">${s.name}</option>`
-      ).join('');
-      if (resultsEl) resultsEl.style.display = 'block';
-    } else {
-      statusEl.style.color = 'var(--text-muted)';
-      statusEl.textContent = 'No Stardew Valley saves found in that directory.';
-    }
-  } catch (e) {
-    statusEl.style.color = 'var(--accent-error)';
-    statusEl.textContent = e.message || 'Scan failed.';
+async function wizScanInstanceSaves() {
+  const loadingEl = document.getElementById('wiz-save-scan-loading');
+  const listEl    = document.getElementById('wiz-save-scan-list');
+  if (!loadingEl || !listEl) return;
+
+  loadingEl.textContent = 'Scanning for existing saves…';
+  loadingEl.style.display = 'block';
+  listEl.style.display = 'none';
+
+  let data;
+  try { data = await API.get('/api/wizard/scan-instance-saves'); } catch { data = null; }
+
+  if (!data?.available) {
+    loadingEl.textContent = 'No existing StardropHost installs found to scan.';
+    return;
   }
+  if (!data.saves?.length) {
+    loadingEl.textContent = 'No saves found in existing StardropHost installs.';
+    return;
+  }
+
+  loadingEl.style.display = 'none';
+  listEl.style.display = 'block';
+  listEl.innerHTML = `
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 8px">Found saves in existing installs:</p>
+    ${data.saves.map((s, idx) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg-tertiary);border-radius:6px;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:500">${escapeHtml(s.saveName)}</div>
+          <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(s.instanceName)}</div>
+        </div>
+        <button id="wiz-import-btn-${idx}" class="btn btn-secondary" style="font-size:12px;padding:4px 12px"
+          data-path="${escapeHtml(s.savePath)}" data-name="${escapeHtml(s.saveName)}"
+          onclick="wizImportSaveFromScan(this.dataset.path, this.dataset.name, ${idx})">Import</button>
+      </div>
+    `).join('')}
+  `;
 }
 
-async function wizImportSave() {
-  const sel      = document.getElementById('wiz-import-save');
+async function wizImportSaveFromScan(savePath, saveName, btnIdx) {
+  const btn      = document.getElementById(`wiz-import-btn-${btnIdx}`);
   const statusEl = document.getElementById('wiz-import-status');
-  if (!sel?.value) return;
-  const savePath = decodeURIComponent(sel.value);
-  const saveName = sel.options[sel.selectedIndex]?.dataset?.name;
-  statusEl.style.color = 'var(--text-secondary)';
-  statusEl.textContent = `Importing "${saveName}"…`;
+  if (statusEl) { statusEl.style.color = 'var(--text-secondary)'; statusEl.textContent = `Importing "${saveName}"…`; }
   try {
-    await API.post('/api/wizard/import-save', { savePath, saveName });
-    statusEl.style.color = 'var(--accent)';
-    statusEl.textContent = `✅ "${saveName}" imported — select it in the next step.`;
-    document.getElementById('wiz-import-results').style.display = 'none';
+    const data = await API.post('/api/wizard/import-save', { savePath, saveName });
+    if (data?.success) {
+      if (btn) { btn.textContent = '✓ Imported'; btn.disabled = true; btn.style.color = 'var(--accent)'; btn.style.borderColor = 'var(--accent)'; }
+      if (statusEl) { statusEl.style.color = 'var(--accent)'; statusEl.textContent = `✅ "${saveName}" imported — select it in the farm setup step.`; }
+    } else {
+      if (statusEl) { statusEl.style.color = 'var(--accent-error)'; statusEl.textContent = '❌ ' + (data?.error || 'Import failed.'); }
+    }
   } catch (e) {
-    statusEl.style.color = 'var(--accent-error)';
-    statusEl.textContent = e.message || 'Import failed.';
+    if (statusEl) { statusEl.style.color = 'var(--accent-error)'; statusEl.textContent = e.message || 'Import failed.'; }
   }
 }
 
@@ -838,8 +850,8 @@ async function wizSubmitStep3(skip) {
   }
 }
 
-async function wizSubmitStep4(skip) {
-  const pw   = skip ? '' : (document.getElementById('wiz-srv-pw').value.trim());
+async function wizSubmitStep4() {
+  const pw   = document.getElementById('wiz-srv-pw').value.trim();
   const tz   = tzPickerValue('wiz-tz-picker');
   const mode = document.getElementById('wiz-server-mode')?.value || 'lan';
   try {
@@ -1876,8 +1888,8 @@ async function loadServerModeCard() {
         <div style="font-weight:600;font-size:15px;margin-bottom:4px">Server Mode</div>
         <div style="font-size:13px;color:var(--text-secondary)">
           ${isSteam
-            ? 'Steam — invite codes are generated automatically when multiplayer starts.'
-            : 'LAN — server is visible on the local network. No internet required.'}
+            ? 'Online — anonymous Steam / GOG lobbies. Invite codes generated automatically when multiplayer starts.'
+            : 'LAN — local network or VPN tunneling. No internet or port forwarding required.'}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
