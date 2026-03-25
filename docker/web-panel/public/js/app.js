@@ -1384,7 +1384,7 @@ function updateDashboardUI(data) {
     showToast('Server is back online', 'success');
   }
 
-  const restarting  = isGameRestarting && !running;
+  const restarting  = isGameRestarting;
   const statusText  = restarting ? 'Restarting...' : running ? 'Running' : 'Stopped';
   const statusClass = restarting ? 'restarting' : running ? 'online' : 'offline';
 
