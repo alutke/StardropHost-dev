@@ -1371,18 +1371,19 @@ async function loadDashboard() {
 function updateDashboardUI(data) {
   lastStatusData = data;
 
-  const running = !!data.gameRunning;
+  const gameRunning = !!data.gameRunning;
+  const liveRunning = data.live?.serverState === 'running';
 
-  // Clear restarting flag once the game comes back up (with a 5s grace period
-  // so we don't clear it before SMAPI has had a chance to actually stop)
-  if (isGameRestarting && running && Date.now() - gameRestartInitiatedAt > 5000) {
+  // Clear restarting flag once the save is fully loaded and players can join
+  if (isGameRestarting && liveRunning && Date.now() - gameRestartInitiatedAt > 5000) {
     isGameRestarting = false;
     showToast('Server is back online', 'success');
   }
 
-  const restarting  = isGameRestarting;
-  const statusText  = restarting ? 'Restarting...' : running ? 'Running' : 'Stopped';
-  const statusClass = restarting ? 'restarting' : running ? 'online' : 'offline';
+  // "Restarting" (orange) while process is up but save not loaded yet
+  const starting    = isGameRestarting || (gameRunning && !liveRunning);
+  const statusText  = liveRunning ? 'Running' : starting ? 'Restarting...' : 'Stopped';
+  const statusClass = liveRunning ? 'running' : starting ? 'restarting' : 'offline';
 
   setText('stat-status', statusText);
   document.getElementById('stat-status-icon').innerHTML =
@@ -1391,9 +1392,9 @@ function updateDashboardUI(data) {
   document.getElementById('serverStatus').innerHTML =
     `<span class="status-dot ${statusClass}"></span><span id="serverStatusText">${statusText}</span>`;
 
-  // Disable restart button while restarting
+  // Disable restart button while game is loading or restarting
   const restartBtn = document.querySelector('.btn[onclick="restartServer()"]');
-  if (restartBtn) restartBtn.disabled = restarting;
+  if (restartBtn) restartBtn.disabled = starting;
 
   setText('stat-players', `${data.players?.online ?? 0}/4`);
   setText('stat-uptime',  formatUptime(data.uptime || 0));
