@@ -1897,7 +1897,7 @@ async function loadServerModeCard() {
         <div style="font-size:13px;color:var(--text-secondary)">
           ${isSteam
             ? 'Online — anonymous Steam / GOG lobbies. Invite codes generated automatically when multiplayer starts.'
-            : 'LAN — local network or VPN tunneling. No internet or port forwarding required.'}
+            : 'LAN — Use \'Join IP\' in co-op game on a Local Network or VPN Tunnel.'}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
