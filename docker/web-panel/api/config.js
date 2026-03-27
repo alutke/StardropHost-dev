@@ -12,32 +12,18 @@ const config = require('../server');
 // Steam credentials are NOT stored here — they live in the steam-auth container (Phase 4).
 
 const CONFIG_SCHEMA = {
-  'Server': [
-    { key: 'SERVER_PASSWORD',  label: 'Server Password',  type: 'password', viewable: true, default: '' },
-  ],
   'VNC & Display': [
     { key: 'VNC_PASSWORD',      label: 'VNC Password',             type: 'password', viewable: true, default: 'stardew1', maxLength: 8 },
     { key: 'DISABLE_RENDERING', label: 'Disable Rendering when VNC is off', type: 'boolean', default: 'true',
       description: 'Turns off the display server when VNC is not active. Saves CPU.' },
-    { key: 'RESOLUTION_WIDTH',  label: 'Display Width', type: 'select', default: '1280',
+    { key: 'DISPLAY_PRESET', label: 'Display Resolution', type: 'select', default: '1280x720@60',
       options: [
-        { value: '1280', label: '1280 px (HD)' },
-        { value: '1920', label: '1920 px (Full HD)' },
-        { value: '2560', label: '2560 px (QHD)' },
-        { value: '3840', label: '3840 px (4K)' },
-      ] },
-    { key: 'RESOLUTION_HEIGHT', label: 'Display Height', type: 'select', default: '720',
-      options: [
-        { value: '720',  label: '720 px (HD)' },
-        { value: '1080', label: '1080 px (Full HD)' },
-        { value: '1440', label: '1440 px (QHD)' },
-        { value: '2160', label: '2160 px (4K)' },
-      ] },
-    { key: 'REFRESH_RATE', label: 'Refresh Rate', type: 'select', default: '60',
-      options: [
-        { value: '30',  label: '30 Hz' },
-        { value: '60',  label: '60 Hz' },
-        { value: '120', label: '120 Hz' },
+        { value: '800x600@30',   label: '800×600 @ 30 Hz (Low Performance)' },
+        { value: '1280x720@30',  label: '1280×720 @ 30 Hz (HD)' },
+        { value: '1280x720@60',  label: '1280×720 @ 60 Hz (HD)' },
+        { value: '1920x1080@30', label: '1920×1080 @ 30 Hz (Full HD)' },
+        { value: '1920x1080@60', label: '1920×1080 @ 60 Hz (Full HD)' },
+        { value: '2560x1440@60', label: '2560×1440 @ 60 Hz (QHD)' },
       ] },
     { key: 'TARGET_FPS', label: 'Target FPS', type: 'number', default: '',
       description: 'Cap the game frame rate. Leave blank for uncapped.' },
@@ -63,11 +49,10 @@ const CONFIG_SCHEMA = {
     { key: 'LOW_PERF_MODE', label: 'Low Performance Mode', type: 'boolean', default: 'false' },
   ],
   'Backup': [
-    { key: 'ENABLE_AUTO_BACKUP',        label: 'Auto Backup',              type: 'boolean', default: 'true' },
-    { key: 'MAX_BACKUPS',               label: 'Max Backups',              type: 'number',  default: '7' },
-    { key: 'BACKUP_HOUR',               label: 'Backup Hour (0–23)',        type: 'number',  default: '4', min: 0, max: 23 },
-    { key: 'BACKUP_COMPRESSION_LEVEL',  label: 'Compression Level (1–9)',  type: 'number',  default: '1', min: 1, max: 9,
-      description: '1 = fastest, 9 = smallest. Default 1 is fine for most saves.' },
+    { key: 'ENABLE_AUTO_BACKUP',     label: 'Auto Backup',               type: 'boolean', default: 'true' },
+    { key: 'MAX_BACKUPS',            label: 'Max Backups',               type: 'number',  default: '7' },
+    { key: 'BACKUP_INTERVAL_HOURS',  label: 'Backup Frequency (hours)',  type: 'number',  default: '24', min: 1, max: 24,
+      description: 'How often to back up saves. 24 = once a day.' },
   ],
   'Stability': [
     { key: 'ENABLE_CRASH_RESTART', label: 'Auto Crash Restart', type: 'boolean', default: 'true' },
@@ -77,8 +62,8 @@ const CONFIG_SCHEMA = {
     { key: 'ENABLE_LOG_MONITOR', label: 'Log Monitor',   type: 'boolean', default: 'true' },
     { key: 'METRICS_PORT',       label: 'Metrics Port',  type: 'number',  default: '9090' },
   ],
-  'Other': [
-    { key: 'TZ', label: 'Timezone', type: 'timezone', default: 'UTC' },
+  'Server': [
+    { key: 'SERVER_PASSWORD',  label: 'Server Password',  type: 'password', viewable: true, default: '' },
   ],
 };
 

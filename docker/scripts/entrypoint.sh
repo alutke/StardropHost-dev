@@ -48,6 +48,18 @@ LOW_PERF_DEFAULT_COLOR_DEPTH=16
 
 LOW_PERF_MODE=${LOW_PERF_MODE:-false}
 TARGET_FPS_RAW=${TARGET_FPS:-}
+
+# Parse DISPLAY_PRESET (e.g. "1920x1080@60") into individual vars if set
+if [ -n "${DISPLAY_PRESET:-}" ]; then
+    _dp_w="${DISPLAY_PRESET%%x*}"
+    _dp_rest="${DISPLAY_PRESET#*x}"
+    _dp_h="${_dp_rest%%@*}"
+    _dp_r="${_dp_rest#*@}"
+    [ -n "$_dp_w" ] && RESOLUTION_WIDTH="$_dp_w"
+    [ -n "$_dp_h" ] && RESOLUTION_HEIGHT="$_dp_h"
+    [ -n "$_dp_r" ] && REFRESH_RATE="$_dp_r"
+fi
+
 RESOLUTION_WIDTH=${RESOLUTION_WIDTH:-$DEFAULT_RESOLUTION_WIDTH}
 RESOLUTION_HEIGHT=${RESOLUTION_HEIGHT:-$DEFAULT_RESOLUTION_HEIGHT}
 REFRESH_RATE=${REFRESH_RATE:-${TARGET_FPS_RAW:-$DEFAULT_REFRESH_RATE}}

@@ -10,7 +10,7 @@
 SAVE_DIR="/home/steam/.config/StardewValley"
 BACKUP_DIR="/home/steam/.local/share/stardrop/backups"
 MAX_BACKUPS=${MAX_BACKUPS:-7}
-BACKUP_HOUR=${BACKUP_HOUR:-4}
+BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-24}
 BACKUP_COMPRESSION_LEVEL=${BACKUP_COMPRESSION_LEVEL:-1}
 CHECK_INTERVAL=300
 
@@ -23,13 +23,13 @@ log "  Auto-Backup Service Starting..."
 log "========================================"
 log "  Backup directory:  $BACKUP_DIR"
 log "  Max backups:       $MAX_BACKUPS"
-log "  Backup time:       ${BACKUP_HOUR}:00"
+log "  Backup interval:   every ${BACKUP_INTERVAL_HOURS}h"
 log "  Compression level: $BACKUP_COMPRESSION_LEVEL"
 log ""
 
 mkdir -p "$BACKUP_DIR"
 
-LAST_BACKUP_DATE=""
+LAST_BACKUP_TIME=0
 
 do_backup() {
     local timestamp
@@ -74,7 +74,7 @@ do_backup() {
 
     log "  Backups: $(ls -1 "$BACKUP_DIR"/saves-*.tar.gz 2>/dev/null | wc -l) / $MAX_BACKUPS"
 
-    LAST_BACKUP_DATE=$(date +%Y%m%d)
+    LAST_BACKUP_TIME=$(date +%s)
     return 0
 }
 
@@ -88,12 +88,11 @@ do_backup
 
 # Main loop - check every 5 minutes
 while true; do
-    CURRENT_HOUR=$(date +%H)
-    CURRENT_DATE=$(date +%Y%m%d)
+    NOW=$(date +%s)
+    ELAPSED_HOURS=$(( (NOW - LAST_BACKUP_TIME) / 3600 ))
 
-    if [ "$CURRENT_HOUR" = "$(printf '%02d' $BACKUP_HOUR)" ] && \
-       [ "$CURRENT_DATE" != "$LAST_BACKUP_DATE" ]; then
-        log "Scheduled backup time reached (${BACKUP_HOUR}:00)"
+    if [ "$ELAPSED_HOURS" -ge "$BACKUP_INTERVAL_HOURS" ]; then
+        log "Scheduled backup (interval: ${BACKUP_INTERVAL_HOURS}h, elapsed: ${ELAPSED_HOURS}h)"
         do_backup
     fi
 
