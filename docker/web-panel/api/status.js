@@ -211,7 +211,7 @@ function collectStatus(req = null) {
     }
   } catch {}
 
-  // -- Live process metrics (fallback if no status.json) --
+  // -- Live process metrics (pgrep is authoritative for gameRunning) --
   try {
     const pidStr = execSync('pgrep -f StardewModdingAPI', { encoding: 'utf-8' }).trim().split('\n')[0];
     status.gameRunning = true;
@@ -238,7 +238,10 @@ function collectStatus(req = null) {
         if (startTime) status.uptime = Math.floor(Date.now() / 1000) - parseInt(startTime, 10);
       } catch {}
     }
-  } catch {}
+  } catch {
+    // pgrep failed — SMAPI not running; override stale status file data
+    status.gameRunning = false;
+  }
 
   // -- Container-level memory fallback (always available via /proc/meminfo) --
   if (status.memory.used === 0 || status.memory.limit === 2048) {

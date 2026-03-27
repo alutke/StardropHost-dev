@@ -1540,6 +1540,9 @@ function updateDashboardUI(data) {
   document.getElementById('serverStatus').innerHTML =
     `<span class="status-dot ${statusClass}"></span><span id="serverStatusText">${statusText}</span>`;
 
+  // Update config tab server toggle button
+  updateServerToggleBtn();
+
   // Disable restart button while game is loading or restarting
   const restartBtn = document.querySelector('.btn[onclick="restartServer()"]');
   if (restartBtn) restartBtn.disabled = starting;
@@ -2172,6 +2175,9 @@ async function loadConfig() {
         `<button id="serverToggleBtn" class="btn btn-sm ${running ? 'btn-danger' : 'btn-success'}" type="button"
            onclick="${running ? 'stopServer()' : 'startServer()'}">
            ${running ? 'Stop Server' : 'Start Server'}
+         </button>
+         <button class="btn btn-sm btn-warning" type="button" onclick="restartServer()">
+           Restart Server
          </button>`;
       card.appendChild(actions);
     }
@@ -2414,6 +2420,7 @@ async function restartServer() {
 }
 
 async function startServer() {
+  if (!confirm('Start the server?')) return;
   const data = await API.post('/api/server/start').catch(() => null);
   if (data?.success) {
     showToast('Server starting...', 'success');
