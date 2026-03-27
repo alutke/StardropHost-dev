@@ -389,6 +389,14 @@ function subscribeStatus(ws) {
 // Restart game process only (not container)
 function restartServer(req, res) {
   try {
+    // Mark live-status.json as offline so UI shows "Restarting..." not "Running" during shutdown
+    try {
+      if (fs.existsSync(config.LIVE_FILE)) {
+        const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+        live.serverState = 'offline';
+        fs.writeFileSync(config.LIVE_FILE, JSON.stringify(live));
+      }
+    } catch {}
     spawnSync('sh', ['-lc', 'pkill -f "StardewModdingAPI|Stardew Valley" >/dev/null 2>&1 || true'], {
       encoding: 'utf-8',
       timeout: 10000,

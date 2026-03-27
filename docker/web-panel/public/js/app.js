@@ -1525,7 +1525,10 @@ function updateDashboardUI(data) {
 
   // Clear flags on settled states
   if (!gameRunning) isStopping = false;
-  if (isGameRestarting && liveRunning && Date.now() - gameRestartInitiatedAt > 5000) {
+  // Only clear restarting once live data is fresher than when restart was initiated
+  // (prevents stale pre-restart live-status.json from prematurely clearing the flag)
+  const liveIsPostRestart = (data.live?.timestamp || 0) > gameRestartInitiatedAt / 1000;
+  if (isGameRestarting && liveRunning && liveIsPostRestart) {
     isGameRestarting = false;
     showToast('Server is back online', 'success');
   }
