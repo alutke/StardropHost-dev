@@ -148,6 +148,7 @@ function collectStatus(req = null) {
   const status = {
     timestamp: new Date().toISOString(),
     gameRunning: false,
+    stoppedByUser: fs.existsSync(STOP_FLAG),
     uptime: 0,
     players: { online: 0, max: 4 },
     cpu: 0,

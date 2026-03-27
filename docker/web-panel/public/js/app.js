@@ -1178,6 +1178,7 @@ let containerReconnectPoll = null;
 let isGameRestarting       = false;
 let gameRestartInitiatedAt = 0;
 let isStopping             = false;
+let isStarting             = false;
 
 // ─── Theme ───────────────────────────────────────────────────────
 let currentTheme = (() => {
@@ -1525,6 +1526,7 @@ function updateDashboardUI(data) {
 
   // Clear flags on settled states
   if (!gameRunning) isStopping = false;
+  if (gameRunning || liveRunning) isStarting = false;
   // Only clear restarting once live data is fresher than when restart was initiated
   // (prevents stale pre-restart live-status.json from prematurely clearing the flag)
   const liveIsPostRestart = (data.live?.timestamp || 0) > gameRestartInitiatedAt / 1000;
@@ -1533,18 +1535,21 @@ function updateDashboardUI(data) {
     showToast('Server is back online', 'success');
   }
 
+  // "Starting..." on fresh container boot: SMAPI not yet found but wasn't stopped by user.
+  // systemUptime < 90s covers the gap between container start and SMAPI being detected by pgrep.
+  const bootStarting = !gameRunning && !data.stoppedByUser && (data.systemUptime || 0) < 90;
+
   // Priority: Stopped > Stopping > Restarting > Starting > Running
-  // isGameRestarting keeps "Restarting..." even during brief gameRunning=false gap
-  const realStopped = !gameRunning && !isGameRestarting;
+  const realStopped = !gameRunning && !isGameRestarting && !isStarting && !bootStarting;
   const statusText  = realStopped      ? 'Stopped'
     : isStopping                       ? 'Stopping...'
     : isGameRestarting                 ? 'Restarting...'
-    : liveRunning                      ? 'Running'
-    :                                    'Starting...';
+    : (isStarting || bootStarting || (gameRunning && !liveRunning)) ? 'Starting...'
+    :                                    'Running';
   const statusClass = realStopped      ? 'offline'
-    : (isStopping || isGameRestarting || !liveRunning) ? 'restarting'
+    : (isStopping || isGameRestarting || isStarting || bootStarting || !liveRunning) ? 'restarting'
     :                                    'running';
-  const starting = isStopping || isGameRestarting || (gameRunning && !liveRunning);
+  const starting = isStopping || isGameRestarting || isStarting || bootStarting || (gameRunning && !liveRunning);
 
   setText('stat-status', statusText);
   document.getElementById('stat-status-icon').innerHTML =
@@ -2438,8 +2443,8 @@ async function startServer() {
   if (!confirm('Start the server?')) return;
   const data = await API.post('/api/server/start').catch(() => null);
   if (data?.success) {
-    // Force "Starting..." immediately — don't wait for first poll to detect SMAPI
-    if (lastStatusData) updateDashboardUI({ ...lastStatusData, gameRunning: true, live: { ...(lastStatusData.live || {}), serverState: 'offline' } });
+    isStarting = true;
+    if (lastStatusData) updateDashboardUI({ ...lastStatusData, stoppedByUser: false });
     showToast('Server starting...', 'info');
     _pollServerState(true, 60000);
   } else {
