@@ -1177,6 +1177,7 @@ let lastBackupStatus       = null;
 let containerReconnectPoll = null;
 let isGameRestarting       = false;
 let gameRestartInitiatedAt = 0;
+let isStopping             = false;
 
 // ─── Theme ───────────────────────────────────────────────────────
 let currentTheme = (() => {
@@ -1522,16 +1523,25 @@ function updateDashboardUI(data) {
   const gameRunning = !!data.gameRunning;
   const liveRunning = data.live?.serverState === 'running';
 
-  // Clear restarting flag once the save is fully loaded and players can join
+  // Clear flags on settled states
+  if (!gameRunning) isStopping = false;
   if (isGameRestarting && liveRunning && Date.now() - gameRestartInitiatedAt > 5000) {
     isGameRestarting = false;
     showToast('Server is back online', 'success');
   }
 
-  // gameRunning (pgrep) is authoritative — liveRunning only promotes to "Running" once save loads
-  const starting    = gameRunning && (isGameRestarting || !liveRunning);
-  const statusText  = !gameRunning ? 'Stopped' : liveRunning ? 'Running' : (isGameRestarting ? 'Restarting...' : 'Starting...');
-  const statusClass = !gameRunning ? 'offline'  : liveRunning ? 'running' : 'restarting';
+  // Priority: Stopped > Stopping > Restarting > Starting > Running
+  // isGameRestarting keeps "Restarting..." even during brief gameRunning=false gap
+  const realStopped = !gameRunning && !isGameRestarting;
+  const statusText  = realStopped      ? 'Stopped'
+    : isStopping                       ? 'Stopping...'
+    : isGameRestarting                 ? 'Restarting...'
+    : liveRunning                      ? 'Running'
+    :                                    'Starting...';
+  const statusClass = realStopped      ? 'offline'
+    : (isStopping || isGameRestarting || !liveRunning) ? 'restarting'
+    :                                    'running';
+  const starting = isStopping || isGameRestarting || (gameRunning && !liveRunning);
 
   setText('stat-status', statusText);
   document.getElementById('stat-status-icon').innerHTML =
@@ -2411,6 +2421,8 @@ async function triggerGameRestart() {
     isGameRestarting = false;
     showToast(data?.error || 'Restart failed', 'error');
     if (lastStatusData) updateDashboardUI(lastStatusData);
+  } else {
+    _pollServerState(true, 120000);
   }
 }
 
@@ -2435,22 +2447,27 @@ async function stopServer() {
   if (!confirm('Stop the server? Players will be disconnected.')) return;
   const data = await API.post('/api/server/stop').catch(() => null);
   if (data?.success) {
-    showToast('Server stopped', 'success');
-    // Poll until gameRunning becomes false
-    _pollServerState(false, 10000);
+    isStopping = true;
+    if (lastStatusData) updateDashboardUI(lastStatusData);
+    showToast('Server stopping...', 'info');
+    _pollServerState(false, 35000);
   } else {
     showToast(data?.error || 'Failed to stop server', 'error');
   }
 }
 
-// Poll /api/status every 1s until gameRunning matches target, then update UI
+// Poll /api/status every 1.5s until target state is reached, then update UI.
+// targetRunning=true waits for live save loaded; targetRunning=false waits for process gone.
 async function _pollServerState(targetRunning, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   const poll = async () => {
     const data = await API.get('/api/status').catch(() => null);
     if (data) updateDashboardUI(data);
-    if (data && !!data.gameRunning === targetRunning) return;
-    if (Date.now() < deadline) setTimeout(poll, 1000);
+    const reached = targetRunning
+      ? data?.live?.serverState === 'running'
+      : data && !data.gameRunning;
+    if (reached) { if (targetRunning && !isGameRestarting) showToast('Server is online', 'success'); return; }
+    if (Date.now() < deadline) setTimeout(poll, 1500);
   };
   setTimeout(poll, 800);
 }
