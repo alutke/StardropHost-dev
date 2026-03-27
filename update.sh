@@ -137,13 +137,16 @@ fi
 # -- Step 2: Stop containers --
 print_step "Step 2: Stopping containers..."
 
-# Check if the game server was running before we bring things down
-_SERVER_WAS_RUNNING=false
-if docker exec "${CONTAINER_PREFIX}" pgrep -f StardewModdingAPI >/dev/null 2>&1; then
-    _SERVER_WAS_RUNNING=true
-    print_info "Game server is running — will restart it after update"
+# Remember whether the server was explicitly stopped via the web panel.
+# The stop flag on the host filesystem is the source of truth — no need to inspect the container.
+_STOP_FLAG="$SCRIPT_DIR/data/panel/server-stopped"
+_WAS_EXPLICITLY_STOPPED=false
+[ -f "$_STOP_FLAG" ] && _WAS_EXPLICITLY_STOPPED=true
+
+if [ "$_WAS_EXPLICITLY_STOPPED" = "true" ]; then
+    print_info "Game server was stopped — will remain stopped after update"
 else
-    print_info "Game server is stopped — will remain stopped after update"
+    print_info "Game server was running — will start after update"
 fi
 
 print_info "Gracefully shutting down the server and web panel..."
@@ -327,10 +330,9 @@ if ! $COMPOSE_CMD up -d; then
     exit 1
 fi
 
-# Restore server running state
-if [ "$_SERVER_WAS_RUNNING" = "true" ]; then
-    rm -f "$SCRIPT_DIR/data/panel/server-stopped"
-    print_success "Server start restored"
+# Restore server state — if it wasn't explicitly stopped, clear any stale stop flag
+if [ "$_WAS_EXPLICITLY_STOPPED" = "false" ]; then
+    rm -f "$_STOP_FLAG"
 fi
 
 print_success "Containers started"

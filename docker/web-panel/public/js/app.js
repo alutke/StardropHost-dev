@@ -2438,9 +2438,10 @@ async function startServer() {
   if (!confirm('Start the server?')) return;
   const data = await API.post('/api/server/start').catch(() => null);
   if (data?.success) {
-    showToast('Server starting...', 'success');
-    // Poll until gameRunning becomes true (crash-monitor picks up flag removal)
-    _pollServerState(true, 15000);
+    // Force "Starting..." immediately — don't wait for first poll to detect SMAPI
+    if (lastStatusData) updateDashboardUI({ ...lastStatusData, gameRunning: true, live: { ...(lastStatusData.live || {}), serverState: 'offline' } });
+    showToast('Server starting...', 'info');
+    _pollServerState(true, 60000);
   } else {
     showToast(data?.error || 'Failed to start server', 'error');
   }
