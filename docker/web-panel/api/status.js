@@ -212,11 +212,16 @@ function collectStatus(req = null) {
   } catch {}
 
   // -- Live process metrics (pgrep is authoritative for gameRunning) --
-  try {
-    const pidStr = execSync('pgrep -f StardewModdingAPI', { encoding: 'utf-8' }).trim().split('\n')[0];
+  // Use spawnSync (not execSync) to avoid sh -c wrapper — execSync spawns
+  // "sh -c 'pgrep -f StardewModdingAPI'" whose cmdline matches the pattern,
+  // causing pgrep to always find a process even when SMAPI is not running.
+  const _pgrep = spawnSync('pgrep', ['-f', 'StardewModdingAPI'], { encoding: 'utf-8' });
+  const pidStr = _pgrep.status === 0 ? _pgrep.stdout.trim().split('\n')[0] : '';
+
+  if (_pgrep.status === 0 && pidStr) {
     status.gameRunning = true;
 
-    if (status.cpu === 0 && pidStr) {
+    if (status.cpu === 0) {
       try {
         const cpuRaw = parseFloat(execSync(`ps -p ${pidStr} -o %cpu= 2>/dev/null`, { encoding: 'utf-8' }).trim()) || 0;
         // BUG FIX: Divide by core count to get true % of total capacity
@@ -225,21 +230,21 @@ function collectStatus(req = null) {
       } catch {}
     }
 
-    if (status.memory.used === 0 && pidStr) {
+    if (status.memory.used === 0) {
       try {
         const rssStr = execSync(`grep VmRSS /proc/${pidStr}/status 2>/dev/null | awk '{print $2}'`, { encoding: 'utf-8' }).trim();
         if (rssStr) status.memory.used = Math.round(parseInt(rssStr, 10) / 1024);
       } catch {}
     }
 
-    if (status.uptime === 0 && pidStr) {
+    if (status.uptime === 0) {
       try {
         const startTime = execSync(`stat -c %Y /proc/${pidStr} 2>/dev/null`, { encoding: 'utf-8' }).trim();
         if (startTime) status.uptime = Math.floor(Date.now() / 1000) - parseInt(startTime, 10);
       } catch {}
     }
-  } catch {
-    // pgrep failed — SMAPI not running; override stale status/live file data
+  } else {
+    // pgrep found nothing — SMAPI not running; override stale status/live file data
     status.gameRunning = false;
     if (status.live) status.live.serverState = 'offline';
   }
