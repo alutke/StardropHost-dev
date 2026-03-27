@@ -1239,6 +1239,7 @@ function init() {
   loadDashboard();
   loadSteam();
   loadBackupStatus();
+  renderQuickActions();
 
   document.getElementById('logoutBtn').onclick = () => {
     localStorage.removeItem('panel_token');
@@ -1312,7 +1313,7 @@ function navigateTo(page) {
   document.getElementById('sidebar').classList.remove('open');
 
   switch (page) {
-    case 'dashboard': loadDashboard(); loadSteam();                          break;
+    case 'dashboard': loadDashboard(); loadSteam(); renderQuickActions();    break;
     case 'farm':      loadFarm();                                            break;
     case 'players':   loadPlayers();                                         break;
     case 'saves':     loadSaves();                                           break;
@@ -1361,6 +1362,106 @@ function handleWsMessage(msg) {
       document.getElementById('termDisconnect').style.display = 'none';
       break;
   }
+}
+
+// ─── Quick Actions ───────────────────────────────────────────────
+
+const QUICK_ACTION_DEFS = {
+  'restart-server': { label: 'Restart Server',  icon: 'icon-refresh',  cls: 'btn-warning',   onclick: 'restartServer()' },
+  'stop-server':    { label: 'Stop Server',      icon: 'icon-screen',   cls: 'btn-danger',    onclick: 'stopServer()' },
+  'start-server':   { label: 'Start Server',     icon: 'icon-refresh',  cls: 'btn-success',   onclick: 'startServer()' },
+  'backup-now':     { label: 'Backup Now',        icon: 'icon-saves',    cls: 'btn-success',   onclick: 'createBackup()' },
+  'view-logs':      { label: 'View Logs',         icon: 'icon-logs',     cls: 'btn-primary',   onclick: "navigateTo('logs')" },
+  'farm-overview':  { label: 'Farm Overview',     icon: 'icon-sprout',   cls: 'btn-secondary', onclick: "navigateTo('farm')" },
+  'manage-players': { label: 'Manage Players',    icon: 'icon-players',  cls: 'btn-secondary', onclick: "navigateTo('players')" },
+  'manage-saves':   { label: 'Manage Saves',      icon: 'icon-saves',    cls: 'btn-secondary', onclick: "navigateTo('saves')" },
+  'manage-mods':    { label: 'Manage Mods',       icon: 'icon-mods',     cls: 'btn-secondary', onclick: "navigateTo('mods')" },
+  'open-terminal':  { label: 'Open Terminal',     icon: 'icon-terminal', cls: 'btn-secondary', onclick: "navigateTo('terminal')" },
+  'open-config':    { label: 'Open Config',       icon: 'icon-config',   cls: 'btn-secondary', onclick: "navigateTo('config')" },
+};
+
+const QUICK_ACTIONS_KEY     = 'stardrop_quick_actions';
+const QUICK_ACTIONS_DEFAULT = ['restart-server', 'backup-now'];
+
+let quickActionsEditMode = false;
+
+function getQuickActions() {
+  try {
+    const s = localStorage.getItem(QUICK_ACTIONS_KEY);
+    if (s) return JSON.parse(s);
+  } catch {}
+  return [...QUICK_ACTIONS_DEFAULT];
+}
+
+function saveQuickActions(ids) {
+  localStorage.setItem(QUICK_ACTIONS_KEY, JSON.stringify(ids));
+}
+
+function renderQuickActions() {
+  const container = document.getElementById('quickActionsContainer');
+  if (!container) return;
+  const ids = getQuickActions().filter(id => QUICK_ACTION_DEFS[id]);
+  const editClass = quickActionsEditMode ? ' editing' : '';
+  container.innerHTML = ids.map(id => {
+    const def = QUICK_ACTION_DEFS[id];
+    return `<div class="quick-action-wrap${editClass}">
+      <button class="btn ${def.cls}" type="button" onclick="${quickActionsEditMode ? '' : def.onclick}">
+        <svg class="icon"><use href="#${def.icon}"></use></svg>${escapeHtml(def.label)}
+      </button>
+      <button class="quick-action-remove" onclick="removeQuickAction('${id}')" title="Remove">×</button>
+    </div>`;
+  }).join('') +
+  `<button class="btn btn-secondary quick-action-add" type="button" onclick="openQuickActionsModal()" title="Add quick action">+</button>` +
+  `<button class="btn btn-secondary quick-action-add" type="button" onclick="toggleQuickActionsEditMode()" title="${quickActionsEditMode ? 'Done' : 'Remove quick actions'}">${quickActionsEditMode ? 'Done' : '−'}</button>`;
+}
+
+function toggleQuickActionsEditMode() {
+  quickActionsEditMode = !quickActionsEditMode;
+  renderQuickActions();
+}
+
+function addQuickAction(id) {
+  const ids = getQuickActions();
+  if (!ids.includes(id) && QUICK_ACTION_DEFS[id]) {
+    ids.push(id);
+    saveQuickActions(ids);
+    renderQuickActions();
+    renderQuickActionsPickerList();
+  }
+}
+
+function removeQuickAction(id) {
+  saveQuickActions(getQuickActions().filter(i => i !== id));
+  renderQuickActions();
+}
+
+function openQuickActionsModal() {
+  quickActionsEditMode = false;
+  document.getElementById('quickActionsModal').style.display = 'flex';
+  renderQuickActionsPickerList();
+}
+
+function closeQuickActionsModal() {
+  document.getElementById('quickActionsModal').style.display = 'none';
+}
+
+function renderQuickActionsPickerList() {
+  const list = document.getElementById('quickActionsPickerList');
+  if (!list) return;
+  const added     = new Set(getQuickActions());
+  const available = Object.entries(QUICK_ACTION_DEFS).filter(([id]) => !added.has(id));
+  if (available.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:12px 0">All actions already added.</div>';
+    return;
+  }
+  list.innerHTML = available.map(([id, def]) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-tertiary);border-radius:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg class="icon" style="color:var(--accent)"><use href="#${def.icon}"></use></svg>
+        <span>${escapeHtml(def.label)}</span>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="addQuickAction('${id}')">Add</button>
+    </div>`).join('');
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────
@@ -2013,6 +2114,26 @@ async function loadConfig() {
       card.appendChild(row);
     }
 
+    // Server group: append Start / Stop / Restart controls
+    if (group.name === 'Server') {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid var(--border);margin:14px 0 10px';
+      card.appendChild(sep);
+      const actions = document.createElement('div');
+      actions.className = 'action-buttons';
+      actions.innerHTML =
+        `<button class="btn btn-success btn-sm" type="button" onclick="startServer()">
+           <svg class="icon"><use href="#icon-refresh"></use></svg>Start
+         </button>
+         <button class="btn btn-sm" style="color:#ef4444;border-color:#ef4444" type="button" onclick="stopServer()">
+           <svg class="icon"><use href="#icon-screen"></use></svg>Stop
+         </button>
+         <button class="btn btn-warning btn-sm" type="button" onclick="restartServer()">
+           <svg class="icon"><use href="#icon-refresh"></use></svg>Restart
+         </button>`;
+      card.appendChild(actions);
+    }
+
     target.appendChild(card);
 
     // Now card is in the DOM — build any deferred timezone pickers for this card
@@ -2248,6 +2369,19 @@ async function triggerGameRestart() {
 async function restartServer() {
   if (!confirm('Restart the server?')) return;
   await triggerGameRestart();
+}
+
+async function startServer() {
+  const data = await API.post('/api/server/start').catch(() => null);
+  if (data?.success) showToast('Server starting...', 'success');
+  else showToast(data?.error || 'Failed to start server', 'error');
+}
+
+async function stopServer() {
+  if (!confirm('Stop the server? Players will be disconnected.')) return;
+  const data = await API.post('/api/server/stop').catch(() => null);
+  if (data?.success) showToast('Server stopped', 'success');
+  else showToast(data?.error || 'Failed to stop server', 'error');
 }
 
 async function createBackup() {

@@ -397,24 +397,7 @@
 
           <div class="card">
             <h3>Quick Actions</h3>
-            <div class="action-buttons">
-              <button class="btn btn-warning" type="button" onclick="restartServer()">
-                <svg class="icon"><use href="#icon-refresh"></use></svg>
-                Restart Server
-              </button>
-              <button class="btn btn-success" type="button" onclick="createBackup()">
-                <svg class="icon"><use href="#icon-saves"></use></svg>
-                Backup Now
-              </button>
-              <button class="btn btn-primary" type="button" onclick="navigateTo('logs')">
-                <svg class="icon"><use href="#icon-logs"></use></svg>
-                View Logs
-              </button>
-              <button class="btn btn-secondary" type="button" onclick="navigateTo('farm')">
-                <svg class="icon"><use href="#icon-sprout"></use></svg>
-                Farm Overview
-              </button>
-            </div>
+            <div class="action-buttons" id="quickActionsContainer"></div>
             <div id="dashboardBackupStatus" class="backup-status" style="display:none"></div>
           </div>
 
@@ -1089,6 +1072,17 @@
       <div class="modal-actions">
         <button class="btn btn-sm btn-secondary" type="button" onclick="closeRestartModal()">Later</button>
         <button class="btn btn-sm btn-warning" id="restartNowBtn" type="button" onclick="confirmRestart()">Restart Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Quick Actions Picker Modal ───────────────────────────── -->
+  <div id="quickActionsModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeQuickActionsModal()">
+    <div class="modal-dialog" style="width:360px;max-width:90vw">
+      <h3>Add Quick Action</h3>
+      <div id="quickActionsPickerList" style="display:flex;flex-direction:column;gap:8px;margin:16px 0;max-height:320px;overflow-y:auto"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeQuickActionsModal()">Done</button>
       </div>
     </div>
   </div>
