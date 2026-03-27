@@ -9,6 +9,9 @@ const http  = require('http');
 const https = require('https');
 const config = require('../server');
 
+// -- Panel start time (used to compute container uptime, not host uptime) --
+const PANEL_START_TIME = Date.now();
+
 // -- Status history (last 1 hour at 15s intervals = 240 entries) --
 const statusHistory = [];
 const MAX_HISTORY = 240;
@@ -297,11 +300,13 @@ function collectStatus(req = null) {
     }
   } catch {}
 
-  // -- System uptime --
+  // -- Uptime --
   try {
     const uptimeStr = execSync('cat /proc/uptime', { encoding: 'utf-8' });
     status.systemUptime = Math.floor(parseFloat(uptimeStr.split(' ')[0]));
   } catch {}
+  // containerUptime resets on every container restart — reliable for boot-state detection
+  status.containerUptime = Math.floor((Date.now() - PANEL_START_TIME) / 1000);
 
   cachedStatus = status;
   cacheTime = now;

@@ -1537,7 +1537,7 @@ function updateDashboardUI(data) {
 
   // "Starting..." on fresh container boot: SMAPI not yet found but wasn't stopped by user.
   // systemUptime < 90s covers the gap between container start and SMAPI being detected by pgrep.
-  const bootStarting = !gameRunning && !data.stoppedByUser && (data.systemUptime || 0) < 90;
+  const bootStarting = !gameRunning && !data.stoppedByUser && (data.containerUptime || 0) < 90;
 
   // Priority: Stopped > Stopping > Restarting > Starting > Running
   const realStopped = !gameRunning && !isGameRestarting && !isStarting && !bootStarting;
