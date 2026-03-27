@@ -703,28 +703,6 @@ else
     log_step "Step 8: Log monitoring disabled"
 fi
 
-# -- Step 8.5: Steam authentication wait (steam mode only) --
-if [ "${SERVER_MODE:-lan}" = "steam" ]; then
-    log_step "Step 8.5: Steam mode — waiting for Steam authentication..."
-    if [ -f "/tmp/steam-ready" ]; then
-        log_info "✅ Steam session found — starting in Steam mode"
-    else
-        log_info "Steam mode enabled. Open the web panel to authenticate with Steam."
-        log_info "The server will start after login, or fall back to LAN after 5 minutes."
-        log_info "  You can also click 'Start as LAN' in the web panel to skip."
-        _steam_wait=0
-        while [ ! -f "/tmp/steam-ready" ] && [ ! -f "/tmp/steam-skip" ] && [ $_steam_wait -lt 300 ]; do
-            sleep 5
-            _steam_wait=$((_steam_wait + 5))
-        done
-        if [ -f "/tmp/steam-ready" ]; then
-            log_info "✅ Steam authenticated — starting in Steam mode"
-        else
-            log_warn "⚠️  Steam auth timed out or skipped — starting in LAN mode"
-            touch /tmp/steam-skip
-        fi
-    fi
-fi
 
 # -- Step 9: Start game server --
 log_step "Step 9: Starting game server..."

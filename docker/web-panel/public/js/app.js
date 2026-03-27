@@ -2078,10 +2078,10 @@ async function loadServerModeCard() {
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
         <span style="font-size:13px;font-weight:700;color:${isSteam ? 'var(--accent)' : 'var(--text-secondary)'}">
-          ● ${isSteam ? 'Steam' : 'LAN'}
+          ● ${isSteam ? 'Online' : 'LAN'}
         </span>
         <button class="btn btn-sm btn-secondary" onclick="switchServerMode('${isSteam ? 'lan' : 'steam'}')">
-          Switch to ${isSteam ? 'LAN' : 'Steam'}
+          Switch to ${isSteam ? 'LAN' : 'Online'}
         </button>
       </div>
     </div>
@@ -2090,7 +2090,7 @@ async function loadServerModeCard() {
 }
 
 async function switchServerMode(newMode) {
-  const label = newMode === 'steam' ? 'Steam' : 'LAN';
+  const label = newMode === 'steam' ? 'Online' : 'LAN';
   if (!confirm(`Switch to ${label} mode? The container will need to restart.`)) return;
   const data = await API.put('/api/config', { SERVER_MODE: newMode });
   if (data?.success) {
