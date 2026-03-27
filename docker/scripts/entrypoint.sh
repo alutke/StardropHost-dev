@@ -537,6 +537,7 @@ mkdir -p /home/steam/stardewvalley/Mods
 # from a previous install on the volume-mounted game directory don't linger.
 rm -rf /home/steam/stardewvalley/Mods/FarmAutoCreate  2>/dev/null || true
 rm -rf /home/steam/stardewvalley/Mods/ServerAutoLoad   2>/dev/null || true
+rm -rf /home/steam/stardewvalley/Mods/ServerDashboard  2>/dev/null || true
 
 if [ -d "/home/steam/preinstalled-mods" ]; then
     log_info "Installing mods..."
