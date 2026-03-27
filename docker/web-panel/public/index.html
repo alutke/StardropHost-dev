@@ -1125,6 +1125,19 @@
   <!-- ── Toast ──────────────────────────────────────────────────── -->
   <div id="toast" class="toast"></div>
 
+  <!-- ── Steam Auth Modal ─────────────────────────────────────── -->
+  <!-- Shown on page load when serverMode=online and not yet logged in to steam-auth. -->
+  <!-- Memory-only session — reappears after container restart / update.sh.          -->
+  <div id="steamAuthModal" class="modal-overlay" style="display:none">
+    <div class="modal-dialog steam-auth-dialog">
+      <div style="margin-bottom:18px">
+        <div style="font-size:17px;font-weight:600;margin-bottom:5px">Steam Login</div>
+        <div style="font-size:13px;color:var(--text-secondary)">Online mode — log in to get an invite code for friends to join.</div>
+      </div>
+      <div id="steamAuthModalBody"></div>
+    </div>
+  </div>
+
   <script src="/js/api.js"></script>
   <script src="/js/app.js"></script>
 </body>

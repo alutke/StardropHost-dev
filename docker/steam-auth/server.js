@@ -130,6 +130,31 @@ app.post('/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out' });
 });
 
+// GET /steam/app-ticket  — encrypted app ticket for GOG Galaxy cross-platform auth
+// Only works when logged in. Ticket is ephemeral — not stored anywhere.
+app.get('/steam/app-ticket', (req, res) => {
+  if (authState !== 'online' || !client) {
+    return res.status(503).json({ error: 'Not logged in to Steam' });
+  }
+
+  client.getEncryptedAppTicket(413150, Buffer.alloc(0), (err, encrypted) => {
+    if (err) {
+      console.error('[steam-auth] App ticket error:', err.message);
+      return res.status(500).json({ error: `Failed to get app ticket: ${err.message}` });
+    }
+
+    if (!encrypted || encrypted.length === 0) {
+      return res.status(500).json({ error: 'Empty app ticket received' });
+    }
+
+    console.log(`[steam-auth] App ticket issued (${encrypted.length} bytes)`);
+    res.json({
+      app_ticket: encrypted.toString('base64'),
+      steam_id:   client.steamID ? client.steamID.toString() : null,
+    });
+  });
+});
+
 // GET /health  — used by docker healthcheck
 app.get('/health', (req, res) => {
   res.json({ ok: true });

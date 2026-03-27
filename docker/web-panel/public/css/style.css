@@ -895,6 +895,9 @@ body {
 .modal-actions   { display: flex; gap: 10px; justify-content: center; }
 .modal-actions .btn { min-width: 100px; }
 
+/* Steam auth modal — slightly wider, left-aligned form layout */
+.steam-auth-dialog { max-width: 360px; text-align: left; }
+
 /* ─── Password toggle ─────────────────────────────────────────── */
 
 .password-wrapper {
