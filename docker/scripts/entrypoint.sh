@@ -771,10 +771,7 @@ fi
 log_info "Starting status reporter (port: ${METRICS_PORT:-9090})..."
 /home/steam/scripts/status-reporter.sh &
 
-# Start with or without crash monitor
-if [ "$ENABLE_CRASH_RESTART" = "true" ]; then
-    log_info "Starting game with crash auto-restart..."
-    exec /home/steam/scripts/crash-monitor.sh
-else
-    exec ./StardewModdingAPI --server
-fi
+# Always run through crash-monitor (handles stop/start flag regardless of ENABLE_CRASH_RESTART).
+# crash-monitor respects ENABLE_CRASH_RESTART when deciding whether to auto-restart after a crash.
+log_info "Starting game via crash-monitor..."
+exec /home/steam/scripts/crash-monitor.sh

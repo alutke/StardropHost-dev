@@ -2160,7 +2160,7 @@ async function loadConfig() {
       card.appendChild(row);
     }
 
-    // Server group: append Start/Stop toggle + Restart controls
+    // Server group: append Start/Stop toggle
     if (group.name === 'Server') {
       const sep = document.createElement('div');
       sep.style.cssText = 'border-top:1px solid var(--border);margin:14px 0 10px';
@@ -2172,9 +2172,6 @@ async function loadConfig() {
         `<button id="serverToggleBtn" class="btn btn-sm ${running ? 'btn-danger' : 'btn-success'}" type="button"
            onclick="${running ? 'stopServer()' : 'startServer()'}">
            ${running ? 'Stop Server' : 'Start Server'}
-         </button>
-         <button class="btn btn-warning btn-sm" type="button" onclick="restartServer()">
-           <svg class="icon"><use href="#icon-refresh"></use></svg>Restart
          </button>`;
       card.appendChild(actions);
     }

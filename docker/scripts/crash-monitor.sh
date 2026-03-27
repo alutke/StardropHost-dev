@@ -20,6 +20,7 @@ log()       { echo -e "${GREEN}[Crash-Monitor]${NC} $1"; }
 log_error() { echo -e "${RED}[Crash-Monitor]${NC} $1"; }
 
 STOP_FLAG="/tmp/stardrop-server-stopped"
+ENABLE_CRASH_RESTART="${ENABLE_CRASH_RESTART:-true}"
 
 RESTART_TIMES=()
 
@@ -35,7 +36,7 @@ can_restart() {
 cd "$GAME_DIR" || exit 1
 
 while true; do
-    # Wait while deliberately stopped
+    # Wait while deliberately stopped via web panel Stop button
     while [ -f "$STOP_FLAG" ]; do
         sleep 2
     done
@@ -46,10 +47,16 @@ while true; do
 
     log_error "Game process exited (exit code: $EXIT_CODE)"
 
-    # If stopped deliberately, don't count as a crash — just wait for start signal
+    # If stopped deliberately, don't count as a crash — just loop back to wait
     if [ -f "$STOP_FLAG" ]; then
         log "Server was stopped deliberately. Waiting for start signal..."
         continue
+    fi
+
+    # Crash behaviour depends on ENABLE_CRASH_RESTART
+    if [ "$ENABLE_CRASH_RESTART" != "true" ]; then
+        log_error "Crash restart disabled (ENABLE_CRASH_RESTART=false). Exiting."
+        exit 1
     fi
 
     if ! can_restart; then
