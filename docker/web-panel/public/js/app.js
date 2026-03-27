@@ -1528,10 +1528,10 @@ function updateDashboardUI(data) {
     showToast('Server is back online', 'success');
   }
 
-  // "Restarting" (orange) while process is up but save not loaded yet
-  const starting    = isGameRestarting || (gameRunning && !liveRunning);
-  const statusText  = liveRunning ? 'Running' : starting ? 'Restarting...' : 'Stopped';
-  const statusClass = liveRunning ? 'running' : starting ? 'restarting' : 'offline';
+  // gameRunning (pgrep) is authoritative — liveRunning only promotes to "Running" once save loads
+  const starting    = gameRunning && (isGameRestarting || !liveRunning);
+  const statusText  = !gameRunning ? 'Stopped' : liveRunning ? 'Running' : (isGameRestarting ? 'Restarting...' : 'Starting...');
+  const statusClass = !gameRunning ? 'offline'  : liveRunning ? 'running' : 'restarting';
 
   setText('stat-status', statusText);
   document.getElementById('stat-status-icon').innerHTML =

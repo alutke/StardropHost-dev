@@ -239,8 +239,9 @@ function collectStatus(req = null) {
       } catch {}
     }
   } catch {
-    // pgrep failed — SMAPI not running; override stale status file data
+    // pgrep failed — SMAPI not running; override stale status/live file data
     status.gameRunning = false;
+    if (status.live) status.live.serverState = 'offline';
   }
 
   // -- Container-level memory fallback (always available via /proc/meminfo) --
