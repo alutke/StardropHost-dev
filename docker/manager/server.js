@@ -126,7 +126,8 @@ function startService(service) {
 function updateServer() {
   const env = buildComposeEnv();
   const command = [
-    `docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} pull`,
+    `git -C ${PROJECT_DIR} pull --ff-only`,
+    `docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} build`,
     `docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} up -d`,
   ].join(' && ');
 

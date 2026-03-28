@@ -11,6 +11,11 @@ const config = require('../server');
 
 const CHECK_FILE       = path.join(config.DATA_DIR, 'panel-update-available.json');
 const BUILD_STAMP_FILE = path.join(__dirname, '..', 'build-timestamp.txt');
+const PACKAGE_FILE     = path.join(__dirname, '..', 'package.json');
+
+function getPanelVersion() {
+  try { return JSON.parse(fs.readFileSync(PACKAGE_FILE, 'utf-8')).version || null; } catch { return null; }
+}
 
 const GITHUB_REPO   = 'Tomomoto10/StardropHost-dev';
 const GITHUB_BRANCH = 'main';
@@ -111,6 +116,7 @@ function getStatus(req, res) {
   const check = readJsonSafe(CHECK_FILE);
   res.json({
     available:       check?.available       ?? false,
+    version:         getPanelVersion(),
     buildTimestamp:  check?.buildTimestamp  ?? getBuildTimestamp(),
     latestCommitSha: check?.latestCommitSha ?? null,
     latestMessage:   check?.latestMessage   ?? null,

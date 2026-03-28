@@ -1238,6 +1238,13 @@ function showToast(message, type = 'info') {
 }
 
 // ─── Init ────────────────────────────────────────────────────────
+async function loadPanelVersion() {
+  const data = await API.get('/api/panel-update/status').catch(() => null);
+  if (!data?.version) return;
+  const el = document.getElementById('sidebarVersion');
+  if (el) el.textContent = `v${data.version}`;
+}
+
 function init() {
   applyTheme();
   setupNavigation();
@@ -1245,6 +1252,7 @@ function init() {
   loadDashboard();
   loadBackupStatus();
   renderQuickActions();
+  loadPanelVersion();
 
   document.getElementById('logoutBtn').onclick = () => {
     localStorage.removeItem('panel_token');
