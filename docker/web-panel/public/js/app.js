@@ -2919,6 +2919,8 @@ async function confirmSelfUpdate() {
     const loader = document.getElementById('app-loader');
     const loaderText = loader?.querySelector('.app-loader-text');
     if (loaderText) loaderText.textContent = 'Updating StardropHost...';
+    const loaderSub = document.getElementById('app-loader-sub');
+    if (loaderSub) { loaderSub.textContent = 'If the dashboard doesn\'t load after 30s, refresh the page.'; loaderSub.style.display = 'block'; }
     if (loader) loader.classList.remove('hidden');
     const app = document.getElementById('app');
     if (app) app.style.display = 'none';
