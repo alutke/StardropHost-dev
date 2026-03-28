@@ -107,7 +107,8 @@ trap 'log_info "Stopping."; exit 0' SIGTERM SIGINT
 
 log_info "Starting daily game update checker..."
 
-# Run immediately on start
+# Brief startup delay — lets the network stack come up before the first check
+sleep 30
 check_for_update
 
 # Then check once per day
