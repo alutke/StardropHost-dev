@@ -87,10 +87,6 @@ configure_headless_mode() {
     export SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-dummy}
     export MONO_GC_PARAMS=${MONO_GC_PARAMS:-nursery-size=8m}
 
-    if [ "${USE_GPU:-false}" != "true" ]; then
-        export LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-1}
-    fi
-
     XVFB_FB_DIR=${XVFB_FB_DIR:-/dev/shm/xvfb}
     if mkdir -p "$XVFB_FB_DIR" 2>/dev/null; then
         XVFB_FB_ARGS=(-fbdir "$XVFB_FB_DIR")
