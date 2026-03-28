@@ -136,7 +136,7 @@ function updateServer() {
     `-v ${PROJECT_DIR}:${PROJECT_DIR}`,
     `-w ${PROJECT_DIR}`,
     'alpine',
-    'sh -c "apk add -q git bash docker-cli docker-cli-compose && bash update.sh"',
+    `sh -c "apk add -q git bash docker-cli docker-cli-compose && git config --global --add safe.directory ${PROJECT_DIR} && bash update.sh"`,
   ].join(' ');
 
   const child = spawn('sh', ['-lc', command], {
