@@ -124,13 +124,10 @@ function getNetworkInfo(requestHost = '') {
   };
 }
 
-// -- Get effective CPU core count for normalisation --
-// BUG FIX: ps reports CPU per-core so divide by allocated cores to get true %.
-// CPU_LIMIT env var (set from docker-compose.yml) is the most reliable source.
+// -- Get host CPU core count for normalisation --
+// BUG FIX: ps reports CPU per-core so divide by nproc to get true % of total host capacity.
+// Always use host core count — CPU_LIMIT caps usage but doesn't change the display denominator.
 function getCoreCount() {
-  const envLimit = parseFloat(process.env.CPU_LIMIT || '0');
-  if (envLimit > 0) return envLimit;
-
   try {
     return parseInt(execSync('nproc', { encoding: 'utf-8' }).trim(), 10) || 1;
   } catch {
@@ -222,21 +219,18 @@ function collectStatus(req = null) {
   if (_pgrep.status === 0 && pidStr) {
     status.gameRunning = true;
 
-    if (status.cpu === 0) {
-      try {
-        const cpuRaw = parseFloat(execSync(`ps -p ${pidStr} -o %cpu= 2>/dev/null`, { encoding: 'utf-8' }).trim()) || 0;
-        // BUG FIX: Divide by core count to get true % of total capacity
-        const cores = getCoreCount();
-        status.cpu = Math.round((cpuRaw / cores) * 10) / 10;
-      } catch {}
-    }
+    // Always read fresh metrics from the live process — never use stale status.json values
+    // (status.json from a previous run persists on disk and would show wrong values during Starting...)
+    try {
+      const cpuRaw = parseFloat(execSync(`ps -p ${pidStr} -o %cpu= 2>/dev/null`, { encoding: 'utf-8' }).trim()) || 0;
+      const cores = getCoreCount();
+      status.cpu = Math.round((cpuRaw / cores) * 10) / 10;
+    } catch {}
 
-    if (status.memory.used === 0) {
-      try {
-        const rssStr = execSync(`grep VmRSS /proc/${pidStr}/status 2>/dev/null | awk '{print $2}'`, { encoding: 'utf-8' }).trim();
-        if (rssStr) status.memory.used = Math.round(parseInt(rssStr, 10) / 1024);
-      } catch {}
-    }
+    try {
+      const rssStr = execSync(`grep VmRSS /proc/${pidStr}/status 2>/dev/null | awk '{print $2}'`, { encoding: 'utf-8' }).trim();
+      if (rssStr) status.memory.used = Math.round(parseInt(rssStr, 10) / 1024);
+    } catch {}
 
     if (status.uptime === 0) {
       try {
