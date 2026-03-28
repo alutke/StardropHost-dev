@@ -252,10 +252,6 @@
           <span class="nav-icon"><svg class="icon"><use href="#icon-terminal"></use></svg></span>
           <span class="nav-label">Console</span>
         </li>
-        <li class="nav-item" data-page="logs">
-          <span class="nav-icon"><svg class="icon"><use href="#icon-logs"></use></svg></span>
-          <span class="nav-label">Logs</span>
-        </li>
         <li class="nav-item" data-page="config">
           <span class="nav-icon"><svg class="icon"><use href="#icon-config"></use></svg></span>
           <span class="nav-label">Config</span>
@@ -282,7 +278,6 @@
       <button class="mob-nav-item" type="button" data-page="saves"><svg class="icon"><use href="#icon-saves"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="mods"><svg class="icon"><use href="#icon-mods"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="terminal"><svg class="icon"><use href="#icon-terminal"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="logs"><svg class="icon"><use href="#icon-logs"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="config"><svg class="icon"><use href="#icon-config"></use></svg></button>
     </nav>
 
@@ -498,9 +493,9 @@
           </div>
         </section>
 
-        <!-- ── Logs ───────────────────────────────────────────── -->
-        <section id="page-logs" class="page">
-          <div class="card">
+        <!-- ── Console (Logs + Terminal combined) ────────────── -->
+        <section id="page-terminal" class="page console-page">
+          <div class="card console-card">
             <div class="logs-toolbar">
               <div class="log-filters">
                 <button class="log-filter active" type="button" data-filter="all">All</button>
@@ -521,21 +516,15 @@
                 </button>
               </div>
             </div>
-            <div id="logOutput" class="log-output"></div>
-          </div>
-        </section>
-
-        <!-- ── Terminal ───────────────────────────────────────── -->
-        <section id="page-terminal" class="page">
-          <div class="card">
-            <div class="terminal-toolbar">
-              <span>SMAPI Console — not a system shell</span>
+            <div id="logOutput" class="log-output console-log-output"></div>
+            <div class="console-divider">
+              <span>SMAPI Console</span>
               <div>
                 <button class="btn btn-sm btn-success" id="termConnect" type="button" onclick="terminalConnect()">Connect</button>
                 <button class="btn btn-sm btn-danger" id="termDisconnect" type="button" onclick="terminalDisconnect()" style="display:none">Disconnect</button>
               </div>
             </div>
-            <div id="termOutput" class="terminal-output">
+            <div id="termOutput" class="terminal-output console-term-output">
               <div class="terminal-hint">Click Connect to attach to the running SMAPI process. Type SMAPI commands below — this is not a Linux shell.</div>
             </div>
             <div class="terminal-input-row">

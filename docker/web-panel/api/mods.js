@@ -84,9 +84,17 @@ function findManifestDirectories(rootDir, maxDepth = 3, depth = 0) {
 // -- Bundled mod detection --
 // Mods in BUNDLED_MODS_DIR are baked into the image and cannot be deleted via the panel.
 
-// SMAPI built-in mods that are installed into Mods/ by SMAPI itself,
-// not via BUNDLED_MODS_DIR — always protect these from deletion.
-const SMAPI_BUILTIN_MODS = new Set(['ConsoleCommands', 'SaveBackup']);
+// Mods that must never be deletable via the web panel.
+// Includes SMAPI built-ins (installed by SMAPI itself) and our own
+// source-built mods (StardropDashboard, StardropHost.Dependencies).
+// Hardcoded here so they're always protected even if preinstalled-mods/
+// is empty (e.g. mod build failed) or the folder name doesn't match exactly.
+const SMAPI_BUILTIN_MODS = new Set([
+  'ConsoleCommands',
+  'SaveBackup',
+  'StardropDashboard',
+  'StardropHost.Dependencies',
+]);
 
 function getBundledModFolders() {
   const folders = new Set(SMAPI_BUILTIN_MODS);

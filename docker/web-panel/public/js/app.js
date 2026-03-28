@@ -1172,6 +1172,7 @@ let currentPage            = 'dashboard';
 let logAutoScroll          = true;
 let statusInterval         = null;
 let farmInterval           = null;
+let playersInterval        = null;
 let lastStatusData         = null;
 let backupStatusPoll       = null;
 let lastBackupStatus       = null;
@@ -1287,10 +1288,10 @@ function init() {
     }, 300);
   };
 
-  statusInterval = setInterval(loadDashboard, 10000);
+  statusInterval = setInterval(loadDashboard, 5000);
 
   // Restore page from URL hash on refresh
-  const VALID_PAGES = ['dashboard','farm','players','saves','mods','logs','terminal','config'];
+  const VALID_PAGES = ['dashboard','farm','players','saves','mods','terminal','config'];
   const hashPage = window.location.hash.slice(1);
   if (hashPage && VALID_PAGES.includes(hashPage)) navigateTo(hashPage);
 }
@@ -1298,7 +1299,7 @@ function init() {
 // ─── Navigation ──────────────────────────────────────────────────
 const PAGE_TITLES = {
   dashboard: 'Dashboard', farm: 'Farm', players: 'Players',
-  saves: 'Saves', mods: 'Mods', terminal: 'Console', logs: 'Logs', config: 'Config',
+  saves: 'Saves', mods: 'Mods', terminal: 'Console', config: 'Config',
 };
 
 function setupNavigation() {
@@ -1313,6 +1314,9 @@ function navigateTo(page) {
 
   // Stop farm polling when leaving farm tab
   if (page !== 'farm' && farmInterval) { clearInterval(farmInterval); farmInterval = null; }
+
+  // Stop player polling when leaving players tab
+  if (page !== 'players' && playersInterval) { clearInterval(playersInterval); playersInterval = null; }
 
   document.querySelectorAll('.nav-item, .mob-nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll(`.nav-item[data-page="${page}"], .mob-nav-item[data-page="${page}"]`)
@@ -1330,10 +1334,13 @@ function navigateTo(page) {
       loadFarm();
       if (!farmInterval) farmInterval = setInterval(loadFarm, 5000);
       break;
-    case 'players':   loadPlayers();                                         break;
+    case 'players':
+      loadPlayers();
+      if (!playersInterval) playersInterval = setInterval(loadPlayers, 5000);
+      break;
     case 'saves':     loadSaves();                                           break;
     case 'mods':      loadMods();                                            break;
-    case 'logs':      loadLogs('all'); subscribeToLogs('all');               break;
+    case 'terminal':  loadLogs('all'); subscribeToLogs('all');               break;
     case 'config':    loadConfig(); loadVnc(); loadServerModeCard();         break;
   }
 }
@@ -1801,7 +1808,7 @@ function renderPlayerStats(p) {
 }
 
 function timeAgo(ms) {
-  const s = Math.floor((Date.now() - ms) / 1000);
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
   if (s < 60)   return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s/60)}m ago`;
   return `${Math.floor(s/3600)}h ago`;
@@ -1841,14 +1848,17 @@ async function loadPlayers() {
   if (recent.length) {
     recentCard.style.display = '';
     recentList.innerHTML = recent.map(p => `
-      <div class="player-card">
-        <div class="player-avatar" style="opacity:0.5">${icon('players', 'icon')}</div>
+      <div class="player-card player-card-offline">
+        <div class="player-avatar">${icon('players', 'icon')}</div>
         <div class="player-body">
-          <div class="player-name">${escapeHtml(p.name)}</div>
-          <div class="player-info" style="color:var(--text-muted)">Last seen ${timeAgo(p.lastSeen)}</div>
+          <div class="player-name">
+            ${escapeHtml(p.name)}
+            <span class="player-offline-badge">Offline</span>
+          </div>
           ${p.location ? `<div class="player-info">${escapeHtml(p.location)}</div>` : ''}
           ${renderPlayerStats(p)}
         </div>
+        <div class="player-last-seen">Last seen<br>${timeAgo(p.lastSeen)}</div>
       </div>
     `).join('');
   } else {

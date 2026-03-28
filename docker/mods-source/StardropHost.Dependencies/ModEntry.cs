@@ -137,6 +137,15 @@ namespace StardropHostDependencies
             {
                 Game1.player.health  = Game1.player.maxHealth;
                 Game1.player.stamina = Game1.player.maxStamina.Value;
+
+                // Freeze game time when no farmhands are connected.
+                // Without this, time ticks freely all day with no players online.
+                // Matches AlwaysOnServer behaviour: gameTimeInterval reset to 0 each tick
+                // prevents the minute counter from advancing until someone joins.
+                bool hasFarmhands = Game1.getOnlineFarmers()
+                    .Any(f => f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID);
+                if (!hasFarmhands && !_isSleepInProgress)
+                    Game1.gameTimeInterval = 0;
             }
 
             // Runtime dialogue handling — pet/cave choice for new farm creation
