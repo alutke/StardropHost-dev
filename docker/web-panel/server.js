@@ -137,6 +137,8 @@ app.post('/api/panel-update/check',  auth.verifyMiddleware, panelUpdateAPI.check
 const remoteAPI = require('./api/remote');
 app.get( '/api/remote/status', auth.verifyMiddleware, remoteAPI.getStatus);
 app.post('/api/remote/key',    auth.verifyMiddleware, remoteAPI.setKey);
+app.post('/api/remote/pause',  auth.verifyMiddleware, remoteAPI.pauseTunnel);
+app.post('/api/remote/resume', auth.verifyMiddleware, remoteAPI.resumeTunnel);
 app.post('/api/remote/clear',  auth.verifyMiddleware, remoteAPI.clearKey);
 
 // -- Steam (auth via steam-auth container for game download only) --

@@ -2953,10 +2953,12 @@ async function checkAllUpdates() {
 // ─── Remote (playit.gg) ──────────────────────────────────────────
 
 async function loadRemoteStatus() {
-  const loading  = document.getElementById('remoteLoading');
-  const noKeyEl  = document.getElementById('remoteNoKey');
-  const hasKeyEl = document.getElementById('remoteHasKey');
-  const statusEl = document.getElementById('remoteStatus');
+  const loading   = document.getElementById('remoteLoading');
+  const noKeyEl   = document.getElementById('remoteNoKey');
+  const hasKeyEl  = document.getElementById('remoteHasKey');
+  const statusEl  = document.getElementById('remoteStatus');
+  const pauseBtn  = document.getElementById('playitPauseBtn');
+  const resumeBtn = document.getElementById('playitResumeBtn');
   if (!loading) return;
 
   try {
@@ -2968,18 +2970,24 @@ async function loadRemoteStatus() {
     noKeyEl.style.display  = hasKey ? 'none' : '';
     hasKeyEl.style.display = hasKey ? '' : 'none';
 
-    if (hasKey && statusEl) {
-      if (running) {
-        statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
-          <span class="status-dot online"></span>
-          <span style="font-weight:500">Tunnel active</span>
-          <span style="color:var(--text-secondary);font-size:13px">— Share your playit.gg address with friends to connect</span>
-        </div>`;
-      } else {
-        statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
-          <span class="status-dot" style="background:var(--accent);opacity:0.6"></span>
-          <span style="color:var(--text-secondary)">Tunnel starting or reconnecting...</span>
-        </div>`;
+    if (hasKey) {
+      if (pauseBtn)  pauseBtn.style.display  = running ? '' : 'none';
+      if (resumeBtn) resumeBtn.style.display = running ? 'none' : '';
+
+      if (statusEl) {
+        if (running) {
+          statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
+            <span class="status-dot" style="background:var(--accent)"></span>
+            <span style="font-weight:500;color:var(--accent)">Active</span>
+            <span style="color:var(--text-secondary);font-size:13px">— Share your playit.gg address with friends to connect</span>
+          </div>`;
+        } else {
+          statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
+            <span class="status-dot" style="background:var(--text-muted)"></span>
+            <span style="font-weight:500;color:var(--text-muted)">Paused</span>
+            <span style="color:var(--text-secondary);font-size:13px">— Tunnel is stopped, key is saved</span>
+          </div>`;
+        }
       }
     }
   } catch {
@@ -3012,6 +3020,34 @@ async function activatePlayit() {
     _showPlayitMsg(e.message || 'Failed to activate tunnel.', 'error');
     btn.disabled    = false;
     btn.textContent = 'Activate';
+  }
+}
+
+async function pausePlayit() {
+  const btn = document.getElementById('playitPauseBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Pausing...';
+  try {
+    await API.post('/api/remote/pause');
+    await loadRemoteStatus();
+  } catch (e) {
+    showToast(e.message || 'Failed to pause tunnel.', 'error');
+    btn.disabled    = false;
+    btn.textContent = 'Pause';
+  }
+}
+
+async function resumePlayit() {
+  const btn = document.getElementById('playitResumeBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Resuming...';
+  try {
+    await API.post('/api/remote/resume');
+    await loadRemoteStatus();
+  } catch (e) {
+    showToast(e.message || 'Failed to resume tunnel.', 'error');
+    btn.disabled    = false;
+    btn.textContent = 'Resume';
   }
 }
 

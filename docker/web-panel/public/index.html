@@ -635,16 +635,16 @@
             <!-- State: key saved -->
             <div id="remoteHasKey" style="display:none">
               <div id="remoteStatus" style="margin-bottom:16px"></div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-                <div style="font-size:13px;color:var(--text-secondary)">
-                  Key saved. The tunnel starts automatically when the panel starts.
-                  To update the key, remove it first then enter the new one.
-                </div>
-                <button class="btn" type="button" onclick="clearPlayit()"
-                  id="playitClearBtn"
-                  style="color:#ef4444;border-color:#ef4444;white-space:nowrap;flex-shrink:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary" type="button" id="playitPauseBtn" onclick="pausePlayit()" style="display:none">Pause</button>
+                <button class="btn btn-primary" type="button" id="playitResumeBtn" onclick="resumePlayit()" style="display:none">Resume</button>
+                <button class="btn" type="button" id="playitClearBtn" onclick="clearPlayit()"
+                  style="color:#ef4444;border-color:#ef4444">
                   Remove Key &amp; Stop Tunnel
                 </button>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:10px">
+                Key is saved permanently. Pause stops the connection without losing your key. To update the key, remove it first then enter the new one.
               </div>
             </div>
 

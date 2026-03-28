@@ -117,6 +117,28 @@ async function setKey(req, res) {
   }
 }
 
+async function pauseTunnel(req, res) {
+  // Stop the container but keep the saved key
+  try {
+    const { status, body } = await callManager('POST', '/playit/stop');
+    res.status(status).json(body);
+  } catch (e) {
+    res.status(500).json({ error: `Failed to pause playit: ${e.message}` });
+  }
+}
+
+async function resumeTunnel(req, res) {
+  const key = loadSavedKey();
+  if (!key) return res.status(400).json({ error: 'No saved key to resume with' });
+
+  try {
+    const { status, body } = await callManager('POST', '/playit/start', { secretKey: key });
+    res.status(status).json(body);
+  } catch (e) {
+    res.status(500).json({ error: `Failed to resume playit: ${e.message}` });
+  }
+}
+
 async function clearKey(req, res) {
   deleteKeyFile();
 
@@ -128,4 +150,4 @@ async function clearKey(req, res) {
   }
 }
 
-module.exports = { getStatus, setKey, clearKey };
+module.exports = { getStatus, setKey, pauseTunnel, resumeTunnel, clearKey };
