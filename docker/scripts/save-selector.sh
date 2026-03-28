@@ -4,7 +4,7 @@
 # ===========================================
 # Selects which save file to auto-load.
 # If SAVE_NAME is set, creates a marker file
-# for the ServerAutoLoad mod to pick up.
+# for the StardropHost.Dependencies mod to pick up.
 # ===========================================
 
 SAVE_DIR="/home/steam/.config/StardewValley/Saves"

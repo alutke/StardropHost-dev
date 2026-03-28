@@ -106,12 +106,14 @@ COPY --chown=steam:steam scripts/entrypoint.sh /home/steam/entrypoint.sh
 COPY --chown=steam:steam scripts/auto-backup.sh \
      scripts/crash-monitor.sh \
      scripts/event-handler.sh \
+     scripts/health-check.sh \
      scripts/init-container.sh \
      scripts/log-manager.sh \
      scripts/log-monitor.sh \
      scripts/save-selector.sh \
      scripts/set-resolution.sh \
      scripts/status-reporter.sh \
+     scripts/verify-deployment.sh \
      scripts/vnc-monitor.sh \
      /home/steam/scripts/
 RUN chmod +x /home/steam/entrypoint.sh /home/steam/scripts/*.sh

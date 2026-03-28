@@ -408,7 +408,7 @@ if [ -f "$SMAPI_UPDATE_MARKER" ]; then
     else
         rm -rf "$_SMAPI_TMP"
         rm -f "$SMAPI_UPDATE_MARKER"
-        log_warning "Could not download SMAPI v${_TARGET_SMAPI} — using bundled version"
+        log_warn "Could not download SMAPI v${_TARGET_SMAPI} — using bundled version"
     fi
 fi
 
@@ -665,14 +665,14 @@ cd /home/steam/stardewvalley
 log_info "Starting event handler..."
 /home/steam/scripts/event-handler.sh &
 
-# New farm config — StardropGameManager SMAPI mod handles creation automatically.
+# New farm config — StardropHost.Dependencies SMAPI mod handles creation automatically.
 # The mod reads new-farm.json once the title screen appears and creates
-# the farm using Stardew's own C# API (native co-op, Steam invite codes work).
+# the farm using Stardew's own C# API.
 NEW_FARM_CONFIG="/home/steam/web-panel/data/new-farm.json"
 SAVES_DIR="/home/steam/.config/StardewValley/Saves"
 if [ -f "$NEW_FARM_CONFIG" ]; then
     if [ ! "$(ls -A "$SAVES_DIR" 2>/dev/null)" ]; then
-        log_info "New farm config detected — StardropGameManager will create farm on title screen"
+        log_info "New farm config detected — StardropHost.Dependencies will create farm on title screen"
     else
         log_info "Save files already exist — removing new-farm.json"
         rm -f "$NEW_FARM_CONFIG"

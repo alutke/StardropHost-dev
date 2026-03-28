@@ -9,7 +9,10 @@
 #   - Passout (2AM)     : Escape + Enter confirmations
 #   - ReadyCheckDialog  : Enter confirmations
 #   - ServerOfflineMode : F9 to re-enable server
-#   - Save loaded       : Enable AlwaysOnServer auto mode
+#
+# Note: Save loaded / AlwaysOnServer enable logic removed.
+# StardropHost.Dependencies mod handles headless server
+# behaviour natively — no xdotool F9 press needed.
 # ===========================================
 
 SMAPI_LOG="/home/steam/.config/StardewValley/ErrorLogs/SMAPI-latest.txt"
@@ -35,7 +38,6 @@ NC='\033[0m'
 log_passout()    { echo -e "${YELLOW}[Event-Passout]${NC} $1"; }
 log_readycheck() { echo -e "${PURPLE}[Event-ReadyCheck]${NC} $1"; }
 log_reconnect()  { echo -e "${CYAN}[Event-Reconnect]${NC} $1"; }
-log_enable()     { echo -e "${CYAN}[Event-AutoEnable]${NC} $1"; }
 log_info()       { echo -e "${GREEN}[Event-Handler]${NC} $1"; }
 
 export DISPLAY=:99
@@ -142,66 +144,6 @@ handle_offline() {
     log_reconnect "✅ F9 sent, waiting for confirmation..."
 }
 
-# -- Handle save loaded --
-AOS_ENABLED=false
-
-handle_save_loaded() {
-    [ "$AOS_ENABLED" = "true" ] && return
-    log_enable "Save loaded detected"
-
-    if ! command -v xdotool >/dev/null 2>&1; then
-        log_enable "xdotool not installed"
-        return
-    fi
-
-    log_enable "Waiting for mods to initialize..."
-    sleep 5
-
-    local on_count off_count
-    on_count=$(grep -o "Auto [Mm]ode [Oo]n" "$SMAPI_LOG" 2>/dev/null | wc -l)
-    off_count=$(grep -o "Auto mode off" "$SMAPI_LOG" 2>/dev/null | wc -l)
-
-    log_enable "  Status: ON=$on_count OFF=$off_count"
-
-    if [ "$on_count" -gt "$off_count" ]; then
-        log_enable "✅ Always On Server already enabled"
-        AOS_ENABLED=true
-        return
-    fi
-
-    for attempt in 1 2 3; do
-        log_enable "  Attempt #$attempt: closing menus and pressing F9..."
-
-        for i in 1 2 3; do
-            send_key_locked Escape
-            sleep 0.3
-        done
-        sleep 1
-
-        send_key_locked F9
-        log_enable "  F9 sent (attempt #$attempt)"
-        sleep 5
-
-        on_count=$(grep -o "Auto [Mm]ode [Oo]n" "$SMAPI_LOG" 2>/dev/null | wc -l)
-        off_count=$(grep -o "Auto mode off" "$SMAPI_LOG" 2>/dev/null | wc -l)
-
-        if [ "$on_count" -gt "$off_count" ]; then
-            log_enable "✅ Always On Server enabled successfully"
-            AOS_ENABLED=true
-            return
-        fi
-
-        if [ "$attempt" -lt 3 ]; then
-            log_enable "  Not yet enabled, retrying in 10s..."
-            sleep 10
-        fi
-    done
-
-    log_enable "Could not confirm enable after 3 attempts"
-    log_enable "Check via VNC if needed"
-    AOS_ENABLED=true
-}
-
 # ===========================================
 # Main
 # ===========================================
@@ -214,7 +156,6 @@ log_info "Monitoring events:"
 log_info "  - Passout (2AM)"
 log_info "  - ReadyCheckDialog"
 log_info "  - ServerOfflineMode"
-log_info "  - Save Loaded"
 log_info ""
 
 log_info "Waiting for game to initialize..."
@@ -253,9 +194,6 @@ tail -n 0 -F "$SMAPI_LOG" 2>/dev/null | while IFS= read -r line; do
     case "$line" in
         *"ServerOfflineMode"*|*"[ServerOfflineMode]"*)
             handle_offline
-            ;;
-        *"SAVE LOADED SUCCESSFULLY"*|*"Context: loaded save"*)
-            handle_save_loaded
             ;;
         *"ReadyCheckDialog"*)
             handle_readycheck

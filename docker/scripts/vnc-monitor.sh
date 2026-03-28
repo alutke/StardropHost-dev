@@ -121,10 +121,29 @@ main() {
 trap 'log_info "VNC monitor shutting down..."; exit 0' SIGTERM SIGINT
 
 case "${1:-}" in
+  start)
+    start_vnc
+    exit $?
+    ;;
   stop)
     log_info "Stopping VNC..."
     pkill -f "x11vnc.*$VNC_PORT" 2>/dev/null || true
     pkill -f "vnc-monitor.sh" 2>/dev/null || true
+    exit 0
+    ;;
+  status)
+    if is_vnc_healthy; then
+      log_info "x11vnc is running on port $VNC_PORT"
+      exit 0
+    else
+      log_warn "x11vnc is not running"
+      exit 1
+    fi
+    ;;
+  _on_connect)
+    # Called by x11vnc -afteraccept hook — reset one-time password back to default
+    log_info "Client connected — resetting VNC password to default"
+    curl -s -X POST http://localhost:18642/api/vnc/connected 2>/dev/null || true
     exit 0
     ;;
   *)

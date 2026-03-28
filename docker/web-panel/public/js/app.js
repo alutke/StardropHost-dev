@@ -1828,7 +1828,6 @@ async function loadPlayers() {
         <div class="player-actions">
           <button class="btn btn-sm" onclick="kickPlayer('${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Kick</button>
           <button class="btn btn-sm" style="color:#ef4444;border-color:#ef4444" onclick="banPlayer('${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Ban</button>
-          <button class="btn btn-sm" onclick="grantAdmin('${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Admin</button>
         </div>
       </div>
     `).join('');
@@ -1869,12 +1868,6 @@ async function banPlayer(id, name) {
   const data = await API.post('/api/players/ban', { id, name });
   showToast(data?.success ? `Banned ${name}` : (data?.error || 'Ban failed'), data?.success ? 'success' : 'error');
   if (data?.success) loadPlayers();
-}
-
-async function grantAdmin(id, name) {
-  if (!confirm(`Grant admin to ${name}?`)) return;
-  const data = await API.post('/api/players/admin', { id, name });
-  showToast(data?.success ? `Admin granted to ${name}` : (data?.error || 'Failed'), data?.success ? 'success' : 'error');
 }
 
 // ─── Saves ───────────────────────────────────────────────────────
