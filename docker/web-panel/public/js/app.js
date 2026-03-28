@@ -2719,6 +2719,31 @@ async function confirmRestart() {
   if (btn) btn.disabled = false;
 }
 
+// Two-phase poll for update: wait for server to go DOWN, then wait for it to come back UP.
+// Unlike container restart (which is instant), update.sh takes minutes — the server stays
+// responsive while git pull + build runs, so we must not reload until it actually disconnects.
+function startUpdateReconnectPolling() {
+  if (containerReconnectPoll) clearInterval(containerReconnectPoll);
+  let wentDown = false;
+  const startedAt = Date.now();
+  containerReconnectPoll = setInterval(async () => {
+    let up = false;
+    try {
+      const res = await fetch('/api/auth/status', { cache: 'no-store' });
+      up = res?.ok === true;
+    } catch {}
+
+    if (!up) {
+      wentDown = true;
+    } else if (wentDown) {
+      clearInterval(containerReconnectPoll);
+      window.location.reload();
+      return;
+    }
+    if (Date.now() - startedAt > 300000) { clearInterval(containerReconnectPoll); window.location.reload(); }
+  }, 2000);
+}
+
 function startContainerReconnectPolling() {
   closeRestartModal();
   clearPendingRestart();
@@ -2897,7 +2922,7 @@ async function confirmSelfUpdate() {
     if (loader) loader.classList.remove('hidden');
     const app = document.getElementById('app');
     if (app) app.style.display = 'none';
-    setTimeout(startContainerReconnectPolling, 5000);
+    startUpdateReconnectPolling();
   } else {
     showToast(data?.error || 'Update failed', 'error');
     btn.disabled = false;
