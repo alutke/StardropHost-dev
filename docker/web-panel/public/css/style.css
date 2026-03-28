@@ -387,7 +387,7 @@ body {
   opacity: 0; transition: opacity 0.15s;
 }
 .quick-action-wrap.editing .quick-action-remove { opacity: 1; }
-.quick-action-add { width: 40px; padding: 0; font-size: 22px; line-height: 1; }
+.quick-action-add { width: 40px; padding: 0; font-size: 22px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 .quick-action-wrap.dragging  { opacity: 0.4; cursor: grabbing; }
 .quick-action-wrap.drag-over { outline: 2px dashed var(--accent); outline-offset: 3px; border-radius: 8px; }
 .quick-action-wrap[draggable="true"] { cursor: grab; }
