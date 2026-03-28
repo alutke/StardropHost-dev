@@ -8,6 +8,11 @@
  *   - SkillLevelGuard     (not needed — we do not set skills to 10)
  *
  * StardropDashboard remains a separate mod (web panel Farm tab data writer).
+ *
+ * License acknowledgements:
+ *   - AlwaysOnServer by funny-snek & Zuberii (Unlicense / public domain)
+ *   - WaitCondition helper pattern adapted from SMAPIDedicatedServerMod
+ *     by ObjectManagerManager (MIT) — https://github.com/ObjectManagerManager/SMAPIDedicatedServerMod
  */
 
 using System;
@@ -71,7 +76,8 @@ namespace StardropHostDependencies
             helper.Events.GameLoop.TimeChanged      += OnTimeChanged;
             helper.Events.GameLoop.Saving           += OnSaving;
             helper.Events.Display.MenuChanged       += OnMenuChanged;
-            helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
+            helper.Events.Multiplayer.PeerConnected    += OnPeerConnected;
+            helper.Events.Multiplayer.PeerDisconnected += OnPeerDisconnected;
             helper.Events.Player.Warped             += OnWarped;
 
             Monitor.Log("StardropHost.Dependencies loaded.", LogLevel.Info);
@@ -267,6 +273,11 @@ namespace StardropHostDependencies
             _guardWindowEnd = DateTime.Now.AddSeconds(GuardWindowSeconds);
             _needRehide     = true;
             _rehideTicks    = 1;
+        }
+
+        private void OnPeerDisconnected(object? sender, PeerDisconnectedEventArgs e)
+        {
+            Monitor.Log($"farmhand {e.Peer.PlayerID} disconnected", LogLevel.Info);
         }
 
         private void OnWarped(object? sender, WarpedEventArgs e)
