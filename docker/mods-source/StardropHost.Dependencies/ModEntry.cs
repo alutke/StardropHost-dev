@@ -355,39 +355,21 @@ namespace StardropHostDependencies
 
                 Game1.warpFarmer("FarmHouse", bx, by, false);
 
-                // Execute startSleep() on the next tick after the warp completes
-                void AfterWarp(object? s, UpdateTickedEventArgs ev)
+                // Call startSleep synchronously — same pattern as original AlwaysOnServer and AutoHideHost
+                var startSleep = Helper.Reflection.GetMethod(Game1.currentLocation, "startSleep", required: false);
+                if (startSleep != null)
+                    startSleep.Invoke();
+                else
                 {
-                    Helper.Events.GameLoop.UpdateTicked -= AfterWarp;
-                    try
-                    {
-                        var startSleep = Helper.Reflection.GetMethod(
-                            Game1.currentLocation, "startSleep", required: false);
-
-                        if (startSleep != null)
-                        {
-                            startSleep.Invoke();
-                        }
-                        else
-                        {
-                            // Fallback: set sleep state directly
-                            Game1.player.isInBed.Value       = true;
-                            Game1.player.timeWentToBed.Value = Game1.timeOfDay;
-                        }
-
-                        Game1.player.lastSleepLocation.Value = "FarmHouse";
-                        Game1.player.lastSleepPoint.Value    = new Point(bx, by);
-                        Game1.displayHUD = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Monitor.Log($"[HostBot] AfterWarp sleep error: {ex.Message}", LogLevel.Error);
-                    }
+                    Game1.player.isInBed.Value       = true;
+                    Game1.player.timeWentToBed.Value = Game1.timeOfDay;
                 }
 
-                Helper.Events.GameLoop.UpdateTicked += AfterWarp;
+                // Set AFTER startSleep in case it overwrites (AutoHideHost v1.3.3 note)
                 Game1.player.lastSleepLocation.Value = "FarmHouse";
                 Game1.player.lastSleepPoint.Value    = new Point(bx, by);
+                Game1.displayHUD = true;
+
                 Monitor.Log($"[HostBot] Going to bed at FarmHouse ({bx},{by}).", LogLevel.Info);
             }
             catch (Exception ex)

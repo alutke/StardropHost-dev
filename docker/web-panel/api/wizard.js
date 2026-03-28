@@ -568,8 +568,14 @@ function factoryReset(_req, res) {
       }
     } catch {}
 
-    // 5. Reset wizard state
-    writeState(defaultState());
+    // 5. Reset wizard state — skip step 2 if game files are already present
+    const freshState = defaultState();
+    if (detectGameFiles()) {
+      freshState.steps[2].complete = true;
+      freshState.steps[2].method   = 'local';
+      freshState.currentStep       = 3;
+    }
+    writeState(freshState);
 
     // 6. Restart the game process
     //    If crash-monitor is running it restarts SMAPI automatically (~10s).
