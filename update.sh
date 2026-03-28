@@ -151,6 +151,11 @@ fi
 
 print_info "Gracefully shutting down the server and web panel..."
 $COMPOSE_CMD down
+# Force-remove any containers that survived (restart:unless-stopped race condition)
+docker rm -f "${CONTAINER_PREFIX}" \
+             "${CONTAINER_PREFIX}-manager" \
+             "${CONTAINER_PREFIX}-steam-auth" \
+             "${CONTAINER_PREFIX}-init" >/dev/null 2>&1 || true
 print_success "Containers stopped"
 
 
