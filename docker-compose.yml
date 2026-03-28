@@ -100,8 +100,7 @@ services:
     container_name: ${CONTAINER_PREFIX:-stardrop}-playit
     network_mode: host
     restart: unless-stopped
-    environment:
-      - SECRET_KEY=${PLAYIT_SECRET_KEY:-}
+    command: ["${PLAYIT_SECRET_KEY}"]
 
   # --- Steam Auth ---
   # Handles Steam login + 2FA for game download via the wizard.
