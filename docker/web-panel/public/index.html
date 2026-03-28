@@ -606,31 +606,48 @@
                 <li>Share the tunnel address from your playit.gg dashboard with your friends</li>
               </ol>
             </div>
-            <p style="font-size:12px;color:var(--text-muted);margin:12px 0 0">
-              The secret key is held in memory only — it is never saved to disk and will need to be re-entered if the panel container restarts.
-              To update your key, enter the new value and click Activate.
-            </p>
           </div>
 
           <!-- Secret key card -->
           <div class="card">
             <h3>Tunnel Secret Key</h3>
-            <div id="remoteStatus" style="margin-bottom:14px">
-              <div class="empty-state">Loading...</div>
+
+            <!-- Loading state -->
+            <div id="remoteLoading" style="color:var(--text-muted);font-size:13px">Loading...</div>
+
+            <!-- State: no key saved -->
+            <div id="remoteNoKey" style="display:none">
+              <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px">No tunnel configured. Enter your secret key from playit.gg to enable remote play.</p>
+              <div class="form-row" style="align-items:center;gap:8px;flex-wrap:wrap">
+                <div style="position:relative;flex:1;min-width:200px">
+                  <input type="password" id="playitKeyInput" class="input" placeholder="Paste secret key from playit.gg"
+                    style="width:100%;padding-right:40px">
+                  <button type="button" id="playitKeyToggle" title="Show / hide key"
+                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;line-height:1">
+                    <svg class="icon" style="width:18px;height:18px"><use href="#icon-eye"></use></svg>
+                  </button>
+                </div>
+                <button class="btn btn-primary" type="button" id="playitActivateBtn" onclick="activatePlayit()">Activate</button>
+              </div>
+              <div id="playitMsg" style="margin-top:10px;font-size:13px;display:none"></div>
             </div>
-            <div class="form-row" style="align-items:flex-start;gap:8px;flex-wrap:wrap">
-              <div style="position:relative;flex:1;min-width:200px">
-                <input type="password" id="playitKeyInput" class="input" placeholder="Paste secret key from playit.gg"
-                  style="width:100%;padding-right:40px">
-                <button type="button" id="playitKeyToggle" title="Show / hide key"
-                  style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;line-height:1">
-                  <svg class="icon" style="width:18px;height:18px"><use href="#icon-eye"></use></svg>
+
+            <!-- State: key saved -->
+            <div id="remoteHasKey" style="display:none">
+              <div id="remoteStatus" style="margin-bottom:16px"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                <div style="font-size:13px;color:var(--text-secondary)">
+                  Key saved. The tunnel starts automatically when the panel starts.
+                  To update the key, remove it first then enter the new one.
+                </div>
+                <button class="btn" type="button" onclick="clearPlayit()"
+                  id="playitClearBtn"
+                  style="color:#ef4444;border-color:#ef4444;white-space:nowrap;flex-shrink:0">
+                  Remove Key &amp; Stop Tunnel
                 </button>
               </div>
-              <button class="btn btn-primary" type="button" id="playitActivateBtn" onclick="activatePlayit()">Activate</button>
-              <button class="btn" type="button" id="playitClearBtn" onclick="clearPlayit()" style="display:none">Stop Tunnel</button>
             </div>
-            <div id="playitMsg" style="margin-top:10px;font-size:13px;display:none"></div>
+
           </div>
 
         </section>

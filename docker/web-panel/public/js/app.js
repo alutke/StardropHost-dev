@@ -2953,98 +2953,89 @@ async function checkAllUpdates() {
 // ─── Remote (playit.gg) ──────────────────────────────────────────
 
 async function loadRemoteStatus() {
+  const loading  = document.getElementById('remoteLoading');
+  const noKeyEl  = document.getElementById('remoteNoKey');
+  const hasKeyEl = document.getElementById('remoteHasKey');
   const statusEl = document.getElementById('remoteStatus');
-  const clearBtn = document.getElementById('playitClearBtn');
-  if (!statusEl) return;
+  if (!loading) return;
 
   try {
-    const data = await API.get('/api/remote/status');
-
-    const running = data.running === true;
+    const data    = await API.get('/api/remote/status');
     const hasKey  = data.hasKey === true;
+    const running = data.running === true;
 
-    let html = '';
-    if (running) {
-      html = `<div style="display:flex;align-items:center;gap:8px">
-        <span class="status-dot online"></span>
-        <span style="color:var(--text-primary);font-weight:500">Tunnel active</span>
-        <span style="color:var(--text-secondary);font-size:13px">— Your friends can connect via your playit.gg address</span>
-      </div>`;
-    } else if (hasKey) {
-      html = `<div style="display:flex;align-items:center;gap:8px">
-        <span class="status-dot" style="background:var(--accent)"></span>
-        <span style="color:var(--text-secondary)">Key set — tunnel container starting or reconnecting</span>
-      </div>`;
-    } else {
-      html = `<div style="color:var(--text-muted);font-size:13px">No key set — tunnel is not running.</div>`;
+    loading.style.display  = 'none';
+    noKeyEl.style.display  = hasKey ? 'none' : '';
+    hasKeyEl.style.display = hasKey ? '' : 'none';
+
+    if (hasKey && statusEl) {
+      if (running) {
+        statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
+          <span class="status-dot online"></span>
+          <span style="font-weight:500">Tunnel active</span>
+          <span style="color:var(--text-secondary);font-size:13px">— Share your playit.gg address with friends to connect</span>
+        </div>`;
+      } else {
+        statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px">
+          <span class="status-dot" style="background:var(--accent);opacity:0.6"></span>
+          <span style="color:var(--text-secondary)">Tunnel starting or reconnecting...</span>
+        </div>`;
+      }
     }
-    statusEl.innerHTML = html;
-
-    if (clearBtn) clearBtn.style.display = hasKey ? '' : 'none';
   } catch {
-    statusEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px">Could not load status.</div>';
+    loading.style.display  = 'none';
+    noKeyEl.style.display  = '';
+    hasKeyEl.style.display = 'none';
   }
 }
 
 async function activatePlayit() {
-  const input   = document.getElementById('playitKeyInput');
-  const btn     = document.getElementById('playitActivateBtn');
-  const msgEl   = document.getElementById('playitMsg');
-  const key     = input?.value?.trim();
+  const input = document.getElementById('playitKeyInput');
+  const btn   = document.getElementById('playitActivateBtn');
+  const msgEl = document.getElementById('playitMsg');
+  const key   = input?.value?.trim();
 
   if (!key) {
-    showPlayitMsg('Please enter your playit.gg secret key.', 'error');
+    _showPlayitMsg('Please enter your playit.gg secret key.', 'error');
     return;
   }
 
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = 'Activating...';
-  hidePlayitMsg();
+  msgEl.style.display = 'none';
 
   try {
     await API.post('/api/remote/key', { secretKey: key });
     input.value = '';
-    showPlayitMsg('Tunnel activated. The playit container is restarting with your key.', 'success');
     await loadRemoteStatus();
   } catch (e) {
-    showPlayitMsg(e.message || 'Failed to activate tunnel.', 'error');
-  } finally {
-    btn.disabled = false;
+    _showPlayitMsg(e.message || 'Failed to activate tunnel.', 'error');
+    btn.disabled    = false;
     btn.textContent = 'Activate';
   }
 }
 
 async function clearPlayit() {
-  const btn   = document.getElementById('playitClearBtn');
-  const msgEl = document.getElementById('playitMsg');
-
-  btn.disabled = true;
-  btn.textContent = 'Stopping...';
-  hidePlayitMsg();
+  const btn = document.getElementById('playitClearBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Removing...';
 
   try {
     await API.post('/api/remote/clear');
-    showPlayitMsg('Tunnel stopped and key cleared.', 'success');
     await loadRemoteStatus();
   } catch (e) {
-    showPlayitMsg(e.message || 'Failed to stop tunnel.', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Stop Tunnel';
+    showToast(e.message || 'Failed to remove key.', 'error');
+    btn.disabled    = false;
+    btn.textContent = 'Remove Key & Stop Tunnel';
   }
 }
 
-function showPlayitMsg(text, type) {
+function _showPlayitMsg(text, type) {
   const el = document.getElementById('playitMsg');
   if (!el) return;
-  el.textContent = text;
-  el.style.color  = type === 'error' ? '#ef4444' : 'var(--accent)';
+  el.textContent   = text;
+  el.style.color   = type === 'error' ? '#ef4444' : 'var(--accent)';
   el.style.display = '';
-}
-
-function hidePlayitMsg() {
-  const el = document.getElementById('playitMsg');
-  if (el) el.style.display = 'none';
 }
 
 function setupPlayitKeyToggle() {

@@ -1,24 +1,48 @@
 /**
  * StardropHost | web-panel/api/remote.js
  * Remote play tunnel management (playit.gg).
- * The secret key is held in memory only — never written to disk.
- * It is lost when the panel container restarts; the user re-enters it
- * and the playit container is restarted with the new key.
+ * The secret key is saved to disk and persists until the user explicitly removes it.
+ * On panel startup, if a saved key exists the playit container is restored automatically.
  */
 
 const http = require('http');
+const fs   = require('fs');
+const path = require('path');
 
 const MANAGER_URL = process.env.MANAGER_URL || 'http://stardrop-manager:18700';
+const DATA_DIR    = process.env.PANEL_DATA_DIR || path.join(__dirname, '..', 'data');
+const KEY_FILE    = path.join(DATA_DIR, 'playit-key.dat');
 
-// In-memory only — same pattern as Steam auth credentials
-let _activeKey = null;
+// -- Key persistence --
+
+function loadSavedKey() {
+  try {
+    const key = fs.readFileSync(KEY_FILE, 'utf8').trim();
+    return key || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveKey(key) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(KEY_FILE, key, { mode: 0o600 });
+  } catch (e) {
+    console.error('[Remote] Failed to save key:', e.message);
+  }
+}
+
+function deleteKeyFile() {
+  try { fs.unlinkSync(KEY_FILE); } catch {}
+}
 
 // -- Manager proxy --
 
-function callManager(method, path, body = null) {
+function callManager(method, urlPath, body = null) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
-    const url     = new URL(path, MANAGER_URL);
+    const url     = new URL(urlPath, MANAGER_URL);
 
     const options = {
       hostname: url.hostname,
@@ -50,21 +74,28 @@ function callManager(method, path, body = null) {
   });
 }
 
+// -- Startup restore --
+// If a key was saved previously, restart the playit container after a short
+// delay to let the manager come up first.
+
+const _savedKeyOnLoad = loadSavedKey();
+if (_savedKeyOnLoad) {
+  setTimeout(() => {
+    callManager('POST', '/playit/start', { secretKey: _savedKeyOnLoad })
+      .then(() => console.log('[Remote] Restored playit tunnel from saved key'))
+      .catch(e => console.warn('[Remote] Could not restore playit tunnel:', e.message));
+  }, 5000);
+}
+
 // -- Route Handlers --
 
 async function getStatus(req, res) {
+  const hasKey = !!loadSavedKey();
   try {
     const { body } = await callManager('GET', '/playit/status');
-    res.json({
-      ...body,
-      hasKey: !!_activeKey,
-    });
+    res.json({ ...body, hasKey });
   } catch {
-    res.json({
-      running:  false,
-      hasKey:   !!_activeKey,
-      error:    'Manager not reachable',
-    });
+    res.json({ running: false, hasKey, error: 'Manager not reachable' });
   }
 }
 
@@ -75,10 +106,11 @@ async function setKey(req, res) {
     return res.status(400).json({ error: 'secretKey is required' });
   }
 
-  _activeKey = secretKey.trim();
+  const key = secretKey.trim();
+  saveKey(key);
 
   try {
-    const { status, body } = await callManager('POST', '/playit/start', { secretKey: _activeKey });
+    const { status, body } = await callManager('POST', '/playit/start', { secretKey: key });
     res.status(status).json(body);
   } catch (e) {
     res.status(500).json({ error: `Failed to start playit: ${e.message}` });
@@ -86,7 +118,7 @@ async function setKey(req, res) {
 }
 
 async function clearKey(req, res) {
-  _activeKey = null;
+  deleteKeyFile();
 
   try {
     const { status, body } = await callManager('POST', '/playit/stop');
