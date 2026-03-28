@@ -9,7 +9,7 @@
 
 const fs = require('fs');
 const http = require('http');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const PORT        = parseInt(process.env.MANAGER_PORT || '18700', 10);
 const PROJECT_DIR = process.env.PROJECT_DIR || '/workspace';
@@ -132,17 +132,23 @@ function startService(service) {
 }
 
 function startPlayit(secretKey) {
-  // Remove any existing playit container, then start a fresh one with the key as the CLI arg.
-  // The key is passed as a positional argument — never stored to disk.
+  // Remove any existing container first (sync — must complete before docker run).
+  // Key is passed as a direct spawn argument — never interpolated into a shell string,
+  // so special characters ($, !, \, etc.) in the key are safe.
   const name = getPlayitContainerName();
-  const command = [
-    `docker rm -f ${name} >/dev/null 2>&1 || true`,
-    `docker run -d --name ${name} --network host --restart unless-stopped ${PLAYIT_IMAGE} "${secretKey}"`,
-  ].join(' && ');
+  const env  = buildComposeEnv();
 
-  const child = spawn('sh', ['-lc', command], {
-    cwd: PROJECT_DIR,
-    env: buildComposeEnv(),
+  spawnSync('docker', ['rm', '-f', name], { env, stdio: 'ignore' });
+
+  const child = spawn('docker', [
+    'run', '-d',
+    '--name', name,
+    '--network', 'host',
+    '--restart', 'unless-stopped',
+    PLAYIT_IMAGE,
+    secretKey,
+  ], {
+    env,
     detached: true,
     stdio: 'ignore',
   });
