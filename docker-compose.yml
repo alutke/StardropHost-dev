@@ -83,6 +83,11 @@ services:
       - ./data/panel:/home/steam/web-panel/data:rw
       - ./data/custom-mods:/home/steam/custom-mods:ro
       - ${PWD}/..:/host-parent:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-0}'
+          memory: '${MEMORY_LIMIT:-0}'
 
   # --- Steam Auth ---
   # Handles Steam login + 2FA for game download via the wizard.

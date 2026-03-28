@@ -124,9 +124,29 @@ function getNetworkInfo(requestHost = '') {
   };
 }
 
-// -- Get CPU core count for normalisation --
-// BUG FIX: ps reports CPU per-core so divide by nproc to get true %
+// -- Get effective CPU core count for normalisation --
+// BUG FIX: ps reports CPU per-core so divide by allocated cores to get true %.
+// When a Docker CPU limit is set, use the cgroup quota; otherwise use nproc.
 function getCoreCount() {
+  // cgroupv2: /sys/fs/cgroup/cpu.max — "quota period" or "max period"
+  try {
+    const val = fs.readFileSync('/sys/fs/cgroup/cpu.max', 'utf-8').trim();
+    const [quota, period] = val.split(' ');
+    if (quota !== 'max' && period) {
+      const cores = parseInt(quota, 10) / parseInt(period, 10);
+      if (cores > 0) return cores;
+    }
+  } catch {}
+
+  // cgroupv1: quota_us / period_us
+  try {
+    const quota  = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_quota_us',  'utf-8').trim(), 10);
+    const period = parseInt(fs.readFileSync('/sys/fs/cgroup/cpu/cpu.cfs_period_us', 'utf-8').trim(), 10);
+    // -1 means no limit in cgroupv1
+    if (quota > 0 && period > 0) return quota / period;
+  } catch {}
+
+  // No CPU limit — fall back to host core count
   try {
     return parseInt(execSync('nproc', { encoding: 'utf-8' }).trim(), 10) || 1;
   } catch {
@@ -146,7 +166,7 @@ function collectStatus(req = null) {
     gameRunning: false,
     stoppedByUser: fs.existsSync(STOP_FLAG),
     uptime: 0,
-    players: { online: 0, max: 4 },
+    players: { online: 0, max: 8 },
     cpu: 0,
     memory: { used: 0, limit: 2048 },
     day: null,
@@ -248,17 +268,50 @@ function collectStatus(req = null) {
     if (status.live) status.live.serverState = 'offline';
   }
 
-  // -- Container-level memory fallback (always available via /proc/meminfo) --
-  // Only fill 'used' if game is running — if stopped we want it to show 0
-  if (status.memory.limit === 2048 || (status.gameRunning && status.memory.used === 0)) {
+  // -- Container memory limit (cgroup) and used fallback --
+  // Read the actual Docker-imposed memory limit from cgroup rather than /proc/meminfo
+  // (which shows host RAM when no limit is set).
+  if (status.memory.limit === 2048) {
+    let cgroupLimitMB = null;
+
+    // cgroupv2
     try {
-      const meminfo = fs.readFileSync('/proc/meminfo', 'utf-8');
+      const val = fs.readFileSync('/sys/fs/cgroup/memory.max', 'utf-8').trim();
+      if (val !== 'max') {
+        const bytes = parseInt(val, 10);
+        if (bytes > 0 && bytes < 1e15) cgroupLimitMB = Math.round(bytes / 1024 / 1024);
+      }
+    } catch {}
+
+    // cgroupv1
+    if (cgroupLimitMB === null) {
+      try {
+        const val = fs.readFileSync('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'utf-8').trim();
+        const bytes = parseInt(val, 10);
+        // cgroupv1 reports ~9.2e18 when no limit is set
+        if (bytes > 0 && bytes < 1e15) cgroupLimitMB = Math.round(bytes / 1024 / 1024);
+      } catch {}
+    }
+
+    if (cgroupLimitMB !== null) {
+      status.memory.limit = cgroupLimitMB;
+    } else {
+      // No limit set — fall back to host total from /proc/meminfo
+      try {
+        const meminfo = fs.readFileSync('/proc/meminfo', 'utf-8');
+        const totalKB = parseInt(meminfo.match(/MemTotal:\s+(\d+)/)?.[1] || '0', 10);
+        if (totalKB > 0) status.memory.limit = Math.round(totalKB / 1024);
+      } catch {}
+    }
+  }
+
+  // Fill memory.used from /proc/meminfo if still zero while game is running
+  if (status.gameRunning && status.memory.used === 0) {
+    try {
+      const meminfo    = fs.readFileSync('/proc/meminfo', 'utf-8');
       const totalKB    = parseInt(meminfo.match(/MemTotal:\s+(\d+)/)?.[1]     || '0', 10);
       const availableKB= parseInt(meminfo.match(/MemAvailable:\s+(\d+)/)?.[1] || '0', 10);
-      if (totalKB > 0) {
-        if (status.gameRunning && status.memory.used === 0) status.memory.used = Math.round((totalKB - availableKB) / 1024);
-        if (status.memory.limit === 2048) status.memory.limit = Math.round(totalKB / 1024);
-      }
+      if (totalKB > 0) status.memory.used = Math.round((totalKB - availableKB) / 1024);
     } catch {}
   }
 
