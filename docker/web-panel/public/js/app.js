@@ -1183,6 +1183,8 @@ let gameRestartInitiatedAt = 0;
 let isStopping             = false;
 let isStarting             = false;
 let isTransitioning        = false; // true during any start/stop/restart/boot state
+let lastRemoteData         = null;
+let _remoteOptimisticState = null;  // 'starting' | 'stopping' | null
 
 // ─── Theme ───────────────────────────────────────────────────────
 let currentTheme = (() => {
@@ -1250,6 +1252,7 @@ function init() {
   setupNavigation();
   setupWebSocket();
   loadDashboard();
+  loadRemoteStatus();
   loadBackupStatus();
   renderQuickActions();
   loadPanelVersion();
@@ -1340,7 +1343,7 @@ function navigateTo(page) {
   document.getElementById('sidebar').classList.remove('open');
 
   switch (page) {
-    case 'dashboard': loadDashboard(); renderQuickActions();                  break;
+    case 'dashboard': loadDashboard(); loadRemoteStatus(); renderQuickActions(); break;
     case 'farm':
       loadFarm();
       if (!farmInterval) farmInterval = setInterval(loadFarm, 5000);
@@ -1352,7 +1355,7 @@ function navigateTo(page) {
     case 'saves':     loadSaves();                                           break;
     case 'mods':      loadMods();                                            break;
     case 'terminal':  loadLogs('game'); subscribeToLogs('game');             break;
-    case 'config':    loadConfig(); loadVnc(); loadServerModeCard();         break;
+    case 'config':    loadConfig(); loadVnc();                               break;
     case 'remote':    loadRemoteStatus();                                    break;
   }
 }
@@ -2288,13 +2291,27 @@ async function loadConfig() {
       card.appendChild(row);
     }
 
-    // Server group: prepend status indicator + append Start/Stop toggle
+    // Server group: prepend status indicators + append Start/Stop toggle
     if (group.name === 'Server') {
       const running    = !!(lastStatusData?.gameRunning);
       const stopping   = isStopping;
       const starting   = isStarting || isGameRestarting;
       const statusText = stopping ? 'Stopping…' : starting ? 'Starting…' : running ? 'Running' : 'Stopped';
       const statusCol  = stopping ? '#f59e0b' : starting ? '#f59e0b' : running ? '#22c55e' : 'var(--text-muted)';
+
+      // Remote status
+      let remText, remColor;
+      if (_remoteOptimisticState === 'starting') {
+        remText = 'Starting'; remColor = '#f59e0b';
+      } else if (_remoteOptimisticState === 'stopping') {
+        remText = 'Stopping'; remColor = 'var(--text-muted)';
+      } else if (!lastRemoteData?.configured) {
+        remText = 'Not Setup'; remColor = 'var(--text-muted)';
+      } else if (lastRemoteData.anyRunning) {
+        remText = 'Active'; remColor = '#22c55e';
+      } else {
+        remText = 'Stopped'; remColor = '#ef4444';
+      }
 
       const statusRow = document.createElement('div');
       statusRow.className = 'config-item';
@@ -2304,6 +2321,17 @@ async function loadConfig() {
          <div class="config-value">
            <span id="configServerStatusBadge" style="font-weight:600;color:${statusCol}">● ${escapeHtml(statusText)}</span>
          </div>`;
+
+      const remoteRow = document.createElement('div');
+      remoteRow.className = 'config-item';
+      remoteRow.style.cssText = 'border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:4px';
+      remoteRow.innerHTML =
+        `<div><div class="config-label">Remote Status</div></div>
+         <div class="config-value">
+           <span id="configRemoteStatusBadge" style="font-weight:600;color:${remColor}">● ${escapeHtml(remText)}</span>
+         </div>`;
+
+      card.insertBefore(remoteRow, card.firstChild.nextSibling);
       card.insertBefore(statusRow, card.firstChild.nextSibling);
 
       const sep = document.createElement('div');
@@ -2979,14 +3007,16 @@ async function loadRemoteStatus() {
   const loading    = document.getElementById('remoteLoading');
   const noConfig   = document.getElementById('remoteNoConfig');
   const configured = document.getElementById('remoteConfigured');
-  if (!loading) return;
 
   try {
     const data = await API.get('/api/remote/status');
+    lastRemoteData         = data;
+    _remoteOptimisticState = null;
+    _updateRemoteBadge();
 
-    loading.style.display    = 'none';
-    noConfig.style.display   = data.configured ? 'none' : '';
-    configured.style.display = data.configured ? ''     : 'none';
+    if (loading)    loading.style.display    = 'none';
+    if (noConfig)   noConfig.style.display   = data.configured ? 'none' : '';
+    if (configured) configured.style.display = data.configured ? ''     : 'none';
 
     if (data.configured) {
       _renderRemoteServices(data.services || [], data.anyRunning);
@@ -2994,9 +3024,34 @@ async function loadRemoteStatus() {
       if (yamlEl) yamlEl.textContent = data.yaml || '';
     }
   } catch {
-    loading.style.display    = 'none';
-    noConfig.style.display   = '';
-    configured.style.display = 'none';
+    if (loading)    loading.style.display    = 'none';
+    if (noConfig)   noConfig.style.display   = '';
+    if (configured) configured.style.display = 'none';
+  }
+}
+
+function _updateRemoteBadge() {
+  // Derive display state: optimistic overrides actual
+  let text, color;
+  if (_remoteOptimisticState === 'starting') {
+    text = 'Starting'; color = '#f59e0b';
+  } else if (_remoteOptimisticState === 'stopping') {
+    text = 'Stopping'; color = 'var(--text-muted)';
+  } else if (!lastRemoteData?.configured) {
+    text = 'Not Setup'; color = 'var(--text-muted)';
+  } else if (lastRemoteData.anyRunning) {
+    text = 'Active'; color = '#22c55e';
+  } else {
+    text = 'Stopped'; color = '#ef4444';
+  }
+
+  const dashEl = document.getElementById('stat-remote');
+  if (dashEl) dashEl.innerHTML = `<span style="color:${color}">● ${escapeHtml(text)}</span>`;
+
+  const cfgEl = document.getElementById('configRemoteStatusBadge');
+  if (cfgEl) {
+    cfgEl.textContent = `● ${text}`;
+    cfgEl.style.color = color;
   }
 }
 
@@ -3048,11 +3103,16 @@ async function applyRemoteCompose() {
   btn.textContent = 'Applying...';
   msgEl.style.display = 'none';
 
+  _remoteOptimisticState = 'starting';
+  _updateRemoteBadge();
+
   try {
     await API.post('/api/remote/apply', { yaml });
     textarea.value = '';
     await loadRemoteStatus();
   } catch (e) {
+    _remoteOptimisticState = null;
+    _updateRemoteBadge();
     _showRemoteMsg(e.message || 'Failed to apply config.', 'error');
     btn.disabled    = false;
     btn.textContent = 'Apply & Connect';
@@ -3063,10 +3123,14 @@ async function startRemoteService() {
   const btn = document.getElementById('remoteStartBtn');
   btn.disabled    = true;
   btn.textContent = 'Starting...';
+  _remoteOptimisticState = 'starting';
+  _updateRemoteBadge();
   try {
     await API.post('/api/remote/start');
     await loadRemoteStatus();
   } catch (e) {
+    _remoteOptimisticState = null;
+    _updateRemoteBadge();
     showToast(e.message || 'Failed to start service.', 'error');
   } finally {
     btn.disabled    = false;
@@ -3078,10 +3142,14 @@ async function stopRemoteService() {
   const btn = document.getElementById('remoteStopBtn');
   btn.disabled    = true;
   btn.textContent = 'Stopping...';
+  _remoteOptimisticState = 'stopping';
+  _updateRemoteBadge();
   try {
     await API.post('/api/remote/stop');
     await loadRemoteStatus();
   } catch (e) {
+    _remoteOptimisticState = null;
+    _updateRemoteBadge();
     showToast(e.message || 'Failed to stop service.', 'error');
   } finally {
     btn.disabled    = false;

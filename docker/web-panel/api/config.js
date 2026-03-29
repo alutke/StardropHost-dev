@@ -63,7 +63,7 @@ const CONFIG_SCHEMA = {
   ],
   'Server': [
     { key: 'PANEL_UPDATE_CHECK_HOURS', label: 'Update checks', type: 'number', default: '24',
-      description: 'How often to check for StardropHost and game updates. Leave empty to disable auto checks.' },
+      description: 'Hours between update checks. Leave empty to disable.' },
   ],
 };
 
