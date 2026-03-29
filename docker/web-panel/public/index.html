@@ -594,7 +594,7 @@
         <section id="page-remote" class="page">
 
           <!-- Header info bar -->
-          <div style="background:linear-gradient(135deg,var(--bg-tertiary),var(--bg-secondary));border:1px solid var(--accent-dark);border-radius:10px;padding:18px 20px;margin-bottom:16px">
+          <div style="background:linear-gradient(135deg,var(--bg-tertiary),var(--bg-secondary));border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:16px">
             <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:10px;letter-spacing:0.2px">
               Remote Access — Friend Connect
             </div>
@@ -613,7 +613,7 @@
               </div>
               <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
                 <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
-                Recommended: use <strong style="color:var(--text-primary)">playit.gg</strong> — tested and working. See the setup guide below.
+                Recommended: <strong style="color:var(--text-primary)">playit.gg</strong> — tested and working. See the setup guide below.
               </div>
               <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
                 <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
@@ -677,11 +677,12 @@
             <!-- Account Setup -->
             <details class="remote-sub">
               <summary>Account Setup</summary>
+              <p style="font-size:12px;color:var(--text-muted);margin:8px 0 4px">*Steps 2, 3 and 4 are for Premium accounts only</p>
               <ol class="remote-steps">
                 <li>Sign up for an account at <a href="https://playit.gg" target="_blank" rel="noopener noreferrer">playit.gg</a></li>
-                <li><em style="color:var(--text-muted)">(Optional — Free tier)</em> Don't set up an agent yet — press <strong>"Exit Wizard"</strong> if prompted</li>
-                <li><em style="color:var(--text-muted)">(Optional — Free tier)</em> Purchase a Premium subscription (~$5/mo) — activation banner appears at the top of the dashboard</li>
-                <li><em style="color:var(--text-muted)">(Optional — Free tier)</em> Go to <strong>Setup</strong> in the top bar → click <strong>"New Account Wizard"</strong> → select <strong>Docker</strong> when asked where to integrate playit</li>
+                <li>Don't set up an agent yet — press <strong>"Exit Wizard"</strong> if prompted</li>
+                <li>Purchase a Premium subscription (~$5/mo) — activation banner appears at the top of the dashboard</li>
+                <li>Go to <strong>Setup</strong> in the top bar → click <strong>"New Account Wizard"</strong> → select <strong>Docker</strong> when asked where to integrate playit</li>
                 <li>Continue to <strong>Agent Setup</strong> below</li>
               </ol>
             </details>
@@ -709,7 +710,7 @@
                 <li>Name it (e.g. <code>Stardrop-Share</code>), select type <strong>UDP</strong><br>
                   Set port count to <strong>1</strong> for game only, or <strong>2</strong> to also tunnel remote dashboard access</li>
                 <li>Give it a description (e.g. <em>Stardew Valley</em>), then complete the usage confirmation</li>
-                <li>For <strong>Public End Point</strong> — select the region closest to you</li>
+                <li>For <strong>Public End Point</strong> — select the region closest to you <em style="color:var(--text-muted);font-size:12px">*Premium gives access to more regions</em></li>
                 <li>For <strong>Local IP &amp; Port</strong>: copy your server's <strong>LAN IP</strong> from the StardropHost dashboard home page and enter port <code>24642</code> for the game<br>
                   <em style="color:var(--text-muted);font-size:12px">Change the port count to 2 in the earlier step to use your panel port number (default 18642) to remote access the StardropHost dashboard</em></li>
                 <li>For <strong>Proxy Protocol</strong> — see <a href="https://playit.gg/support/what-is-proxy-protocol/" target="_blank" rel="noopener noreferrer">playit.gg/support/what-is-proxy-protocol</a></li>
@@ -719,12 +720,27 @@
                     Domain: <strong style="color:var(--accent)">yourname.playit.plus</strong><br>
                     IP &amp; Port: <strong style="color:var(--accent)">12.34.56.78:12345</strong>
                   </span>
-                  Share either the domain name <strong>or</strong> the IP &amp; Port with your friends — they enter it in Stardew Valley's co-op join screen to connect from anywhere
+                  <strong style="font-size:14px;color:var(--text-primary)">Share either the domain name or the IP &amp; Port with your friends — they enter it in Stardew Valley's co-op join screen to connect from anywhere.</strong>
                 </li>
               </ol>
             </details>
 
           </details>
+
+          <!-- Compose Entry card -->
+          <div class="card" style="margin-bottom:16px">
+            <h3>Compose Entry</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px;line-height:1.6">
+              Paste a <code>docker-compose</code> snippet from your tunnel provider and click <strong>Apply &amp; Connect</strong>.
+              The service will start automatically and status will update above.
+            </p>
+            <textarea id="remoteComposeInput" class="input" rows="10" placeholder=""
+              style="width:100%;font-family:monospace;font-size:12px;resize:vertical;line-height:1.5"></textarea>
+            <div id="remoteApplyMsg" style="margin:8px 0;font-size:13px;display:none"></div>
+            <div style="margin-top:10px">
+              <button class="btn btn-primary" type="button" id="remoteApplyBtn" onclick="applyRemoteCompose()">Apply &amp; Connect</button>
+            </div>
+          </div>
 
           <!-- Docker Compose example (collapsible) -->
           <details class="card remote-guide" style="margin-bottom:16px">
@@ -745,21 +761,6 @@
       - SECRET_KEY=YOUR_SECRET_KEY</pre>
             </div>
           </details>
-
-          <!-- Compose Entry card -->
-          <div class="card" style="margin-bottom:16px">
-            <h3>Compose Entry</h3>
-            <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px;line-height:1.6">
-              Paste a <code>docker-compose</code> snippet from your tunnel provider and click <strong>Apply &amp; Connect</strong>.
-              The service will start automatically and status will update above.
-            </p>
-            <textarea id="remoteComposeInput" class="input" rows="10" placeholder=""
-              style="width:100%;font-family:monospace;font-size:12px;resize:vertical;line-height:1.5"></textarea>
-            <div id="remoteApplyMsg" style="margin:8px 0;font-size:13px;display:none"></div>
-            <div style="margin-top:10px">
-              <button class="btn btn-primary" type="button" id="remoteApplyBtn" onclick="applyRemoteCompose()">Apply &amp; Connect</button>
-            </div>
-          </div>
 
           <!-- Other services (collapsible) -->
           <details class="card remote-guide">
