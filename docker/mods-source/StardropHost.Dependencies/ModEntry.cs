@@ -68,6 +68,37 @@ namespace StardropHostDependencies
         private string?   _lastSkippedEventId = null;
         private DateTime? _lastSkipTime       = null;
 
+        // ── Ban map (name → all bannedUsers keys for this ban: name + IP) ───────
+        private const string BanMapPath = "/home/steam/.local/share/stardrop/ban-map.json";
+        // bansByName["Tom"] = ["Tom", "192.168.0.140"]
+        private Dictionary<string, List<string>> _bansByName = new();
+        // idToName["1314339377246380246"] = "Tom"
+        private Dictionary<string, string> _idToName = new();
+
+        private void LoadBanMap()
+        {
+            try
+            {
+                if (!File.Exists(BanMapPath)) return;
+                var doc = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(BanMapPath));
+                if (doc.TryGetProperty("bansByName", out var bbn))
+                    _bansByName = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(bbn.GetRawText()) ?? new();
+                if (doc.TryGetProperty("idToName", out var itn))
+                    _idToName = JsonSerializer.Deserialize<Dictionary<string, string>>(itn.GetRawText()) ?? new();
+            }
+            catch { _bansByName = new(); _idToName = new(); }
+        }
+
+        private void SaveBanMap()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(BanMapPath)!);
+                File.WriteAllText(BanMapPath, JsonSerializer.Serialize(new { bansByName = _bansByName, idToName = _idToName }));
+            }
+            catch { }
+        }
+
         // ── Headless Server state ────────────────────────────────────────────
         private readonly Dictionary<string, int> _prevFriendships = new();
 
@@ -148,6 +179,8 @@ namespace StardropHostDependencies
 
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
+            LoadBanMap();
+
             // Remove built-in player cap so any number of farmhands can connect
             try { Game1.netWorldState.Value.CurrentPlayerLimit = int.MaxValue; }
             catch (Exception ex) { Monitor.Log($"Could not remove player limit: {ex.Message}", LogLevel.Warn); }
@@ -801,10 +834,25 @@ namespace StardropHostDependencies
                 return;
             }
 
+            // Snapshot current bannedUsers keys BEFORE server.ban() so we can capture what it adds (the IP)
+            var keysBefore = new HashSet<string>(Game1.bannedUsers.Keys);
+
             Game1.server.ban(farmer.UniqueMultiplayerID);
-            // Game1.server.ban() only kicks — does NOT populate bannedUsers. Add manually.
+
+            // Also add name-based ban (server.ban only adds IP; name ban blocks at character selection)
             Game1.bannedUsers[farmer.Name] = farmer.UniqueMultiplayerID.ToString();
-            Monitor.Log($"[PlayerManager] Banned {farmer.Name} ({farmer.UniqueMultiplayerID}).", LogLevel.Info);
+
+            // Capture all keys added by this ban: IP (from server.ban) + name (from above)
+            var addedKeys = Game1.bannedUsers.Keys
+                .Where(k => !keysBefore.Contains(k))
+                .ToList();
+
+            // Persist name→keys and id→name mappings so unban can remove ALL entries
+            _bansByName[farmer.Name] = addedKeys;
+            _idToName[farmer.UniqueMultiplayerID.ToString()] = farmer.Name;
+            SaveBanMap();
+
+            Monitor.Log($"[PlayerManager] Banned {farmer.Name} ({farmer.UniqueMultiplayerID}). Keys: [{string.Join(", ", addedKeys)}]", LogLevel.Info);
         }
 
         private void OnUnbanCommand(string cmd, string[] args)
@@ -812,25 +860,50 @@ namespace StardropHostDependencies
             if (args.Length == 0) { Monitor.Log("Usage: unban <name|id>", LogLevel.Info); return; }
 
             var target = string.Join(" ", args);
-            var toRemove = Game1.bannedUsers
-                .Where(kv => (kv.Value != null && kv.Value.Equals(target, StringComparison.OrdinalIgnoreCase))
-                          || kv.Key.Equals(target, StringComparison.OrdinalIgnoreCase))
+
+            // Resolve ID → name if needed
+            var lookupName = _idToName.TryGetValue(target, out var mapped) ? mapped : target;
+
+            // Case-insensitive name lookup in ban map
+            var banEntry = _bansByName
+                .FirstOrDefault(kv => kv.Key.Equals(lookupName, StringComparison.OrdinalIgnoreCase));
+
+            if (banEntry.Value != null)
+            {
+                // Remove ALL keys for this ban (IP + name)
+                foreach (var key in banEntry.Value)
+                    Game1.bannedUsers.Remove(key);
+
+                _bansByName.Remove(banEntry.Key);
+                // Remove all id→name entries that pointed at this name
+                foreach (var id in _idToName.Where(kv => kv.Value.Equals(banEntry.Key, StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Key).ToList())
+                    _idToName.Remove(id);
+                SaveBanMap();
+
+                Monitor.Log($"[PlayerManager] Unbanned '{banEntry.Key}'. Removed: [{string.Join(", ", banEntry.Value)}]", LogLevel.Info);
+                return;
+            }
+
+            // Fallback: no map entry — search bannedUsers directly (catches manually-added bans)
+            var fallback = Game1.bannedUsers
+                .Where(kv => kv.Key.Equals(target, StringComparison.OrdinalIgnoreCase)
+                          || (kv.Value != null && kv.Value.Equals(target, StringComparison.OrdinalIgnoreCase)))
                 .Select(kv => kv.Key)
                 .ToList();
 
-            if (toRemove.Count == 0)
+            if (fallback.Count == 0)
             {
                 var keys = Game1.bannedUsers.Count > 0
-                    ? $"Banned list: [{string.Join(", ", Game1.bannedUsers.Keys.Take(10))}]"
-                    : "Banned list is empty";
+                    ? $"bannedUsers keys: [{string.Join(", ", Game1.bannedUsers.Keys.Take(10))}]"
+                    : "bannedUsers is empty";
                 Monitor.Log($"[PlayerManager] Unban: no banned player matching '{target}'. {keys}", LogLevel.Warn);
                 return;
             }
 
-            foreach (var key in toRemove)
+            foreach (var key in fallback)
                 Game1.bannedUsers.Remove(key);
 
-            Monitor.Log($"[PlayerManager] Unbanned '{target}'.", LogLevel.Info);
+            Monitor.Log($"[PlayerManager] Unbanned '{target}' (fallback). Removed: [{string.Join(", ", fallback)}]", LogLevel.Info);
         }
 
         // ════════════════════════════════════════════════════════════════════
