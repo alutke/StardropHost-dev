@@ -28,6 +28,12 @@ const CONFIG_SCHEMA = {
     { key: 'TARGET_FPS', label: 'Target FPS', type: 'number', default: '',
       description: 'Cap the game frame rate. Leave blank for uncapped.' },
   ],
+  'Backup': [
+    { key: 'ENABLE_AUTO_BACKUP',     label: 'Auto Backup',               type: 'boolean', default: 'true' },
+    { key: 'MAX_BACKUPS',            label: 'Max Backups',               type: 'number',  default: '7' },
+    { key: 'BACKUP_INTERVAL_HOURS',  label: 'Backup Frequency (hours)',  type: 'number',  default: '24', min: 1, max: 24,
+      description: 'How often to back up saves. 24 = once a day.' },
+  ],
   'Performance': [
     { key: 'CPU_LIMIT',    label: 'CPU Limit',    type: 'select', default: '',
       options: [
@@ -46,12 +52,6 @@ const CONFIG_SCHEMA = {
         { value: '8g',  label: '8 GB' },
         { value: '16g', label: '16 GB' },
       ] },
-  ],
-  'Backup': [
-    { key: 'ENABLE_AUTO_BACKUP',     label: 'Auto Backup',               type: 'boolean', default: 'true' },
-    { key: 'MAX_BACKUPS',            label: 'Max Backups',               type: 'number',  default: '7' },
-    { key: 'BACKUP_INTERVAL_HOURS',  label: 'Backup Frequency (hours)',  type: 'number',  default: '24', min: 1, max: 24,
-      description: 'How often to back up saves. 24 = once a day.' },
   ],
   'Stability': [
     { key: 'ENABLE_CRASH_RESTART', label: 'Auto Crash Restart', type: 'boolean', default: 'true' },

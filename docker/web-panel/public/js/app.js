@@ -1272,17 +1272,20 @@ function init() {
     document.getElementById('sidebar').classList.toggle('open');
   };
 
-  // Log controls
-  document.getElementById('logAutoScroll').onclick = () => {
-    logAutoScroll = !logAutoScroll;
-    document.getElementById('logAutoScroll').style.opacity = logAutoScroll ? '1' : '0.5';
-  };
+  // Log controls — smart auto-scroll: pauses when user scrolls up, resumes at bottom
+  const logOutput = document.getElementById('logOutput');
+  if (logOutput) {
+    logOutput.addEventListener('scroll', () => {
+      logAutoScroll = logOutput.scrollHeight - logOutput.scrollTop - logOutput.clientHeight < 50;
+    });
+  }
 
   document.getElementById('logClear').onclick = () => {
     document.getElementById('logOutput').innerHTML = '';
   };
 
   document.getElementById('logDownload').onclick = downloadLogs;
+  document.getElementById('logUpdateDownload').onclick = downloadUpdateLog;
 
   document.querySelectorAll('.log-filter').forEach(btn => {
     btn.onclick = () => {
@@ -1358,7 +1361,7 @@ function navigateTo(page) {
     case 'saves':     loadSaves();                                           break;
     case 'mods':      loadMods();                                            break;
     case 'terminal':  loadLogs('game'); subscribeToLogs('game');             break;
-    case 'config':    loadConfig(); loadVnc();                               break;
+    case 'config':    loadConfig();                                          break;
     case 'remote':    loadRemoteStatus();                                    break;
   }
 }
@@ -1733,8 +1736,14 @@ async function loadFarm() {
         <div class="detail-value">${escapeHtml(weather || '--')}</div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Server</div>
-        <div class="detail-value">${escapeHtml(capitalize(data.serverState) || '--')}</div>
+        <div class="detail-label">Game State</div>
+        <div class="detail-value">${escapeHtml((() => {
+          if (data.serverState === 'running') {
+            const active = (data.players || []).filter(p => !p.isHost);
+            return active.length > 0 ? 'Playing' : 'Paused';
+          }
+          return capitalize(data.serverState) || '--';
+        })())}</div>
       </div>
     </div>
     <div style="margin-top:12px">${playersHtml}</div>
@@ -1801,6 +1810,40 @@ function formatGameTime(t) {
 }
 
 // ─── Logs ────────────────────────────────────────────────────────
+async function downloadUpdateLog() {
+  const btn = document.getElementById('logUpdateDownload');
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
+  try {
+    const [gameUpdate, panelUpdate] = await Promise.all([
+      API.get('/api/game-update/status').catch(() => null),
+      API.get('/api/panel-update/status').catch(() => null),
+    ]);
+    const lines = ['=== StardropHost Update Log ===', `Generated: ${new Date().toLocaleString()}`, ''];
+    if (panelUpdate) {
+      lines.push('--- Panel Status ---');
+      lines.push(`Version: ${panelUpdate.version || 'unknown'}`);
+      lines.push(`Update available: ${panelUpdate.available ? 'Yes — ' + (panelUpdate.latestCommitSha || '') : 'No'}`);
+      lines.push('');
+    }
+    if (gameUpdate?.log?.length) {
+      lines.push('--- Last Game Update Log ---');
+      lines.push(...gameUpdate.log);
+    } else {
+      lines.push('--- No game update log available ---');
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.href = url; a.download = `stardrop-update-log-${ts}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    showToast('Failed to download update log', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="icon"><use href="#icon-download"></use></svg> Update Log'; }
+  }
+}
+
 async function downloadLogs() {
   const btn = document.getElementById('logDownload');
   if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
@@ -1837,6 +1880,7 @@ async function loadLogs(filter, search) {
 
   const output = document.getElementById('logOutput');
   output.innerHTML = '';
+  logAutoScroll = true; // reset on tab switch / filter change
 
   if (!data.exists) {
     output.innerHTML = '<div class="log-line info">Log file not found yet — server may still be starting...</div>';
@@ -1849,6 +1893,7 @@ async function loadLogs(filter, search) {
   }
 
   for (const line of data.lines) appendLogLine(line);
+  output.scrollTop = output.scrollHeight;
 }
 
 function appendLogLine(line) {
@@ -1944,7 +1989,7 @@ async function loadPlayers() {
   // Recent Players card
   const recentCard = document.getElementById('recentPlayersCard');
   const recentList = document.getElementById('recentPlayersList');
-  const onlineNames = new Set((data.players?.list || []).map(p => p.name));
+  const onlineNames = new Set((data.players || []).map(p => p.name));
   const recent = (data.recentPlayers || []).filter(p => p.name && !onlineNames.has(p.name));
   const bannedIds   = new Set(data.bannedIds   || []);
   const bannedNames = new Set(data.bannedNames || []);
@@ -1984,7 +2029,7 @@ async function kickPlayer(btn, id, name) {
   btn.disabled = true; btn.textContent = 'Kicking...';
   const data = await API.post('/api/players/kick', { id, name }).catch(() => null);
   showToast(data?.success ? `Kicked ${name}` : (data?.error || 'Kick failed'), data?.success ? 'success' : 'error');
-  if (data?.success) loadPlayers(); else { btn.disabled = false; btn.textContent = 'Kick'; }
+  if (data?.success) setTimeout(loadPlayers, 600); else { btn.disabled = false; btn.textContent = 'Kick'; }
 }
 
 async function banPlayer(btn, id, name) {
@@ -1992,7 +2037,7 @@ async function banPlayer(btn, id, name) {
   btn.disabled = true; btn.textContent = 'Banning...';
   const data = await API.post('/api/players/ban', { id, name }).catch(() => null);
   showToast(data?.success ? `Banned ${name}` : (data?.error || 'Ban failed'), data?.success ? 'success' : 'error');
-  if (data?.success) loadPlayers(); else { btn.disabled = false; btn.textContent = 'Ban'; }
+  if (data?.success) setTimeout(loadPlayers, 600); else { btn.disabled = false; btn.textContent = 'Ban'; }
 }
 
 async function unbanPlayer(btn, id, name) {
@@ -2308,103 +2353,102 @@ async function loadServerModeCard() {
 }
 
 // ─── Config ──────────────────────────────────────────────────────
+
+// Builds a config row element for a single config item
+function _buildConfigRow(item) {
+  const row = document.createElement('div');
+  row.className = 'config-item';
+  let valueHtml;
+  if (item.readonly) {
+    valueHtml = `<span style="color:var(--text-muted)">${item.sensitive ? '••••••••' : escapeHtml(item.value || '--')}</span>`;
+  } else if (item.type === 'boolean') {
+    const checked = item.value === 'true' ? 'checked' : '';
+    valueHtml = `<label class="toggle"><input type="checkbox" data-key="${item.key}" ${checked} onchange="configChanged()"><span class="toggle-slider"></span></label>`;
+  } else if (item.options?.length) {
+    const opts = item.options.map(o => {
+      const val = typeof o === 'object' ? o.value : o;
+      const lbl = typeof o === 'object' ? o.label : (o || 'Auto-detect');
+      const sel = val === (item.value ?? '') ? ' selected' : '';
+      return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(lbl)}</option>`;
+    }).join('');
+    valueHtml = `<select class="input" data-key="${item.key}" style="width:220px" onchange="configChanged()">${opts}</select>`;
+  } else if (item.viewable) {
+    valueHtml = `<div class="password-wrapper">
+      <input type="password" class="input" data-key="${item.key}" value="${escapeHtml(item.value || '')}"
+        placeholder="${escapeHtml(item.default || '')}"${item.maxLength ? ` maxlength="${item.maxLength}"` : ''}
+        style="width:150px" oninput="configChanged()">
+      <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" title="Show password">
+        ${icon('eye', 'icon')}</button></div>`;
+  } else if (item.type === 'timezone') {
+    valueHtml = `<div class="tz-picker" id="cfg-tz-${item.key}" style="width:260px"></div>`;
+  } else if (item.sensitive) {
+    valueHtml = `<input type="password" class="input" data-key="${item.key}" placeholder="••••••••" style="width:150px" onchange="configChanged()">`;
+  } else {
+    valueHtml = `<input type="${item.type === 'number' ? 'number' : 'text'}" class="input" data-key="${item.key}"
+      value="${escapeHtml(item.value || '')}" placeholder="${escapeHtml(item.default || '')}"
+      style="width:150px" oninput="configChanged()">`;
+  }
+  row.innerHTML =
+    `<div>
+      <div class="config-label">${escapeHtml(item.label)}</div>
+      ${item.description ? `<div class="config-help">${escapeHtml(item.description)}</div>` : ''}
+    </div>
+    <div class="config-value">${valueHtml}</div>`;
+  return row;
+}
+
 async function loadConfig() {
   const data = await API.get('/api/config');
   if (!data) return;
 
-  const container       = document.getElementById('configContainer');
-  const containerTop    = document.getElementById('configContainerTop');
-  const containerBottom = document.getElementById('configContainerBottom');
-  container.innerHTML       = '';
-  if (containerTop)    containerTop.innerHTML    = '';
-  if (containerBottom) containerBottom.innerHTML = '';
+  const container    = document.getElementById('configContainer');
+  const containerTop = document.getElementById('configContainerTop');
+  const advHolder    = document.getElementById('advancedHolder');
+  container.innerHTML    = '';
+  if (containerTop) containerTop.innerHTML = '';
+  if (advHolder)    advHolder.innerHTML    = '';
 
-  // Groups rendered above the main config (below server mode card)
-  const TOP_GROUPS    = new Set(['Server']);
-  // Groups rendered below the VNC card
-  const BOTTOM_GROUPS = new Set(['Monitoring']);
+  const TOP_GROUPS      = new Set(['Server']);
+  const ADVANCED_GROUPS = new Set(['VNC & Display', 'Stability', 'Monitoring']);
 
   const deferredTzPickers = [];
 
   for (const group of data.groups) {
-    // VNC & Display settings are rendered inside the VNC panel card below
-    if (group.name === 'VNC & Display') continue;
+    if (ADVANCED_GROUPS.has(group.name)) continue; // handled separately below
 
-    const target = (containerTop    && TOP_GROUPS.has(group.name))    ? containerTop
-                 : (containerBottom && BOTTOM_GROUPS.has(group.name)) ? containerBottom
-                 : container;
+    const target = (containerTop && TOP_GROUPS.has(group.name)) ? containerTop : container;
 
     const card = document.createElement('div');
     card.className = 'card config-group';
     card.innerHTML = `<div class="config-group-title">${escapeHtml(group.name)}</div>`;
 
     for (const item of group.items) {
-      const row = document.createElement('div');
-      row.className = 'config-item';
-
-      let valueHtml;
-      if (item.readonly) {
-        valueHtml = `<span style="color:var(--text-muted)">${item.sensitive ? '••••••••' : escapeHtml(item.value || '--')}</span>`;
-      } else if (item.type === 'boolean') {
-        const checked = item.value === 'true' ? 'checked' : '';
-        valueHtml = `<label class="toggle"><input type="checkbox" data-key="${item.key}" ${checked} onchange="configChanged()"><span class="toggle-slider"></span></label>`;
-      } else if (item.options?.length) {
-        const opts = item.options.map(o => {
-          const val = typeof o === 'object' ? o.value : o;
-          const lbl = typeof o === 'object' ? o.label : (o || 'Auto-detect');
-          const sel = val === (item.value ?? '') ? ' selected' : '';
-          return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(lbl)}</option>`;
-        }).join('');
-        valueHtml = `<select class="input" data-key="${item.key}" style="width:220px" onchange="configChanged()">${opts}</select>`;
-      } else if (item.viewable) {
-        valueHtml = `<div class="password-wrapper">
-          <input type="password" class="input" data-key="${item.key}" value="${escapeHtml(item.value || '')}"
-            placeholder="${escapeHtml(item.default || '')}"${item.maxLength ? ` maxlength="${item.maxLength}"` : ''}
-            style="width:150px" oninput="configChanged()">
-          <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" title="Show password">
-            ${icon('eye', 'icon')}</button></div>`;
-      } else if (item.type === 'timezone') {
-        valueHtml = `<div class="tz-picker" id="cfg-tz-${item.key}" style="width:260px"></div>`;
-      } else if (item.sensitive) {
-        valueHtml = `<input type="password" class="input" data-key="${item.key}" placeholder="••••••••" style="width:150px" onchange="configChanged()">`;
-      } else {
-        valueHtml = `<input type="${item.type === 'number' ? 'number' : 'text'}" class="input" data-key="${item.key}"
-          value="${escapeHtml(item.value || '')}" placeholder="${escapeHtml(item.default || '')}"
-          style="width:150px" oninput="configChanged()">`;
-      }
-
-      row.innerHTML =
-        `<div>
-          <div class="config-label">${escapeHtml(item.label)}</div>
-          ${item.description ? `<div class="config-help">${escapeHtml(item.description)}</div>` : ''}
-        </div>
-        <div class="config-value">${valueHtml}</div>`;
-
+      const row = _buildConfigRow(item);
       if (item.type === 'timezone') {
-        // Defer buildTzPicker until after card is appended to container (getElementById needs DOM)
         deferredTzPickers.push({ id: `cfg-tz-${item.key}`, value: item.value || item.default || 'UTC', key: item.key });
       }
-
       card.appendChild(row);
     }
 
-    // Server group: prepend status indicators + append Start/Stop toggle
+    // Server group: prepend status indicators + update notifications + actions
     if (group.name === 'Server') {
-      const running      = !!(lastStatusData?.gameRunning);
-      const liveRunning  = lastStatusData?.serverState === 'running';
-      const bootStarting = !running && !lastStatusData?.stoppedByUser && (lastStatusData?.containerUptime || 0) < 90;
-      const stopping     = isStopping;
-      const starting     = isStarting || isGameRestarting || bootStarting || (running && !liveRunning);
-      const realStopped  = !running && !isGameRestarting && !isStarting && !bootStarting;
-      const statusText   = stopping ? 'Stopping…' : isGameRestarting ? 'Restarting…' : starting ? 'Starting…' : running ? 'Running' : 'Stopped';
-      const statusCls    = realStopped ? 'offline' : (stopping || isGameRestarting || starting) ? 'restarting' : 'running';
+      const running     = lastStatusData !== null && !!(lastStatusData.gameRunning);
+      const liveRunning = lastStatusData?.live?.serverState === 'running';
+      const bootStarting = lastStatusData !== null && !running && !lastStatusData.stoppedByUser && (lastStatusData.containerUptime || 0) < 90;
+      const stopping    = isStopping;
+      const starting    = isStarting || isGameRestarting || bootStarting || (running && !liveRunning);
+      const realStopped = lastStatusData !== null && !running && !isGameRestarting && !isStarting && !bootStarting;
+      const statusText  = lastStatusData === null ? 'Loading…'
+        : stopping ? 'Stopping…' : isGameRestarting ? 'Restarting…' : starting ? 'Starting…'
+        : running ? 'Running' : 'Stopped';
+      const statusCls   = lastStatusData === null ? 'restarting'
+        : realStopped ? 'offline' : (stopping || isGameRestarting || starting) ? 'restarting' : 'running';
 
-      // Remote status
       let remText, remCls;
       if (_remoteOptimisticState === 'starting') {
         remText = 'Starting'; remCls = 'restarting';
       } else if (_remoteOptimisticState === 'stopping') {
-        remText = 'Stopping'; remCls = 'offline';
+        remText = 'Stopping'; remCls = 'restarting';
       } else if (!lastRemoteData?.configured) {
         remText = 'Not Setup'; remCls = 'offline';
       } else if (lastRemoteData.anyRunning) {
@@ -2438,7 +2482,6 @@ async function loadConfig() {
       card.insertBefore(remoteRow, card.firstChild.nextSibling);
       card.insertBefore(statusRow, card.firstChild.nextSibling);
 
-      // Update notifications (same as dashboard)
       const cfgPanelNotif = document.createElement('div');
       cfgPanelNotif.id = 'configPanelUpdateNotif';
       cfgPanelNotif.style.display = 'none';
@@ -2449,13 +2492,13 @@ async function loadConfig() {
       cfgGameNotif.style.display = 'none';
       card.appendChild(cfgGameNotif);
 
-      // Check for Updates — own row
+      // Check for Updates — own config-item row
       const updateRow = document.createElement('div');
       updateRow.className = 'config-item';
       updateRow.style.cssText = 'border-top:1px solid var(--border);padding-top:14px;margin-top:4px';
       updateRow.innerHTML =
-        `<div><div class="config-label">Check for Updates now</div>
-              <div class="config-desc">Checks for StardropHost panel and game updates.</div></div>
+        `<div><div class="config-label">Check for Updates</div>
+              <div class="config-help">Checks for StardropHost panel and game updates.</div></div>
          <div class="config-value">
            <button class="btn btn-sm btn-secondary" type="button" onclick="checkAllUpdates()">Check Now</button>
          </div>`;
@@ -2488,7 +2531,6 @@ async function loadConfig() {
 
     target.appendChild(card);
 
-    // Now card is in the DOM — build any deferred timezone pickers for this card
     for (const p of deferredTzPickers.splice(0)) {
       buildTzPicker(p.id, p.value);
       const hidden = document.getElementById(`${p.id}-val`);
@@ -2496,6 +2538,41 @@ async function loadConfig() {
       const searchEl = document.getElementById(`${p.id}-search`);
       if (searchEl) searchEl.addEventListener('input', configChanged);
     }
+  }
+
+  // ── Advanced section (VNC, Stability, Monitoring) ──────────────
+  if (advHolder) {
+    const details = document.createElement('details');
+    details.className = 'advanced-details';
+
+    const summary = document.createElement('summary');
+    summary.innerHTML = `Advanced Settings <span style="font-size:12px;color:var(--text-muted);font-weight:400;margin-left:6px">VNC · Stability · Monitoring</span>`;
+    details.appendChild(summary);
+
+    const advInner = document.createElement('div');
+    advInner.style.cssText = 'padding-top:12px;display:flex;flex-direction:column;gap:12px';
+
+    // VNC card — loadVnc() fills #vncPanel after we append to DOM
+    const vncCard = document.createElement('div');
+    vncCard.className = 'card';
+    vncCard.innerHTML = '<h3>VNC &amp; Display Settings</h3><div id="vncPanel"><div class="empty-state">Loading VNC status...</div></div>';
+    advInner.appendChild(vncCard);
+
+    // Stability and Monitoring cards
+    for (const group of data.groups) {
+      if (!ADVANCED_GROUPS.has(group.name) || group.name === 'VNC & Display') continue;
+      const card = document.createElement('div');
+      card.className = 'card config-group';
+      card.innerHTML = `<div class="config-group-title">${escapeHtml(group.name)}</div>`;
+      for (const item of group.items) card.appendChild(_buildConfigRow(item));
+      advInner.appendChild(card);
+    }
+
+    details.appendChild(advInner);
+    advHolder.appendChild(details);
+
+    // vncPanel is now in DOM — load VNC content
+    loadVnc();
   }
 
 }
@@ -2820,10 +2897,15 @@ async function changePassword() {
   const newUser = document.getElementById('newUsername')?.value?.trim();
   const oldPwd  = document.getElementById('oldPassword').value;
   const newPwd  = document.getElementById('newPassword').value;
-  if (!oldPwd || !newPwd) { showToast('Please fill in both password fields', 'error'); return; }
+  const confPwd = document.getElementById('confirmNewPassword')?.value;
+
+  if (!oldPwd || !newPwd) { showToast('Please fill in required password fields', 'error'); return; }
+  if (newPwd.length < 8) { showToast('New password must be at least 8 characters', 'error'); return; }
+  if (confPwd !== undefined && newPwd !== confPwd) { showToast('New passwords do not match', 'error'); return; }
   if (newUser && !/^[a-zA-Z0-9_.-]{3,}$/.test(newUser)) {
     showToast('Username must be 3+ characters (letters, numbers, _ . -)', 'error'); return;
   }
+  if (!confirm('Update admin credentials?')) return;
 
   const payload = { oldPassword: oldPwd, newPassword: newPwd };
   if (newUser) payload.newUsername = newUser;
@@ -2831,10 +2913,13 @@ async function changePassword() {
   const data = await API.post('/api/auth/password', payload);
   if (data?.success) {
     if (data.token) { API.token = data.token; localStorage.setItem('panel_token', data.token); }
-    if (document.getElementById('newUsername')) document.getElementById('newUsername').value = '';
+    if (document.getElementById('newUsername'))     document.getElementById('newUsername').value = '';
+    if (document.getElementById('confirmNewPassword')) document.getElementById('confirmNewPassword').value = '';
     document.getElementById('oldPassword').value = '';
     document.getElementById('newPassword').value = '';
     showToast('Credentials updated', 'success');
+    const card = document.getElementById('adminCredCard');
+    if (card) card.removeAttribute('open');
   } else {
     showToast(data?.error || 'Update failed', 'error');
   }
@@ -3345,8 +3430,9 @@ async function removeRemoteService() {
     await loadRemoteStatus();
   } catch (e) {
     showToast(e.message || 'Failed to remove service.', 'error');
+  } finally {
     btn.disabled    = false;
-    btn.textContent = 'Remove & Stop';
+    btn.textContent = 'Stop & Remove';
   }
 }
 

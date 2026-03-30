@@ -320,8 +320,8 @@
                 <svg class="icon icon-spin"><use href="#icon-loader"></use></svg>
               </div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-status">Checking...</div>
                 <div class="stat-label">Server Status</div>
+                <div class="stat-value" id="stat-status">Checking...</div>
               </div>
             </div>
             <div class="card stat-card">
@@ -329,43 +329,43 @@
                 <svg class="icon"><use href="#icon-globe"></use></svg>
               </div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-remote">--</div>
                 <div class="stat-label">Remote Access</div>
+                <div class="stat-value" id="stat-remote">--</div>
               </div>
             </div>
             <div class="card stat-card">
               <div class="stat-icon"><svg class="icon"><use href="#icon-players"></use></svg></div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-players">-/8</div>
                 <div class="stat-label">Online Players</div>
+                <div class="stat-value" id="stat-players">-/8</div>
               </div>
             </div>
             <div class="card stat-card">
               <div class="stat-icon"><svg class="icon"><use href="#icon-clock"></use></svg></div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-uptime">--</div>
                 <div class="stat-label">Uptime</div>
+                <div class="stat-value" id="stat-uptime">--</div>
               </div>
             </div>
             <div class="card stat-card">
               <div class="stat-icon"><svg class="icon"><use href="#icon-calendar"></use></svg></div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-day">--</div>
                 <div class="stat-label">Game Day</div>
+                <div class="stat-value" id="stat-day">--</div>
               </div>
             </div>
             <div class="card stat-card">
               <div class="stat-icon"><svg class="icon"><use href="#icon-saves"></use></svg></div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-backups">--</div>
                 <div class="stat-label">Backups</div>
+                <div class="stat-value" id="stat-backups">--</div>
               </div>
             </div>
             <div class="card stat-card">
               <div class="stat-icon"><svg class="icon"><use href="#icon-mods"></use></svg></div>
               <div class="stat-info">
-                <div class="stat-value" id="stat-mods">--</div>
                 <div class="stat-label">Loaded Mods</div>
+                <div class="stat-value" id="stat-mods">--</div>
               </div>
             </div>
           </div>
@@ -550,9 +550,9 @@
               </div>
               <input type="text" id="logSearch" class="input input-sm" placeholder="Search logs...">
               <div class="log-controls">
-                <button class="btn btn-sm" id="logAutoScroll" type="button" title="Toggle auto-scroll">
+                <button class="btn btn-sm" id="logUpdateDownload" type="button" title="Download update log">
                   <svg class="icon"><use href="#icon-download"></use></svg>
-                  Auto
+                  Update Log
                 </button>
                 <button class="btn btn-sm" id="logDownload" type="button" title="Download all logs">
                   <svg class="icon"><use href="#icon-download"></use></svg>
@@ -586,25 +586,47 @@
         <!-- ── Config ─────────────────────────────────────────── -->
         <section id="page-config" class="page">
           <div id="configContainerTop"></div>
+
+          <!-- Change Admin Credentials — collapsible, sits below Server card -->
+          <details class="card admin-cred-details" id="adminCredCard" style="margin-top:16px">
+            <summary>Change Admin Credentials</summary>
+            <div style="margin-top:14px">
+              <div style="margin-bottom:10px">
+                <label class="config-label" for="newUsername">New Username <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                <div style="margin-top:6px">
+                  <input type="text" id="newUsername" class="input" placeholder="Leave blank to keep current" style="width:100%;max-width:300px">
+                </div>
+              </div>
+              <div style="margin-bottom:10px">
+                <label class="config-label" for="oldPassword">Current Password</label>
+                <div style="margin-top:6px">
+                  <input type="password" id="oldPassword" class="input" placeholder="Required to confirm changes" style="width:100%;max-width:300px">
+                </div>
+              </div>
+              <div style="margin-bottom:10px">
+                <label class="config-label" for="newPassword">New Password</label>
+                <div style="margin-top:6px">
+                  <input type="password" id="newPassword" class="input" placeholder="Minimum 8 characters" style="width:100%;max-width:300px">
+                </div>
+              </div>
+              <div style="margin-bottom:14px">
+                <label class="config-label" for="confirmNewPassword">Confirm New Password</label>
+                <div style="margin-top:6px">
+                  <input type="password" id="confirmNewPassword" class="input" placeholder="Re-enter new password" style="width:100%;max-width:300px">
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;padding:10px 12px;background:var(--bg-tertiary);border-radius:6px;line-height:1.7">
+                <div style="font-weight:600;margin-bottom:2px">Requirements</div>
+                <div>• Username: at least 3 characters (letters, numbers, _ . -)</div>
+                <div>• Password: minimum 8 characters</div>
+                <div>• New passwords must match</div>
+              </div>
+              <button class="btn btn-primary" type="button" onclick="changePassword()">Update Credentials</button>
+            </div>
+          </details>
+
           <div id="configContainer"></div>
-          <div class="card" style="margin-top:16px">
-            <h3>VNC & Display Settings</h3>
-            <div id="vncPanel">
-              <div class="empty-state">Loading VNC status...</div>
-            </div>
-          </div>
-          <div id="configContainerBottom"></div>
-          <div class="card" style="margin-top:16px">
-            <h3>Change Admin Credentials</h3>
-            <div class="form-row" style="margin-bottom:8px">
-              <input type="text" id="newUsername" class="input" placeholder="New username (optional)">
-            </div>
-            <div class="form-row">
-              <input type="password" id="oldPassword" class="input" placeholder="Current password">
-              <input type="password" id="newPassword" class="input" placeholder="New password">
-              <button class="btn btn-primary" type="button" onclick="changePassword()">Update</button>
-            </div>
-          </div>
+          <div id="advancedHolder"></div>
           <div class="card" style="margin-top:16px;border-color:#ef444433">
             <h3 style="color:#ef4444">Danger Zone</h3>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">

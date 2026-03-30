@@ -37,7 +37,7 @@ const fs = require('fs'), path = require('path');
 const SAVES = '$SAVE_DIR/Saves', PREFS = '$SAVE_DIR/startup_preferences';
 try {
     const prefs = fs.readFileSync(PREFS, 'utf8');
-    const m = prefs.match(/saveFolderName=([^\r\n]+)/);
+    const m = prefs.match(/<saveFolderName>([^<]+)<\/saveFolderName>/);
     if (!m) { process.stdout.write('stardrop'); return; }
     const xml = fs.readFileSync(path.join(SAVES, m[1].trim(), m[1].trim()), 'utf8');
     const n = xml.match(/<farmName>([^<]+)<\/farmName>/);
