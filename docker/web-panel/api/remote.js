@@ -21,7 +21,7 @@ function callManager(method, urlPath, body = null) {
       path:     url.pathname,
       method,
       headers:  { 'Content-Type': 'application/json' },
-      timeout:  15000,
+      timeout:  30000,
     };
     if (payload) options.headers['Content-Length'] = Buffer.byteLength(payload);
 

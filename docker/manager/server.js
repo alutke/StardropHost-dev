@@ -248,8 +248,28 @@ function stopRemote() {
   child.unref();
 }
 
-function removeRemote() {
-  stopRemote();
+async function removeRemote() {
+  if (!fs.existsSync(COMPOSE_OVERRIDE)) return;
+  const yaml = fs.readFileSync(COMPOSE_OVERRIDE, 'utf8');
+  const serviceNames = extractServiceNames(yaml);
+
+  if (serviceNames.length) {
+    // Wait for containers to actually stop and be removed before deleting the config.
+    // This prevents Docker from creating duplicate numbered containers on re-apply.
+    await new Promise(resolve => {
+      const command = [
+        `docker compose -f ${COMPOSE_FILE} -f ${COMPOSE_OVERRIDE}`,
+        `--project-directory ${PROJECT_DIR}`,
+        `rm -sf ${serviceNames.join(' ')}`,
+      ].join(' ');
+      const child = spawn('sh', ['-lc', command], {
+        cwd: PROJECT_DIR, env: buildComposeEnv(), stdio: 'ignore',
+      });
+      child.on('close', resolve);
+      child.on('error', resolve);
+    });
+  }
+
   try { fs.unlinkSync(COMPOSE_OVERRIDE); } catch {}
 }
 
@@ -361,11 +381,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Remove remote service (stop + delete config)
+  // Remove remote service (stop + delete config) — awaits container removal
   if (req.method === 'POST' && req.url === '/remote/remove') {
     try {
-      removeRemote();
-      sendJson(res, 202, { success: true, action: 'remove' });
+      await removeRemote();
+      sendJson(res, 200, { success: true, action: 'remove' });
     } catch (e) { sendJson(res, 500, { error: e.message }); }
     return;
   }

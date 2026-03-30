@@ -1308,14 +1308,14 @@ function init() {
   statusInterval = setInterval(loadDashboard, 5000);
 
   // Restore page from URL hash on refresh
-  const VALID_PAGES = ['dashboard','farm','players','saves','mods','terminal','config','remote'];
+  const VALID_PAGES = ['dashboard','farm','players','chat','saves','mods','terminal','config','remote'];
   const hashPage = window.location.hash.slice(1);
   if (hashPage && VALID_PAGES.includes(hashPage)) navigateTo(hashPage);
 }
 
 // ─── Navigation ──────────────────────────────────────────────────
 const PAGE_TITLES = {
-  dashboard: 'Dashboard', farm: 'Farm', players: 'Players',
+  dashboard: 'Dashboard', farm: 'Farm', players: 'Players', chat: 'Chat',
   saves: 'Saves', mods: 'Mods', terminal: 'Console', config: 'Config', remote: 'Remote',
 };
 
@@ -1332,9 +1332,10 @@ function navigateTo(page) {
   // Stop farm polling when leaving farm tab
   if (page !== 'farm' && farmInterval) { clearInterval(farmInterval); farmInterval = null; }
 
-  // Stop player/chat polling when leaving players tab
+  // Stop player polling when leaving players tab
   if (page !== 'players' && playersInterval) { clearInterval(playersInterval); playersInterval = null; }
-  if (page !== 'players' && _chatPollTimer)  { clearInterval(_chatPollTimer);  _chatPollTimer = null; }
+  // Stop chat polling when leaving both players and chat tabs
+  if (page !== 'chat' && _chatPollTimer) { clearInterval(_chatPollTimer); _chatPollTimer = null; }
 
   document.querySelectorAll('.nav-item, .mob-nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll(`.nav-item[data-page="${page}"], .mob-nav-item[data-page="${page}"]`)
@@ -1354,8 +1355,10 @@ function navigateTo(page) {
       break;
     case 'players':
       loadPlayers();
-      loadChatMessages();
       if (!playersInterval) playersInterval = setInterval(loadPlayers, 5000);
+      break;
+    case 'chat':
+      loadChatMessages();
       if (!_chatPollTimer) _chatPollTimer = setInterval(loadChatMessages, 3000);
       break;
     case 'saves':     loadSaves();                                           break;
@@ -1600,7 +1603,7 @@ function updateDashboardUI(data) {
     `<span class="status-orb ${statusClass}"></span>`;
   document.getElementById('serverStatus').className = `status-badge ${statusClass}`;
   document.getElementById('serverStatus').innerHTML =
-    `<span class="status-dot ${statusClass}"></span><span id="serverStatusText">${statusText}</span>`;
+    `<span class="status-dot ${statusClass}"></span><span id="serverStatusText">Server &middot; ${statusText}</span>`;
 
   isTransitioning = starting;
   // Update config tab server status badge (live — same style as header)
@@ -1639,7 +1642,8 @@ function updateDashboardUI(data) {
   setText('detail-join-ip',    net.joinIp || '--');
   setText('detail-local-ips',  net.localIps?.[0] || '--');
   setText('detail-panel-port', net.panelPort || 18642);
-  setText('detail-vnc',        data.vncEnabled ? `Enabled — port ${net.vncPort || 5900}` : 'Disabled');
+  const vncBadge = document.getElementById('vncTopbarBadge');
+  if (vncBadge) vncBadge.style.display = data.vncEnabled ? '' : 'none';
 
   // Panel update notification (dashboard + config tab)
   function _renderPanelNotif(el) {
@@ -2459,7 +2463,6 @@ async function loadConfig() {
 
       const statusRow = document.createElement('div');
       statusRow.className = 'config-item';
-      statusRow.style.cssText = 'border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:4px';
       statusRow.innerHTML =
         `<div><div class="config-label">Server Status</div></div>
          <div class="config-value">
@@ -2470,7 +2473,6 @@ async function loadConfig() {
 
       const remoteRow = document.createElement('div');
       remoteRow.className = 'config-item';
-      remoteRow.style.cssText = 'border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:4px';
       remoteRow.innerHTML =
         `<div><div class="config-label">Remote Status</div></div>
          <div class="config-value">
@@ -2495,7 +2497,6 @@ async function loadConfig() {
       // Check for Updates — own config-item row
       const updateRow = document.createElement('div');
       updateRow.className = 'config-item';
-      updateRow.style.cssText = 'border-top:1px solid var(--border);padding-top:14px;margin-top:4px';
       updateRow.innerHTML =
         `<div><div class="config-label">Check for Updates</div>
               <div class="config-help">Checks for StardropHost panel and game updates.</div></div>
@@ -2504,12 +2505,9 @@ async function loadConfig() {
          </div>`;
       card.appendChild(updateRow);
 
-      const sep = document.createElement('div');
-      sep.style.cssText = 'border-top:1px solid var(--border);margin:14px 0 10px';
-      card.appendChild(sep);
-
       const actions = document.createElement('div');
       actions.className = 'action-buttons';
+      actions.style.marginTop = '12px';
       const _dis  = isTransitioning ? ' disabled' : '';
       const _rdis = _remoteOptimisticState ? ' disabled' : '';
       const remBtn = !lastRemoteData?.configured
@@ -3296,6 +3294,17 @@ function _updateRemoteBadge() {
 
   const cfgEl = document.getElementById('configRemoteStatusBadge');
   if (cfgEl) cfgEl.innerHTML = `<span class="status-dot ${orbClass}"></span>${text}`;
+
+  // Topbar remote badge — only visible when configured
+  const remTopbar    = document.getElementById('remoteTopbarBadge');
+  const remTopbarDot = document.getElementById('remoteTopbarDot');
+  const remTopbarTxt = document.getElementById('remoteTopbarText');
+  if (remTopbar) {
+    remTopbar.style.display = lastRemoteData?.configured ? '' : 'none';
+    remTopbar.className     = `status-badge ${orbClass}`;
+    if (remTopbarDot) remTopbarDot.className  = `status-dot ${orbClass}`;
+    if (remTopbarTxt) remTopbarTxt.textContent = `Remote \u00b7 ${text}`;
+  }
 
   renderQuickActions();
 }

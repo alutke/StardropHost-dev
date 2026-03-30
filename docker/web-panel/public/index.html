@@ -246,6 +246,10 @@
           <span class="nav-icon"><svg class="icon"><use href="#icon-players"></use></svg></span>
           <span class="nav-label">Players</span>
         </li>
+        <li class="nav-item" data-page="chat">
+          <span class="nav-icon"><svg class="icon"><use href="#icon-chat"></use></svg></span>
+          <span class="nav-label">Chat</span>
+        </li>
         <li class="nav-item" data-page="saves">
           <span class="nav-icon"><svg class="icon"><use href="#icon-saves"></use></svg></span>
           <span class="nav-label">Saves</span>
@@ -286,6 +290,7 @@
       <button class="mob-nav-item active" type="button" data-page="dashboard"><svg class="icon"><use href="#icon-dashboard"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="farm"><svg class="icon"><use href="#icon-sprout"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="players"><svg class="icon"><use href="#icon-players"></use></svg></button>
+      <button class="mob-nav-item" type="button" data-page="chat"><svg class="icon"><use href="#icon-chat"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="saves"><svg class="icon"><use href="#icon-saves"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="mods"><svg class="icon"><use href="#icon-mods"></use></svg></button>
       <button class="mob-nav-item" type="button" data-page="terminal"><svg class="icon"><use href="#icon-terminal"></use></svg></button>
@@ -303,9 +308,16 @@
         <div class="topbar-right">
           <button id="saveConfigBtn" class="btn btn-success btn-sm" onclick="saveConfig()" style="display:none">Save Changes</button>
           <span id="pendingRestartBadge" class="status-badge restarting" style="display:none;cursor:pointer" onclick="showRestartModal('Restart the container to apply your saved changes.')" title="Click to restart">⚠ Restart Pending</span>
+          <span id="vncTopbarBadge" class="status-badge" style="display:none;background:rgba(239,68,68,0.15);color:#ef4444">
+            <span class="status-dot" style="background:#ef4444;flex-shrink:0"></span>VNC &middot; On
+          </span>
+          <span id="remoteTopbarBadge" class="status-badge running" style="display:none">
+            <span class="status-dot running" id="remoteTopbarDot"></span>
+            <span id="remoteTopbarText">Remote &middot; Active</span>
+          </span>
           <span id="serverStatus" class="status-badge checking">
             <span class="status-dot" aria-hidden="true"></span>
-            <span id="serverStatusText">Checking...</span>
+            <span id="serverStatusText">Server &middot; Checking…</span>
           </span>
         </div>
       </header>
@@ -409,11 +421,6 @@
                 <div class="detail-value" id="detail-panel-port">18642</div>
                 <div class="detail-note">Access the StardropHost dashboard from a browser on your network. Also can be used for remote connection to the Dashboard.</div>
               </div>
-              <div class="detail-item">
-                <div class="detail-label">VNC</div>
-                <div class="detail-value" id="detail-vnc">--</div>
-                <div class="detail-note">Controlled from the Config tab.</div>
-              </div>
             </div>
           </div>
 
@@ -465,7 +472,10 @@
             <div id="recentPlayersList" class="players-list"></div>
           </div>
 
-          <!-- Chat card -->
+        </section>
+
+        <!-- ── Chat ───────────────────────────────────────────── -->
+        <section id="page-chat" class="page">
           <div class="card">
             <div class="section-header">
               <h3>Chat</h3>
@@ -477,7 +487,7 @@
             <div class="chat-compose-row">
               <input id="chatInput" type="text" class="form-input chat-input" placeholder="Message all players…" maxlength="200" autocomplete="off" />
               <button class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
-              <button class="btn btn-sm" id="chatClearTarget" onclick="clearChatTarget()" style="display:none">× Clear</button>
+              <button class="btn btn-sm" id="chatClearTarget" onclick="clearChatTarget()" style="display:none">&times; Clear</button>
             </div>
           </div>
         </section>
