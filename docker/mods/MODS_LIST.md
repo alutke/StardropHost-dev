@@ -1,78 +1,20 @@
-# StardropHost — Included Mods
+# StardropHost — Mod Reference
 
-## Mod List
+All server mod functionality is built from source in `docker/mods-source/`.
+Full attribution and licensing details will be covered in `README.md`.
 
-### 1. Always On Server
-- **Author**: funny-snek & Zuberii
-- **Version**: 1.20.3-unofficial.5-mikkoperkele
-- **Description**: Enables headless 24/7 server operation
-- **Unique ID**: mikko.Always_On_Server
-- **License**: Unlicense (public domain)
-- **Nexus**: https://www.nexusmods.com/stardewvalley/mods/2677
+## Shipped Mods (built from source)
 
-### 2. AutoHideHost
-- **Author**: truman-world
-- **Version**: 1.2.2
-- **Description**: Hides the host player and provides seamless day-night transitions with instant sleep
-- **Unique ID**: AIdev.AutoHideHost
-- **License**: MIT
+| Mod | UniqueID | Purpose |
+|---|---|---|
+| StardropHost.Dependencies | `stardrop.Dependencies` | Core server mod — headless operation, host hiding, save loading, auto-sleep, network tuning, chat bridge, kick/ban |
+| StardropDashboard | `stardrop.StardropDashboard` | Writes live game data to `live-status.json` every 10s — feeds the Farm tab in the web panel |
 
-### 3. ServerAutoLoad
-- **Author**: StardropHost
-- **Version**: 1.2.1
-- **Description**: Automatically loads the most recent save on startup, eliminating the need for VNC after first setup
-- **Unique ID**: stardrop.ServerAutoLoad
-- **License**: MIT
-- **Features**:
-  - Auto-detects and loads most recent save
-  - Supports specific save selection via `SAVE_NAME` env var
-  - Save monitoring and logging
+## Previously Shipped (replaced by Dependencies)
 
-### 4. SkillLevelGuard
-- **Author**: StardropHost
-- **Version**: 1.4.0
-- **Description**: Prevents Always On Server from forcing host to Level 10, restores real XP-based skill levels
-- **Unique ID**: stardrop.SkillLevelGuard
-- **License**: MIT
-- **Features**:
-  - Blocks Always On Server forced skill upgrades
-  - Restores accurate levels based on actual XP
-  - Prevents unwanted LevelUpMenu popups
-  - Enables Always On Server auto mode on save load
-
-### 5. StardropDashboard ⭐ NEW
-- **Author**: StardropHost
-- **Version**: 1.0.0
-- **Description**: Writes live game state to `live-status.json` every 10 seconds for the web panel
-- **Unique ID**: stardrop.StardropDashboard
-- **License**: MIT
-- **Features**:
-  - Real-time player data (health, energy, position, money)
-  - In-game time, date, weather and festival status
-  - Cabin information
-  - Console command `dashboard_status` for immediate write
-  - Configurable update interval
-
----
-
-## Requirements
-- **SMAPI**: 4.0.0 or higher
-- **Stardew Valley**: 1.6.0 or higher
-- All mods are server-side only — farmhand clients do NOT need them
-
----
-
-## Configuration
-
-All mods are pre-installed and pre-configured. Settings can be adjusted via the web panel or by editing config files in `./data/game/Mods/<ModName>/config.json`.
-
-### Save Selection
-Leave `SAVE_NAME` blank in `.env` to auto-load the most recent save, or set it to a specific save folder name.
-
-### Update Interval (StardropDashboard)
-Edit `StardropDashboard/config.json`:
-```json
-{
-  "UpdateIntervalSeconds": 10
-}
-```
+| Mod | Replaced by |
+|---|---|
+| AlwaysOnServer (mikko.Always_On_Server) | HeadlessServer service in Dependencies |
+| AutoHideHost (stardrop.AutoHideHost) | HostBot service in Dependencies |
+| ServerAutoLoad (stardrop.ServerAutoLoad) | GameLoader service in Dependencies |
+| SkillLevelGuard (stardrop.SkillLevelGuard) | HeadlessServer service in Dependencies |

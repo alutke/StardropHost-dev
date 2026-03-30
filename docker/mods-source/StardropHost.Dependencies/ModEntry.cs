@@ -37,9 +37,15 @@ namespace StardropHostDependencies
     {
         // ── Constants ────────────────────────────────────────────────────────
         private const string NewFarmConfigPath   = "/home/steam/web-panel/data/new-farm.json";
+        private const string ChatLogPath         = "/home/steam/.local/share/stardrop/chat.log";
         private const int    AutoSleepTime       = 2600;  // 2:00 AM in-game clock
         private const int    GuardWindowSeconds  = 60;
         private const int    SkipCooldownSeconds = 5;
+
+        private static readonly JsonSerializerOptions _chatJsonOpts = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        };
 
         // ── Game Loader state ────────────────────────────────────────────────
         private bool           _farmStageEnabled = false;
@@ -113,13 +119,16 @@ namespace StardropHostDependencies
             helper.Events.GameLoop.Saving           += OnSaving;
             helper.Events.GameLoop.DayEnding        += OnDayEnding;
             helper.Events.Display.MenuChanged       += OnMenuChanged;
-            helper.Events.Multiplayer.PeerConnected    += OnPeerConnected;
-            helper.Events.Multiplayer.PeerDisconnected += OnPeerDisconnected;
-            helper.Events.Player.Warped             += OnWarped;
+            helper.Events.Multiplayer.PeerConnected      += OnPeerConnected;
+            helper.Events.Multiplayer.PeerDisconnected   += OnPeerDisconnected;
+            helper.Events.Multiplayer.ChatMessageReceived += OnChatMessageReceived;
+            helper.Events.Player.Warped                  += OnWarped;
 
-            helper.ConsoleCommands.Add("kick",  "Kick a connected farmhand. Usage: kick <name|id>",   OnKickCommand);
-            helper.ConsoleCommands.Add("ban",   "Ban a connected farmhand. Usage: ban <name|id>",    OnBanCommand);
-            helper.ConsoleCommands.Add("unban", "Unban a player by name. Usage: unban <name|id>", OnUnbanCommand);
+            helper.ConsoleCommands.Add("kick",  "Kick a connected farmhand. Usage: kick <name|id>",          OnKickCommand);
+            helper.ConsoleCommands.Add("ban",   "Ban a connected farmhand. Usage: ban <name|id>",             OnBanCommand);
+            helper.ConsoleCommands.Add("unban", "Unban a player by name. Usage: unban <name|id>",             OnUnbanCommand);
+            helper.ConsoleCommands.Add("say",   "Broadcast a chat message as host. Usage: say <message>",    OnSayCommand);
+            helper.ConsoleCommands.Add("tell",  "Send a private message. Usage: tell <player> <message>",    OnTellCommand);
 
             Monitor.Log("StardropHost.Dependencies loaded.", LogLevel.Info);
         }
@@ -170,6 +179,16 @@ namespace StardropHostDependencies
 
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
+            // Network tuning — re-applied every tick because the game reverts these.
+            // Broadcast periods at 3 (20/s) rather than default 1 (60/s).
+            if (Context.IsWorldReady)
+            {
+                Game1.Multiplayer.defaultInterpolationTicks      = 7;
+                Game1.Multiplayer.farmerDeltaBroadcastPeriod     = 3;
+                Game1.Multiplayer.locationDeltaBroadcastPeriod   = 3;
+                Game1.Multiplayer.worldStateDeltaBroadcastPeriod = 3;
+            }
+
             // Keep host alive (prevents pass-out blocking end-of-day)
             if (Context.IsWorldReady && Context.IsMainPlayer)
             {
@@ -798,6 +817,58 @@ namespace StardropHostDependencies
                 Game1.bannedUsers.Remove(key);
 
             Monitor.Log($"[PlayerManager] Unbanned '{target}'.", LogLevel.Info);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // CHAT BRIDGE
+        // ════════════════════════════════════════════════════════════════════
+
+        // Appends one NDJSON line to chat.log so the web panel can poll it.
+        private void AppendChatLog(string from, string message, bool isHost, string? to = null)
+        {
+            try
+            {
+                var entry = new { ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), from, message, isHost, to };
+                File.AppendAllText(ChatLogPath, JsonSerializer.Serialize(entry, _chatJsonOpts) + "\n");
+            }
+            catch { }
+        }
+
+        // Fired for every player message. Host's own messages are NOT raised here
+        // (SMAPI raises this only for remote players), so host messages are logged
+        // explicitly in OnSayCommand / OnTellCommand.
+        private void OnChatMessageReceived(object? sender, ChatMessageReceivedEventArgs e)
+        {
+            try
+            {
+                var farmer = Game1.getFarmerMaybeOffline(e.SourceFarmerID);
+                string name = farmer?.Name ?? $"#{e.SourceFarmerID}";
+                AppendChatLog(name, e.Message, false);
+            }
+            catch { }
+        }
+
+        private void OnSayCommand(string cmd, string[] args)
+        {
+            if (args.Length == 0) { Monitor.Log("Usage: say <message>", LogLevel.Info); return; }
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+
+            string message = string.Join(" ", args);
+            Game1.chatBox.textBoxEnter(message);
+            AppendChatLog(Game1.player.Name, message, true);
+        }
+
+        private void OnTellCommand(string cmd, string[] args)
+        {
+            if (args.Length < 2) { Monitor.Log("Usage: tell <player> <message>", LogLevel.Info); return; }
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+
+            string targetName = args[0];
+            string message    = string.Join(" ", args.Skip(1));
+
+            // Attempt a private whisper via SDV's /message chat command.
+            Game1.chatBox.textBoxEnter($"/message {targetName} {message}");
+            AppendChatLog(Game1.player.Name, message, true, targetName);
         }
 
         // ════════════════════════════════════════════════════════════════════

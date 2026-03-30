@@ -1141,3 +1141,44 @@ body {
 }
 .remote-steps li { margin-bottom: 4px; }
 .remote-steps a  { color: var(--accent); }
+
+/* ── Chat ──────────────────────────────────────────────────────── */
+.chat-feed {
+  min-height: 220px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0 8px;
+  margin-bottom: 12px;
+}
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  font-size: 13px;
+  max-width: 90%;
+  align-self: flex-start;
+}
+.chat-msg-host {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--accent-dark) 25%, var(--bg-tertiary));
+}
+.chat-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.chat-msg-host .chat-meta { color: var(--accent); }
+.chat-time { font-weight: 400; margin-left: 4px; }
+.chat-text { color: var(--text-primary); line-height: 1.4; }
+.chat-compose-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.chat-input { flex: 1; }

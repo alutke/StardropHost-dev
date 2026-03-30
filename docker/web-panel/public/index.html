@@ -118,6 +118,11 @@
         <path d="M12 3.5c2 2 3.1 5 3.1 8.5S14 18.5 12 20.5c-2-2-3.1-5-3.1-8.5S10 5.5 12 3.5Z"/>
       </g>
     </symbol>
+    <symbol id="icon-chat" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </g>
+    </symbol>
     <symbol id="icon-github" viewBox="0 0 256 256">
       <rect width="256" height="256" fill="none"/>
       <g fill="none">
@@ -458,6 +463,22 @@
           <div class="card" id="recentPlayersCard" style="display:none">
             <h3>Recent Players</h3>
             <div id="recentPlayersList" class="players-list"></div>
+          </div>
+
+          <!-- Chat card -->
+          <div class="card">
+            <div class="section-header">
+              <h3>Chat</h3>
+              <span class="detail-note" id="chatTargetLabel">Broadcasting to all players</span>
+            </div>
+            <div id="chatFeed" class="chat-feed">
+              <div class="empty-state" id="chatEmpty">No messages yet — chat from connected players will appear here.</div>
+            </div>
+            <div class="chat-compose-row">
+              <input id="chatInput" type="text" class="form-input chat-input" placeholder="Message all players…" maxlength="200" autocomplete="off" />
+              <button class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
+              <button class="btn btn-sm" id="chatClearTarget" onclick="clearChatTarget()" style="display:none">× Clear</button>
+            </div>
           </div>
         </section>
 

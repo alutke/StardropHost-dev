@@ -134,6 +134,11 @@ const panelUpdateAPI = require('./api/panel-update');
 app.get( '/api/panel-update/status', auth.verifyMiddleware, panelUpdateAPI.getStatus);
 app.post('/api/panel-update/check',  auth.verifyMiddleware, panelUpdateAPI.checkNow);
 
+// -- Chat bridge --
+const chatAPI = require('./api/chat');
+app.get( '/api/chat/messages', auth.verifyMiddleware, chatAPI.getMessages);
+app.post('/api/chat/send',     auth.verifyMiddleware, chatAPI.sendMessage);
+
 // -- Remote (tunnel service management via compose override) --
 const remoteAPI = require('./api/remote');
 app.get( '/api/remote/status', auth.verifyMiddleware, remoteAPI.getStatus);

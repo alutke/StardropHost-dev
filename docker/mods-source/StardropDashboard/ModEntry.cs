@@ -53,13 +53,6 @@ namespace StardropDashboard
         {
             if (!Context.IsWorldReady) return;
 
-            // Network tuning — re-applied each tick as the game reverts these to defaults.
-            // Broadcast periods at 3 (20/s) — smooth enough for multiplayer, much less CPU than 1 (60/s).
-            Game1.Multiplayer.defaultInterpolationTicks      = 7;
-            Game1.Multiplayer.farmerDeltaBroadcastPeriod     = 3;
-            Game1.Multiplayer.locationDeltaBroadcastPeriod   = 3;
-            Game1.Multiplayer.worldStateDeltaBroadcastPeriod = 3;
-
             double elapsed = Game1.currentGameTime.ElapsedGameTime.TotalSeconds;
             _secondsSinceLastWrite += elapsed;
             if (_secondsSinceLastWrite >= Config.UpdateIntervalSeconds)

@@ -1329,8 +1329,9 @@ function navigateTo(page) {
   // Stop farm polling when leaving farm tab
   if (page !== 'farm' && farmInterval) { clearInterval(farmInterval); farmInterval = null; }
 
-  // Stop player polling when leaving players tab
+  // Stop player/chat polling when leaving players tab
   if (page !== 'players' && playersInterval) { clearInterval(playersInterval); playersInterval = null; }
+  if (page !== 'players' && _chatPollTimer)  { clearInterval(_chatPollTimer);  _chatPollTimer = null; }
 
   document.querySelectorAll('.nav-item, .mob-nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll(`.nav-item[data-page="${page}"], .mob-nav-item[data-page="${page}"]`)
@@ -1350,7 +1351,9 @@ function navigateTo(page) {
       break;
     case 'players':
       loadPlayers();
+      loadChatMessages();
       if (!playersInterval) playersInterval = setInterval(loadPlayers, 5000);
+      if (!_chatPollTimer) _chatPollTimer = setInterval(loadChatMessages, 3000);
       break;
     case 'saves':     loadSaves();                                           break;
     case 'mods':      loadMods();                                            break;
@@ -1925,6 +1928,9 @@ async function loadPlayers() {
           ${renderPlayerStats(p)}
         </div>
         <div class="player-actions">
+          <button class="btn btn-sm" onclick="setChatTarget('${escapeHtml(p.name)}')">
+            <svg class="icon" style="width:13px;height:13px"><use href="#icon-chat"></use></svg> Chat
+          </button>
           <button class="btn btn-sm" onclick="kickPlayer(this,'${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Kick</button>
           <button class="btn btn-sm btn-danger" onclick="banPlayer(this,'${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Ban</button>
         </div>
@@ -1991,6 +1997,81 @@ async function unbanPlayer(btn, id, name) {
   showToast(data?.success ? `Unbanned ${name}` : (data?.error || 'Unban failed'), data?.success ? 'success' : 'error');
   if (data?.success) loadPlayers(); else { btn.disabled = false; btn.textContent = 'Unban'; }
 }
+
+// ─── Chat ─────────────────────────────────────────────────────────
+
+let _chatTarget    = null;   // null = broadcast to all; string = player name for private
+let _chatLastTs    = 0;      // timestamp of newest message we've rendered
+let _chatPollTimer = null;
+
+function setChatTarget(name) {
+  _chatTarget = name;
+  document.getElementById('chatTargetLabel').textContent = `Sending private message to ${name}`;
+  document.getElementById('chatInput').placeholder = `Message ${name}…`;
+  document.getElementById('chatClearTarget').style.display = '';
+  document.getElementById('chatInput').focus();
+  // Scroll to chat card
+  document.getElementById('chatFeed').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearChatTarget() {
+  _chatTarget = null;
+  document.getElementById('chatTargetLabel').textContent = 'Broadcasting to all players';
+  document.getElementById('chatInput').placeholder = 'Message all players…';
+  document.getElementById('chatClearTarget').style.display = 'none';
+}
+
+async function loadChatMessages() {
+  const data = await API.get(`/api/chat/messages?since=${_chatLastTs}&limit=100`).catch(() => null);
+  if (!data?.messages?.length) return;
+
+  const feed  = document.getElementById('chatFeed');
+  const empty = document.getElementById('chatEmpty');
+  if (empty) empty.remove();
+
+  for (const msg of data.messages) {
+    if (msg.ts <= _chatLastTs) continue;
+    _chatLastTs = msg.ts;
+
+    const el = document.createElement('div');
+    el.className = 'chat-msg' + (msg.isHost ? ' chat-msg-host' : '');
+
+    const time = new Date(msg.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const to   = msg.to ? ` → <em>${escapeHtml(msg.to)}</em>` : '';
+    el.innerHTML = `<span class="chat-meta">${escapeHtml(msg.from)}${to} <span class="chat-time">${time}</span></span><span class="chat-text">${escapeHtml(msg.message)}</span>`;
+    feed.appendChild(el);
+  }
+
+  // Auto-scroll to bottom if within 80px of it
+  if (feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80) {
+    feed.scrollTop = feed.scrollHeight;
+  }
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  input.disabled = true;
+  const data = await API.post('/api/chat/send', { message, to: _chatTarget || 'all' }).catch(() => null);
+  input.disabled = false;
+
+  if (data?.success) {
+    input.value = '';
+    // Poll immediately to pick up the host's message from the log
+    setTimeout(loadChatMessages, 300);
+  } else {
+    showToast(data?.error || 'Failed to send message', 'error');
+  }
+  input.focus();
+}
+
+// Allow Enter key to send
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('chatInput');
+  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
+});
 
 // ─── Saves ───────────────────────────────────────────────────────
 async function loadSaves() {

@@ -4,7 +4,6 @@
  */
 
 const fs = require('fs');
-const { spawnSync } = require('child_process');
 const http = require('http');
 const config = require('../server');
 
@@ -158,17 +157,17 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 // -- Send SMAPI console command --
-// Writes directly to SMAPI's stdin via procfs (same approach as terminal.js).
-// The web panel runs inside the game container, so no docker exec needed.
+// Writes to the named pipe created by crash-monitor.sh before each SMAPI launch.
+// crash-monitor opens SMAPI with `<> smapi-stdin` (read+write) so the pipe stays
+// open and never sends EOF to SMAPI. Node.js appends a command line and SMAPI
+// reads it from stdin exactly as if it were typed in a terminal.
+const SMAPI_STDIN = '/home/steam/web-panel/data/smapi-stdin';
+
 function sendConsoleCommand(command) {
   try {
-    // Use spawnSync (not execSync) to avoid shell wrapper self-matching pgrep
-    const result = spawnSync('pgrep', ['-f', 'StardewModdingAPI'], { encoding: 'utf-8' });
-    const pids = result.stdout.trim().split('\n').filter(Boolean);
-    const pid = pids[0];
-    if (!pid) return false;
+    if (!fs.existsSync(SMAPI_STDIN)) return false;
     const input = command.endsWith('\n') ? command : `${command}\n`;
-    fs.writeFileSync(`/proc/${pid}/fd/0`, input);
+    fs.appendFileSync(SMAPI_STDIN, input);
     return true;
   } catch {
     return false;

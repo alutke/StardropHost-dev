@@ -20,6 +20,7 @@ log()       { echo -e "${GREEN}[Crash-Monitor]${NC} $1"; }
 log_error() { echo -e "${RED}[Crash-Monitor]${NC} $1"; }
 
 STOP_FLAG="/home/steam/web-panel/data/server-stopped"
+SMAPI_STDIN="/home/steam/web-panel/data/smapi-stdin"
 ENABLE_CRASH_RESTART="${ENABLE_CRASH_RESTART:-true}"
 
 RESTART_TIMES=()
@@ -41,9 +42,17 @@ while true; do
         sleep 2
     done
 
+    # Create named pipe so the web panel can send console commands to SMAPI.
+    # The <> redirect opens it for both read and write — SMAPI reads commands
+    # from stdin, and the shell holding the write end prevents EOF.
+    rm -f "$SMAPI_STDIN"
+    mkfifo -m 0600 "$SMAPI_STDIN"
+
     log "Starting game server..."
-    ./StardewModdingAPI --server
+    ./StardewModdingAPI --server <> "$SMAPI_STDIN"
     EXIT_CODE=$?
+
+    rm -f "$SMAPI_STDIN"
 
     log_error "Game process exited (exit code: $EXIT_CODE)"
 
