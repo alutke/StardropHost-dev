@@ -73,6 +73,7 @@ namespace StardropHostDependencies
 
         // ── Rendering state (shared by Harmony patches) ──────────────────────
         private static bool _shouldDrawFrame = false;
+        private static ModEntry _instance;
 
         // ════════════════════════════════════════════════════════════════════
         // ENTRY
@@ -80,6 +81,7 @@ namespace StardropHostDependencies
 
         public override void Entry(IModHelper helper)
         {
+            _instance = this;
             // Headless server optimisations — disable rendering, sound, and input.
             // Approach from JunimoServer (MIT): patch at MonoGame level using SuppressDraw()
             // so frame presentation is suppressed, not just the game's draw method.
@@ -112,6 +114,14 @@ namespace StardropHostDependencies
                 catch (Exception ex) { Monitor.Log($"[HeadlessServer] Patch '{sig}' skipped: {ex.Message}", LogLevel.Trace); }
             }
 
+            try
+            {
+                harmony.Patch(
+                    AccessTools.Method(typeof(ChatBox), "receiveChatMessage"),
+                    postfix: new HarmonyMethod(typeof(ModEntry), nameof(ReceiveChatMessage_Postfix)));
+            }
+            catch (Exception ex) { Monitor.Log($"[ChatBridge] receiveChatMessage patch failed: {ex.Message}", LogLevel.Warn); }
+
             helper.Events.GameLoop.SaveLoaded       += OnSaveLoaded;
             helper.Events.GameLoop.DayStarted       += OnDayStarted;
             helper.Events.GameLoop.UpdateTicked     += OnUpdateTicked;
@@ -121,7 +131,6 @@ namespace StardropHostDependencies
             helper.Events.Display.MenuChanged       += OnMenuChanged;
             helper.Events.Multiplayer.PeerConnected      += OnPeerConnected;
             helper.Events.Multiplayer.PeerDisconnected   += OnPeerDisconnected;
-            helper.Events.Multiplayer.ChatMessageReceived += OnChatMessageReceived;
             helper.Events.Player.Warped                  += OnWarped;
 
             helper.ConsoleCommands.Add("kick",  "Kick a connected farmhand. Usage: kick <name|id>",          OnKickCommand);
@@ -802,7 +811,7 @@ namespace StardropHostDependencies
 
             var target = string.Join(" ", args);
             var toRemove = Game1.bannedUsers
-                .Where(kv => kv.Value.Equals(target, StringComparison.OrdinalIgnoreCase)
+                .Where(kv => (kv.Value != null && kv.Value.Equals(target, StringComparison.OrdinalIgnoreCase))
                           || kv.Key == target)
                 .Select(kv => kv.Key)
                 .ToList();
@@ -837,13 +846,13 @@ namespace StardropHostDependencies
         // Fired for every player message. Host's own messages are NOT raised here
         // (SMAPI raises this only for remote players), so host messages are logged
         // explicitly in OnSayCommand / OnTellCommand.
-        private void OnChatMessageReceived(object? sender, ChatMessageReceivedEventArgs e)
+        public static void ReceiveChatMessage_Postfix(long sourceFarmer, string message)
         {
             try
             {
-                var farmer = Game1.getFarmerMaybeOffline(e.SourceFarmerID);
-                string name = farmer?.Name ?? $"#{e.SourceFarmerID}";
-                AppendChatLog(name, e.Message, false);
+                var farmer = Game1.getFarmerMaybeOffline(sourceFarmer);
+                string name = farmer?.Name ?? $"#{sourceFarmer}";
+                _instance?.AppendChatLog(name, message, false);
             }
             catch { }
         }
@@ -852,6 +861,7 @@ namespace StardropHostDependencies
         {
             if (args.Length == 0) { Monitor.Log("Usage: say <message>", LogLevel.Info); return; }
             if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            if (Game1.chatBox == null) { Monitor.Log("[ChatBridge] chatBox not ready.", LogLevel.Warn); return; }
 
             string message = string.Join(" ", args);
             Game1.chatBox.textBoxEnter(message);
@@ -862,6 +872,7 @@ namespace StardropHostDependencies
         {
             if (args.Length < 2) { Monitor.Log("Usage: tell <player> <message>", LogLevel.Info); return; }
             if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            if (Game1.chatBox == null) { Monitor.Log("[ChatBridge] chatBox not ready.", LogLevel.Warn); return; }
 
             string targetName = args[0];
             string message    = string.Join(" ", args.Skip(1));

@@ -32,32 +32,24 @@ mkdir -p "$BACKUP_DIR"
 LAST_BACKUP_TIME=0
 
 get_farm_slug() {
-    local prefs="$SAVE_DIR/startup_preferences"
-    local save_name farm_name farm_slug
-
-    # Read selected save name (XML or plain format)
-    save_name=$(grep -o '<saveFolderName>[^<]*</saveFolderName>' "$prefs" 2>/dev/null \
-                | sed 's/<[^>]*>//g' | head -1)
-    if [ -z "$save_name" ]; then
-        save_name=$(grep 'saveFolderName=' "$prefs" 2>/dev/null \
-                    | sed 's/.*saveFolderName=\s*//' | tr -d '\r' | head -1)
-    fi
-
-    if [ -n "$save_name" ]; then
-        local save_xml="$SAVE_DIR/Saves/$save_name/$save_name"
-        farm_name=$(grep -o '<farmName>[^<]*</farmName>' "$save_xml" 2>/dev/null \
-                    | sed 's/<[^>]*>//g' | head -1)
-        if [ -n "$farm_name" ]; then
-            farm_slug=$(echo "$farm_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | tr -cd 'a-z0-9_-')
-        fi
-    fi
-
-    echo "${farm_slug:-stardrop}"
+    node -e "
+const fs = require('fs'), path = require('path');
+const SAVES = '$SAVE_DIR/Saves', PREFS = '$SAVE_DIR/startup_preferences';
+try {
+    const prefs = fs.readFileSync(PREFS, 'utf8');
+    const m = prefs.match(/saveFolderName=([^\r\n]+)/);
+    if (!m) { process.stdout.write('stardrop'); return; }
+    const xml = fs.readFileSync(path.join(SAVES, m[1].trim(), m[1].trim()), 'utf8');
+    const n = xml.match(/<farmName>([^<]+)<\/farmName>/);
+    const slug = (n ? n[1] : 'stardrop').toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
+    process.stdout.write(slug || 'stardrop');
+} catch(e) { process.stdout.write('stardrop'); }
+" 2>/dev/null || echo "stardrop"
 }
 
 do_backup() {
     local timestamp farm_slug backup_file
-    timestamp=$(date +%Y-%m-%dT%H-%M-%S)
+    timestamp=$(date '+D-%-d-%-m-%Y-T-%H-%M-%S')
     farm_slug=$(get_farm_slug)
     backup_file="$BACKUP_DIR/${farm_slug}-auto-backup-$timestamp.zip"
 

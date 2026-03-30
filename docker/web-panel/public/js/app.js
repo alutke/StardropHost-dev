@@ -1606,7 +1606,7 @@ function updateDashboardUI(data) {
   // Disable all restart buttons while in any transitional state
   document.querySelectorAll('.btn[onclick="restartServer()"]').forEach(btn => { btn.disabled = starting; });
 
-  setText('stat-players', `${data.players?.online ?? 0}/4`);
+  setText('stat-players', `${data.players?.online ?? 0}/8`);
   setText('stat-uptime',  formatUptime(data.uptime || 0));
   setText('stat-day',     data.paused ? 'Paused' : (data.day || '--'));
   setText('stat-backups', data.backupCount ?? 0);
@@ -1941,7 +1941,8 @@ async function loadPlayers() {
   // Recent Players card
   const recentCard = document.getElementById('recentPlayersCard');
   const recentList = document.getElementById('recentPlayersList');
-  const recent = (data.recentPlayers || []).filter(p => p.name);
+  const onlineNames = new Set((data.players?.list || []).map(p => p.name));
+  const recent = (data.recentPlayers || []).filter(p => p.name && !onlineNames.has(p.name));
   const bannedIds   = new Set(data.bannedIds   || []);
   const bannedNames = new Set(data.bannedNames || []);
   const isBanned = p => bannedIds.has(p.id) || bannedNames.has(p.name);

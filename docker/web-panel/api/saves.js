@@ -13,6 +13,12 @@ const BACKUP_STATUS_FILE = path.join(config.DATA_DIR, 'backup-status.json');
 const STARTUP_PREFS_FILE = path.join(config.CONFIG_DIR, 'startup_preferences');
 let activeBackup = null;
 
+function makeTimestamp() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `D-${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}-T-${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+}
+
 // -- Helpers --
 
 function ensureDir(dirPath) {
@@ -170,7 +176,7 @@ function createOverwriteBackup(saveNames) {
 
   ensureDir(config.BACKUPS_DIR);
 
-  const timestamp   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const timestamp   = makeTimestamp();
   const backupName  = `stardrop-pre-overwrite-${timestamp}.tar.gz`;
   const backupPath  = path.join(config.BACKUPS_DIR, backupName);
   const existing    = saveNames.filter(name => fs.existsSync(path.join(config.SAVES_DIR, name)));
