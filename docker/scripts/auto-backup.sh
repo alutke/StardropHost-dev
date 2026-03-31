@@ -61,7 +61,7 @@ try {
 
 do_backup() {
     local timestamp farm_slug backup_file
-    timestamp=$(date '+D-%-d-%-m-%Y-T-%H-%M-%S')
+    timestamp=$(date -u '+%Y-%m-%dT%H-%M-%S')
     farm_slug=$(get_farm_slug)
     backup_file="$BACKUP_DIR/${farm_slug}-auto-backup-$timestamp.zip"
 

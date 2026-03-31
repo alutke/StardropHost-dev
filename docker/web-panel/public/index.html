@@ -498,19 +498,19 @@
                   <option value="snow">Snow</option>
                   <option value="wind">Wind</option>
                 </select>
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('debug weather', document.getElementById('worldSetWeather').value)">Set</button>
+                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setweather', document.getElementById('worldSetWeather').value)">Set</button>
               </div>
 
               <div class="admin-cmd-row">
                 <span class="admin-cmd-label">Freeze Time</span>
                 <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
                 <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
+                <span class="detail-note" style="margin-left:auto">Only for debugging when no players are online</span>
               </div>
 
               <div class="admin-cmd-row" style="border-bottom:none">
                 <span class="admin-cmd-label">Actions</span>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn btn-sm" onclick="worldCmd('hurry_all', '')">Hurry All to Bed</button>
                   <button class="btn btn-sm" onclick="worldCmd('world_clear Farm', 'debris')">Clear Farm Debris</button>
                 </div>
               </div>
@@ -539,14 +539,18 @@
 
           <div class="card">
             <div class="section-header" style="margin-bottom:12px">
-              <h3>IP Blocklist</h3>
+              <h3>Block List</h3>
             </div>
-            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Block players by IP address. Blocked IPs are silently banned on connection.</p>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Block by player name or IP address. Blocked players are kicked on connection.</p>
             <div id="blocklistEntries" style="margin-bottom:12px"></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
-              <input id="blocklistIpInput" type="text" class="form-input" placeholder="IP address (e.g. 192.168.1.50)" style="flex:1;min-width:160px">
-              <input id="blocklistDescInput" type="text" class="form-input" placeholder="Description (optional)" style="flex:2;min-width:160px">
-              <button class="btn btn-primary btn-sm" onclick="addBlocklistEntry()">Block IP</button>
+              <select id="blocklistTypeInput" class="form-input" style="width:90px">
+                <option value="name">Name</option>
+                <option value="ip">IP</option>
+              </select>
+              <input id="blocklistValueInput" type="text" class="form-input" placeholder="Player name or IP address" style="flex:1;min-width:160px">
+              <input id="blocklistDescInput" type="text" class="form-input" placeholder="Reason (optional)" style="flex:2;min-width:140px">
+              <button class="btn btn-primary btn-sm" onclick="addBlocklistEntry()">Block</button>
             </div>
             <div id="blocklistMsg" style="display:none;margin-top:8px;font-size:13px"></div>
           </div>
@@ -623,7 +627,6 @@
               </div>
               <input id="chatInput" type="text" class="form-input chat-input" placeholder="Message all players…" maxlength="200" autocomplete="off" />
               <button class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
-              <button class="btn btn-sm" id="chatClearTarget" onclick="clearChatTarget()" style="display:none">&times; Clear</button>
             </div>
           </div>
         </section>

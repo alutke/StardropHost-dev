@@ -636,6 +636,10 @@ body {
 
 /* ─── Blocklist ───────────────────────────────────────────────── */
 
+.blocklist-badge { display:inline-flex; align-items:center; font-size:10px; padding:1px 5px; border-radius:4px; font-weight:600; }
+.blocklist-badge-ip   { background:rgba(96,165,250,0.15); color:#60a5fa; border:1px solid rgba(96,165,250,0.3); }
+.blocklist-badge-name { background:rgba(167,139,250,0.15); color:var(--accent); border:1px solid rgba(167,139,250,0.3); }
+
 .blocklist-entry {
   display: flex;
   align-items: center;
@@ -1238,21 +1242,28 @@ body {
   margin-bottom: 12px;
 }
 .chat-pill {
-  padding: 4px 12px;
+  padding: 5px 14px;
   border-radius: 20px;
   border: 1px solid var(--border);
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.chat-pill:hover { border-color: var(--accent); color: var(--accent); }
+.chat-pill:hover { border-color: var(--accent); color: var(--text-primary); }
 .chat-pill.active {
-  background: color-mix(in srgb, var(--accent-dark) 30%, var(--bg-tertiary));
+  background: color-mix(in srgb, var(--accent-dark) 35%, var(--bg-secondary));
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+/* "World Chat" pill is slightly larger to act as the primary tab */
+.chat-pill:first-child {
+  font-size: 13px;
+  padding: 5px 16px;
 }
 .chat-color-row {
   display: flex;

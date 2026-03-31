@@ -14,9 +14,7 @@ const STARTUP_PREFS_FILE = path.join(config.CONFIG_DIR, 'startup_preferences');
 let activeBackup = null;
 
 function makeTimestamp() {
-  const d = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  return `D-${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}-T-${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
 // -- Helpers --
@@ -443,7 +441,7 @@ function triggerPreStopBackup() {
     ensureDir(config.BACKUPS_DIR);
     const slug       = getFarmSlug();
     const timestamp  = makeTimestamp();
-    const backupPath = path.join(config.BACKUPS_DIR, `${slug}-pre-stop-${timestamp}.zip`);
+    const backupPath = path.join(config.BACKUPS_DIR, `${slug}-auto-backup-${timestamp}.zip`);
     const child = spawn('zip', [
       '-r', backupPath,
       path.basename(config.SAVES_DIR),

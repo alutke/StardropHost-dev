@@ -13,9 +13,16 @@ const BLOCKLIST_FILE = path.join(config.DATA_DIR, 'ip-blocklist.json');
 
 function loadBlocklist() {
   try {
-    if (fs.existsSync(BLOCKLIST_FILE)) return JSON.parse(fs.readFileSync(BLOCKLIST_FILE, 'utf-8'));
-  } catch {}
-  return [];
+    if (!fs.existsSync(BLOCKLIST_FILE)) return [];
+    const raw = JSON.parse(fs.readFileSync(BLOCKLIST_FILE, 'utf-8'));
+    // Normalise legacy entries that only had an 'ip' field
+    return raw.map(e => ({
+      type:        e.type || 'ip',
+      value:       e.value || e.ip || '',
+      description: e.description || '',
+      addedAt:     e.addedAt || '',
+    })).filter(e => e.value);
+  } catch { return []; }
 }
 
 function saveBlocklist(list) {
@@ -304,24 +311,29 @@ function getBlocklist(req, res) {
 }
 
 function addBlocklistEntry(req, res) {
-  const { ip, description } = req.body || {};
-  if (!ip || typeof ip !== 'string') return res.status(400).json({ error: 'IP is required' });
-  const trimmedIp = ip.trim();
-  if (!/^[\d.:a-fA-F/]+$/.test(trimmedIp)) return res.status(400).json({ error: 'Invalid IP format' });
+  const { type, value, description } = req.body || {};
+  if (!value || typeof value !== 'string') return res.status(400).json({ error: 'Name or IP is required' });
+  const entryType  = (type === 'ip') ? 'ip' : 'name';
+  const trimmed    = value.trim();
+  if (entryType === 'ip' && !/^[\d.:a-fA-F/]+$/.test(trimmed)) {
+    return res.status(400).json({ error: 'Invalid IP format' });
+  }
 
   const list = loadBlocklist();
-  if (list.find(e => e.ip === trimmedIp)) return res.status(409).json({ error: 'IP already in blocklist' });
+  if (list.find(e => e.value === trimmed)) return res.status(409).json({ error: 'Already in blocklist' });
 
-  list.push({ ip: trimmedIp, description: (description || '').trim(), addedAt: new Date().toISOString() });
+  list.push({ type: entryType, value: trimmed, description: (description || '').trim(), addedAt: new Date().toISOString() });
   saveBlocklist(list);
-  // Attempt to ban via SMAPI (works if server is running)
-  sendConsoleCommand(`ban ${trimmedIp}`);
+  // Attempt enforcement via SMAPI (best-effort)
+  if (entryType === 'ip') sendConsoleCommand(`ban ${trimmed}`);
+  else sendConsoleCommand(`kick "${trimmed}"`);
   res.json({ success: true, blocklist: list });
 }
 
 function removeBlocklistEntry(req, res) {
-  const { ip } = req.params;
-  const list = loadBlocklist().filter(e => e.ip !== ip);
+  const raw  = req.params.ip;   // URL param named :ip but carries name or IP
+  const val  = decodeURIComponent(raw);
+  const list = loadBlocklist().filter(e => e.value !== val);
   saveBlocklist(list);
   res.json({ success: true, blocklist: list });
 }
@@ -332,7 +344,7 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'player_setmoney', 'player_sethealth', 'player_setmaxhealth',
   'player_setstamina', 'player_setmaxstamina', 'player_add',
   'world_settime', 'world_setday', 'world_setseason', 'world_setyear',
-  'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
+  'world_setweather', 'world_freezetime', 'world_clear', 'debug', 'kick',
 ]);
 
 function adminCommand(req, res) {

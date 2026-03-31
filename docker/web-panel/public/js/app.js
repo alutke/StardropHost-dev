@@ -1243,17 +1243,34 @@ function showToast(message, type = 'info') {
 }
 
 // ─── Copy-to-clipboard ───────────────────────────────────────────
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  // HTTP fallback (LAN access)
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(el);
+  el.focus(); el.select();
+  try { document.execCommand('copy'); } catch {}
+  document.body.removeChild(el);
+  return Promise.resolve();
+}
+
 function setupCopyable() {
   document.addEventListener('click', e => {
     const el = e.target.closest('.copyable');
     if (!el) return;
     const text = el.textContent.trim();
     if (!text || text === '--') return;
-    navigator.clipboard.writeText(text).then(() => {
+    copyText(text).then(() => {
+      const orig = el.textContent;
+      el.textContent = 'Copied!';
+      el.style.color = 'var(--accent)';
+      setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 1500);
       showToast(`Copied: ${text}`, 'success');
-    }).catch(() => {
-      showToast('Copy failed', 'error');
-    });
+    }).catch(() => showToast('Copy failed', 'error'));
   });
 }
 
@@ -1778,7 +1795,7 @@ async function loadFarm() {
     const roomsHtml = Object.entries(cc.rooms).map(([room, info]) =>
       `<div class="detail-item">
         <div class="detail-label">${escapeHtml(room)}</div>
-        <div class="detail-value" style="color:${info.complete ? 'var(--accent)' : 'var(--text-secondary)'}">
+        <div class="detail-value" style="color:${info.complete ? 'var(--accent)' : 'var(--text-primary)'}">
           ${info.complete ? '✅ Complete' : `${info.bundles.filter(b => b.complete).length}/${info.bundles.length} Bundles`}
         </div>
       </div>`
@@ -2115,35 +2132,42 @@ async function deleteRecentPlayer(btn, id) {
   loadPlayers();
 }
 
-// ─── IP Blocklist ─────────────────────────────────────────────────
+// ─── Block List ───────────────────────────────────────────────────
 
 function renderBlocklist(list) {
   const el = document.getElementById('blocklistEntries');
   if (!el) return;
   if (!list.length) {
-    el.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">No blocked IPs.</div>';
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">No blocked players.</div>';
     return;
   }
-  el.innerHTML = list.map(e => `
+  el.innerHTML = list.map(e => {
+    const badge = e.type === 'ip'
+      ? '<span class="blocklist-badge blocklist-badge-ip">IP</span>'
+      : '<span class="blocklist-badge blocklist-badge-name">Name</span>';
+    return `
     <div class="blocklist-entry">
-      <span class="blocklist-ip">${escapeHtml(e.ip)}</span>
+      ${badge}
+      <span class="blocklist-ip">${escapeHtml(e.value)}</span>
       <span class="blocklist-desc">${escapeHtml(e.description || '—')}</span>
-      <button class="btn btn-sm btn-danger" onclick="removeBlocklistEntry('${escapeHtml(e.ip)}')">Remove</button>
-    </div>
-  `).join('');
+      <button class="btn btn-sm btn-danger" onclick="removeBlocklistEntry('${escapeHtml(e.value)}')">Remove</button>
+    </div>`;
+  }).join('');
 }
 
 async function addBlocklistEntry() {
-  const ip   = document.getElementById('blocklistIpInput').value.trim();
-  const desc = document.getElementById('blocklistDescInput').value.trim();
-  const msg  = document.getElementById('blocklistMsg');
-  if (!ip) { msg.textContent = 'Enter an IP address.'; msg.style.color = '#ef4444'; msg.style.display = ''; return; }
+  const type  = document.getElementById('blocklistTypeInput').value;
+  const value = document.getElementById('blocklistValueInput')?.value.trim() || document.getElementById('blocklistIpInput')?.value.trim() || '';
+  const desc  = document.getElementById('blocklistDescInput').value.trim();
+  const msg   = document.getElementById('blocklistMsg');
+  if (!value) { msg.textContent = 'Enter a player name or IP.'; msg.style.color = '#ef4444'; msg.style.display = ''; return; }
 
-  const data = await API.post('/api/players/blocklist', { ip, description: desc }).catch(() => null);
+  const data = await API.post('/api/players/blocklist', { type, value, description: desc }).catch(() => null);
   if (data?.success) {
-    document.getElementById('blocklistIpInput').value   = '';
+    const valEl = document.getElementById('blocklistValueInput') || document.getElementById('blocklistIpInput');
+    if (valEl) valEl.value = '';
     document.getElementById('blocklistDescInput').value = '';
-    msg.textContent = `${ip} blocked.`; msg.style.color = 'var(--accent)'; msg.style.display = '';
+    msg.textContent = `${value} blocked.`; msg.style.color = 'var(--accent)'; msg.style.display = '';
     renderBlocklist(data.blocklist);
     setTimeout(() => { msg.style.display = 'none'; }, 3000);
   } else {
@@ -2151,9 +2175,9 @@ async function addBlocklistEntry() {
   }
 }
 
-async function removeBlocklistEntry(ip) {
-  if (!confirm(`Remove ${ip} from blocklist?`)) return;
-  const data = await API.del(`/api/players/blocklist/${encodeURIComponent(ip)}`).catch(() => null);
+async function removeBlocklistEntry(value) {
+  if (!confirm(`Remove "${value}" from block list?`)) return;
+  const data = await API.del(`/api/players/blocklist/${encodeURIComponent(value)}`).catch(() => null);
   if (data?.success) renderBlocklist(data.blocklist);
   else showToast('Failed to remove entry', 'error');
 }
@@ -2190,8 +2214,8 @@ async function sendAdminCmd(base, value) {
 async function sendAdminGiveItem() {
   const name = document.getElementById('adminItemName').value.trim();
   const qty  = document.getElementById('adminItemQty').value || '1';
-  if (!name) return;
-  const command = `player_add name "${name}" ${qty}`;
+  if (!name || !_adminPlayer) return;
+  const command = `player_add "${_adminPlayer.name}" "${name}" ${qty}`;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
   _showAdminResult(data?.success, command, data?.error);
 }
@@ -2199,11 +2223,18 @@ async function sendAdminGiveItem() {
 function _showAdminResult(success, command, error) {
   const el = document.getElementById('adminCmdResult');
   if (!el) return;
-  el.textContent    = success ? `✓ Sent: ${command}` : `✗ ${error || 'Failed'}`;
-  el.style.color    = success ? 'var(--accent)' : '#ef4444';
+  el.textContent      = success ? `✓ Sent: ${command}` : `✗ ${error || 'Failed'}`;
+  el.style.color      = success ? 'var(--accent)' : '#ef4444';
   el.style.background = success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
-  el.style.display  = '';
+  el.style.display    = '';
   setTimeout(() => { el.style.display = 'none'; }, 4000);
+  // Clear all inputs on success
+  if (success) {
+    ['adminSetMoney','adminSetHealth','adminSetMaxHealth','adminSetStamina','adminSetMaxStamina','adminItemName'].forEach(id => {
+      const inp = document.getElementById(id); if (inp) inp.value = '';
+    });
+    const qty = document.getElementById('adminItemQty'); if (qty) qty.value = '1';
+  }
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────
@@ -2214,6 +2245,7 @@ let _chatPollTimer   = null;
 let _chatPlayers     = [];     // cached online player names for pills
 let _chatPlayersTs   = 0;      // last time we fetched players for chat
 let _chatColor       = null;   // null = no color, 'rainbow', or color name string
+let _chatRainbowIdx  = 0;      // cycles per send when rainbow active
 
 // ── Chat color / emote constants ──────────────────────────────────
 const CHAT_COLORS = [
@@ -2329,19 +2361,47 @@ function renderChatPlayerPills() {
 
 function setChatTarget(name) {
   _chatTarget = name;
-  document.getElementById('chatTargetLabel').textContent = `Sending private message to ${name}`;
+  _chatLastTs = 0; // reset so DM history loads fresh
+  document.getElementById('chatTargetLabel').textContent = `DM — ${name}`;
   document.getElementById('chatInput').placeholder = `Message ${name}…`;
-  document.getElementById('chatClearTarget').style.display = '';
   document.getElementById('chatInput').focus();
+  const feed = document.getElementById('chatFeed');
+  if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">Loading messages…</div>';
   renderChatPlayerPills();
 }
 
 function clearChatTarget() {
   _chatTarget = null;
+  _chatLastTs = 0;
   document.getElementById('chatTargetLabel').textContent = 'World Chat';
   document.getElementById('chatInput').placeholder = 'Message all players…';
-  document.getElementById('chatClearTarget').style.display = 'none';
+  const feed = document.getElementById('chatFeed');
+  if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">No messages yet.</div>';
   renderChatPlayerPills();
+}
+
+// Parse [colorname]text tags into colored <span> elements for display in the feed
+function renderChatText(raw) {
+  if (!raw) return '';
+  const colorMap = Object.fromEntries(CHAT_COLORS.map(c => [c.name, c.hex]));
+  const parts    = raw.split(/(\[[a-z]+\])/i);
+  let html    = '';
+  let inColor = false;
+  for (const part of parts) {
+    const m = part.match(/^\[([a-z]+)\]$/i);
+    if (m) {
+      const hex = colorMap[m[1].toLowerCase()];
+      if (hex) {
+        if (inColor) html += '</span>';
+        html += `<span style="color:${hex}">`;
+        inColor = true;
+        continue;
+      }
+    }
+    html += escapeHtml(part);
+  }
+  if (inColor) html += '</span>';
+  return html;
 }
 
 async function loadChatMessages() {
@@ -2371,12 +2431,20 @@ async function loadChatMessages() {
     if (msg.ts <= _chatLastTs) continue;
     _chatLastTs = msg.ts;
 
+    // DM filter — when targeting a player, show only their messages and host DMs to them
+    if (_chatTarget && msg.from !== _chatTarget && msg.to !== _chatTarget) continue;
+
     const el = document.createElement('div');
     el.className = 'chat-msg' + (msg.isHost ? ' chat-msg-host' : '');
 
     const time = new Date(msg.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const to   = msg.to ? ` → <em>${escapeHtml(msg.to)}</em>` : '';
-    el.innerHTML = `<span class="chat-meta">${escapeHtml(msg.from)}${to} <span class="chat-time">${time}</span></span><span class="chat-text">${escapeHtml(msg.message)}</span>`;
+    let meta;
+    if (msg.isHost && msg.to && msg.to !== 'all') {
+      meta = `Sent to <em>${escapeHtml(msg.to)}</em>`;
+    } else {
+      meta = escapeHtml(msg.from);
+    }
+    el.innerHTML = `<span class="chat-meta">${meta} <span class="chat-time">${time}</span></span><span class="chat-text">${renderChatText(msg.message)}</span>`;
     feed.appendChild(el);
   }
 
@@ -2394,8 +2462,8 @@ async function sendChatMessage() {
   // Apply color prefix (skip if message is a /command)
   if (_chatColor && !message.startsWith('/')) {
     if (_chatColor === 'rainbow') {
-      const words = message.split(' ');
-      message = words.map((w, i) => `[${CHAT_RAINBOW_SEQ[i % CHAT_RAINBOW_SEQ.length]}]${w}`).join(' ');
+      message = `[${CHAT_RAINBOW_SEQ[_chatRainbowIdx % CHAT_RAINBOW_SEQ.length]}]${message}`;
+      _chatRainbowIdx++;
     } else {
       message = `[${_chatColor}]${message}`;
     }
@@ -3572,6 +3640,7 @@ async function submitConfigPassword() {
 
   // Correct — reveal YAML
   hideConfigPasswordPrompt();
+  document.getElementById('remoteViewConfigBtn').style.display = 'none'; // keep hidden while YAML visible
   const yamlEl = document.getElementById('remoteCurrentYaml');
   if (yamlEl) yamlEl.textContent = _remoteYaml;
   document.getElementById('remoteConfigYamlArea').style.display = '';
