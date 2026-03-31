@@ -3,9 +3,24 @@
  * Player information, management and history
  */
 
-const fs = require('fs');
+const fs   = require('fs');
+const path = require('path');
 const http = require('http');
 const config = require('../server');
+
+// -- IP Blocklist --
+const BLOCKLIST_FILE = path.join(config.DATA_DIR, 'ip-blocklist.json');
+
+function loadBlocklist() {
+  try {
+    if (fs.existsSync(BLOCKLIST_FILE)) return JSON.parse(fs.readFileSync(BLOCKLIST_FILE, 'utf-8'));
+  } catch {}
+  return [];
+}
+
+function saveBlocklist(list) {
+  try { fs.writeFileSync(BLOCKLIST_FILE, JSON.stringify(list, null, 2), 'utf-8'); } catch {}
+}
 
 // -- Player history (24h at 5min intervals) --
 const playerHistory = [];
@@ -94,28 +109,32 @@ function parsePlayersFromLogs() {
 }
 
 // -- Try to get richer player data from live-status.json --
+let _separateWallets = false;
+
 function getPlayersFromLiveStatus() {
   try {
     if (fs.existsSync(config.LIVE_FILE)) {
       const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+      _separateWallets = live.separateWallets === true;
       if (live.players?.length > 0) {
         const online = live.players
           .filter(p => p.isOnline && !p.isHost)
           .map(p => ({
-            id:         p.uniqueId,
-            name:       p.name || formatPlayerId(p.uniqueId),
-            joinedAt:   null,
-            isOnline:   true,
-            health:     p.health,
-            maxHealth:  p.maxHealth,
-            stamina:    Math.floor(p.stamina ?? 0),
-            maxStamina: Math.floor(p.maxStamina ?? 0),
-            money:      p.money,
-            location:   p.locationName,
-            skills:     p.skills,
-            daysPlayed: p.daysPlayed,
-            tileX:      p.tileX,
-            tileY:      p.tileY,
+            id:           p.uniqueId,
+            name:         p.name || formatPlayerId(p.uniqueId),
+            joinedAt:     null,
+            isOnline:     true,
+            health:       p.health,
+            maxHealth:    p.maxHealth,
+            stamina:      Math.floor(p.stamina ?? 0),
+            maxStamina:   Math.floor(p.maxStamina ?? 0),
+            money:        p.money,
+            totalEarned:  p.totalEarned,
+            daysPlayed:   p.daysPlayed,
+            location:     p.locationName,
+            skills:       p.skills,
+            tileX:        p.tileX,
+            tileY:        p.tileY,
           }));
 
         // Update snapshots for all currently online players
@@ -200,10 +219,12 @@ function getPlayers(req, res) {
     online: Math.max(online, players.length),
     max: 8,
     players,
-    recentPlayers: Array.from(recentPlayers.values()).sort((a, b) => b.lastSeen - a.lastSeen),
-    history: playerHistory,
-    bannedIds:   Array.from(bannedIds),
-    bannedNames: Array.from(bannedNames),
+    recentPlayers:   Array.from(recentPlayers.values()).sort((a, b) => b.lastSeen - a.lastSeen),
+    history:         playerHistory,
+    bannedIds:       Array.from(bannedIds),
+    bannedNames:     Array.from(bannedNames),
+    separateWallets: _separateWallets,
+    blocklist:       loadBlocklist(),
   });
 }
 
@@ -276,6 +297,59 @@ function grantAdmin(req, res) {
   }
 }
 
+// -- Blocklist routes --
+
+function getBlocklist(req, res) {
+  res.json({ blocklist: loadBlocklist() });
+}
+
+function addBlocklistEntry(req, res) {
+  const { ip, description } = req.body || {};
+  if (!ip || typeof ip !== 'string') return res.status(400).json({ error: 'IP is required' });
+  const trimmedIp = ip.trim();
+  if (!/^[\d.:a-fA-F/]+$/.test(trimmedIp)) return res.status(400).json({ error: 'Invalid IP format' });
+
+  const list = loadBlocklist();
+  if (list.find(e => e.ip === trimmedIp)) return res.status(409).json({ error: 'IP already in blocklist' });
+
+  list.push({ ip: trimmedIp, description: (description || '').trim(), addedAt: new Date().toISOString() });
+  saveBlocklist(list);
+  // Attempt to ban via SMAPI (works if server is running)
+  sendConsoleCommand(`ban ${trimmedIp}`);
+  res.json({ success: true, blocklist: list });
+}
+
+function removeBlocklistEntry(req, res) {
+  const { ip } = req.params;
+  const list = loadBlocklist().filter(e => e.ip !== ip);
+  saveBlocklist(list);
+  res.json({ success: true, blocklist: list });
+}
+
+// -- Admin command (host-targeted SMAPI commands) --
+
+const ALLOWED_ADMIN_COMMANDS = new Set([
+  'player_setmoney', 'player_sethealth', 'player_setmaxhealth',
+  'player_setstamina', 'player_setmaxstamina', 'player_add',
+  'world_settime', 'world_setday', 'world_setseason', 'world_setyear',
+  'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
+]);
+
+function adminCommand(req, res) {
+  const { command } = req.body || {};
+  if (!command || typeof command !== 'string') return res.status(400).json({ error: 'command is required' });
+
+  const cmd  = command.trim();
+  const base = cmd.split(/\s+/)[0].toLowerCase();
+  if (!ALLOWED_ADMIN_COMMANDS.has(base)) {
+    return res.status(403).json({ error: `Command '${base}' is not permitted` });
+  }
+
+  const success = sendConsoleCommand(cmd);
+  if (success) res.json({ success: true });
+  else res.status(500).json({ error: 'Failed to send command — is the server running?' });
+}
+
 module.exports = {
   getPlayers,
   kickPlayer,
@@ -283,4 +357,8 @@ module.exports = {
   unbanPlayer,
   grantAdmin,
   deleteRecentPlayer,
+  getBlocklist,
+  addBlocklistEntry,
+  removeBlocklistEntry,
+  adminCommand,
 };

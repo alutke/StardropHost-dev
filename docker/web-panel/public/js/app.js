@@ -1959,7 +1959,7 @@ function appendTerminalOutput(text) {
 }
 
 // ─── Players ─────────────────────────────────────────────────────
-function renderPlayerStats(p) {
+function renderPlayerStats(p, separateWallets) {
   const parts = [];
   if (p.health != null)  parts.push(`❤️ ${p.health}/${p.maxHealth}`);
   if (p.stamina != null) parts.push(`⚡ ${p.stamina}/${p.maxStamina}`);
@@ -1970,7 +1970,11 @@ function renderPlayerStats(p) {
     🌱${s.farming} ⛏${s.mining} 🌲${s.foraging} 🎣${s.fishing} ⚔️${s.combat} 🍀${s.luck}
   </div>` : '';
 
-  return statsLine + skillsLine;
+  const moneyLine = separateWallets && p.money != null
+    ? `<div class="player-info">💰 ${p.money.toLocaleString()}g${p.totalEarned != null ? ` · Earned: ${p.totalEarned.toLocaleString()}g` : ''}</div>`
+    : '';
+
+  return statsLine + skillsLine + moneyLine;
 }
 
 function timeAgo(ms) {
@@ -1983,7 +1987,9 @@ function timeAgo(ms) {
 async function loadPlayers() {
   const data = await API.get('/api/players');
   if (!data) return;
+  _lastPlayersData = data;
 
+  const sw   = data.separateWallets === true;
   const list = document.getElementById('playersList');
   setText('playerCount', `${data.online ?? 0} / 8`);
 
@@ -1996,12 +2002,13 @@ async function loadPlayers() {
         <div class="player-body">
           <div class="player-name">${escapeHtml(p.name)}</div>
           ${p.location ? `<div class="player-info">${escapeHtml(p.location)}</div>` : ''}
-          ${renderPlayerStats(p)}
+          ${renderPlayerStats(p, sw)}
         </div>
         <div class="player-actions">
           <button class="btn btn-sm" onclick="setChatTarget('${escapeHtml(p.name)}')">
             <svg class="icon" style="width:13px;height:13px"><use href="#icon-chat"></use></svg> Chat
           </button>
+          <button class="btn btn-sm" onclick="openAdminModal(_lastPlayersData.players.find(x=>x.id==='${escapeHtml(p.id)}'))">Admin</button>
           <button class="btn btn-sm" onclick="kickPlayer(this,'${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Kick</button>
           <button class="btn btn-sm btn-danger" onclick="banPlayer(this,'${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Ban</button>
         </div>
@@ -2029,7 +2036,7 @@ async function loadPlayers() {
             <span class="player-offline-badge">${isBanned(p) ? 'Banned' : 'Offline'}</span>
           </div>
           ${p.location ? `<div class="player-info">${escapeHtml(p.location)}</div>` : ''}
-          ${renderPlayerStats(p)}
+          ${renderPlayerStats(p, sw)}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
           <div class="player-last-seen">Last seen<br>${timeAgo(p.lastSeen)}</div>
@@ -2045,6 +2052,9 @@ async function loadPlayers() {
   } else {
     recentCard.style.display = 'none';
   }
+
+  // Blocklist
+  renderBlocklist(data.blocklist || []);
 }
 
 async function kickPlayer(btn, id, name) {
@@ -2068,6 +2078,103 @@ async function unbanPlayer(btn, id, name) {
   const data = await API.post('/api/players/unban', { id, name }).catch(() => null);
   showToast(data?.success ? `Unbanned ${name}` : (data?.error || 'Unban failed'), data?.success ? 'success' : 'error');
   if (data?.success) loadPlayers(); else { btn.disabled = false; btn.textContent = 'Unban'; }
+}
+
+async function deleteRecentPlayer(btn, id) {
+  btn.disabled = true;
+  await API.post('/api/players/recent/delete', { id }).catch(() => null);
+  loadPlayers();
+}
+
+// ─── IP Blocklist ─────────────────────────────────────────────────
+
+function renderBlocklist(list) {
+  const el = document.getElementById('blocklistEntries');
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">No blocked IPs.</div>';
+    return;
+  }
+  el.innerHTML = list.map(e => `
+    <div class="blocklist-entry">
+      <span class="blocklist-ip">${escapeHtml(e.ip)}</span>
+      <span class="blocklist-desc">${escapeHtml(e.description || '—')}</span>
+      <button class="btn btn-sm btn-danger" onclick="removeBlocklistEntry('${escapeHtml(e.ip)}')">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function addBlocklistEntry() {
+  const ip   = document.getElementById('blocklistIpInput').value.trim();
+  const desc = document.getElementById('blocklistDescInput').value.trim();
+  const msg  = document.getElementById('blocklistMsg');
+  if (!ip) { msg.textContent = 'Enter an IP address.'; msg.style.color = '#ef4444'; msg.style.display = ''; return; }
+
+  const data = await API.post('/api/players/blocklist', { ip, description: desc }).catch(() => null);
+  if (data?.success) {
+    document.getElementById('blocklistIpInput').value   = '';
+    document.getElementById('blocklistDescInput').value = '';
+    msg.textContent = `${ip} blocked.`; msg.style.color = 'var(--accent)'; msg.style.display = '';
+    renderBlocklist(data.blocklist);
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  } else {
+    msg.textContent = data?.error || 'Failed to add entry.'; msg.style.color = '#ef4444'; msg.style.display = '';
+  }
+}
+
+async function removeBlocklistEntry(ip) {
+  if (!confirm(`Remove ${ip} from blocklist?`)) return;
+  const data = await API.del(`/api/players/blocklist/${encodeURIComponent(ip)}`).catch(() => null);
+  if (data?.success) renderBlocklist(data.blocklist);
+  else showToast('Failed to remove entry', 'error');
+}
+
+// ─── Admin Controls Modal ─────────────────────────────────────────
+
+let _lastPlayersData = { players: [] };
+let _adminPlayer     = null;
+
+function openAdminModal(player) {
+  _adminPlayer = player;
+  document.getElementById('adminModalTitle').textContent = `Admin — ${player.name}`;
+  // Clear inputs and result
+  ['adminSetMoney','adminSetHealth','adminSetMaxHealth','adminSetStamina','adminSetMaxStamina','adminItemName'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const qty = document.getElementById('adminItemQty'); if (qty) qty.value = '1';
+  const res = document.getElementById('adminCmdResult'); if (res) res.style.display = 'none';
+  document.getElementById('adminModal').style.display = '';
+}
+
+function closeAdminModal() {
+  document.getElementById('adminModal').style.display = 'none';
+  _adminPlayer = null;
+}
+
+async function sendAdminCmd(base, value) {
+  if (!value && value !== 0) return;
+  const command = `${base} ${value}`;
+  const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
+  _showAdminResult(data?.success, command, data?.error);
+}
+
+async function sendAdminGiveItem() {
+  const name = document.getElementById('adminItemName').value.trim();
+  const qty  = document.getElementById('adminItemQty').value || '1';
+  if (!name) return;
+  const command = `player_add name "${name}" ${qty}`;
+  const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
+  _showAdminResult(data?.success, command, data?.error);
+}
+
+function _showAdminResult(success, command, error) {
+  const el = document.getElementById('adminCmdResult');
+  if (!el) return;
+  el.textContent    = success ? `✓ Sent: ${command}` : `✗ ${error || 'Failed'}`;
+  el.style.color    = success ? 'var(--accent)' : '#ef4444';
+  el.style.background = success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
+  el.style.display  = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────

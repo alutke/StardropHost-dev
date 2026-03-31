@@ -618,6 +618,39 @@ body {
   min-width: 80px;
 }
 
+/* ─── Blocklist ───────────────────────────────────────────────── */
+
+.blocklist-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.blocklist-ip   { font-weight: 600; font-family: monospace; min-width: 120px; }
+.blocklist-desc { flex: 1; color: var(--text-secondary); }
+
+/* ─── Admin Controls Modal ────────────────────────────────────── */
+
+.admin-cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.admin-cmd-row:last-child { border-bottom: none; }
+.admin-cmd-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 130px;
+  flex-shrink: 0;
+}
+
 /* ─── Game Update Notification ───────────────────────────────── */
 
 .update-notification {

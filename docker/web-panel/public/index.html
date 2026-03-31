@@ -472,7 +472,70 @@
             <div id="recentPlayersList" class="players-list"></div>
           </div>
 
+          <div class="card">
+            <div class="section-header" style="margin-bottom:12px">
+              <h3>IP Blocklist</h3>
+            </div>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Block players by IP address. Blocked IPs are silently banned on connection.</p>
+            <div id="blocklistEntries" style="margin-bottom:12px"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+              <input id="blocklistIpInput" type="text" class="form-input" placeholder="IP address (e.g. 192.168.1.50)" style="flex:1;min-width:160px">
+              <input id="blocklistDescInput" type="text" class="form-input" placeholder="Description (optional)" style="flex:2;min-width:160px">
+              <button class="btn btn-primary btn-sm" onclick="addBlocklistEntry()">Block IP</button>
+            </div>
+            <div id="blocklistMsg" style="display:none;margin-top:8px;font-size:13px"></div>
+          </div>
+
         </section>
+
+        <!-- ── Admin Controls Modal ───────────────────────────── -->
+        <div id="adminModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAdminModal()">
+          <div class="modal-dialog" style="max-width:480px">
+            <h3 id="adminModalTitle">Admin Controls</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">
+              ⚠️ These commands target the <strong>host player</strong>. Per-farmhand targeting requires Dependencies mod Phase 2.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="admin-cmd-row">
+                <span class="admin-cmd-label">Set Money</span>
+                <input type="number" id="adminSetMoney" class="form-input" placeholder="Amount" min="0" style="width:120px">
+                <button class="btn btn-sm btn-primary" onclick="sendAdminCmd('player_setmoney', document.getElementById('adminSetMoney').value)">Set</button>
+              </div>
+              <div class="admin-cmd-row">
+                <span class="admin-cmd-label">Set Health</span>
+                <input type="number" id="adminSetHealth" class="form-input" placeholder="Amount" min="0" style="width:120px">
+                <button class="btn btn-sm btn-primary" onclick="sendAdminCmd('player_sethealth', document.getElementById('adminSetHealth').value)">Set</button>
+              </div>
+              <div class="admin-cmd-row">
+                <span class="admin-cmd-label">Set Max Health</span>
+                <input type="number" id="adminSetMaxHealth" class="form-input" placeholder="Amount" min="0" style="width:120px">
+                <button class="btn btn-sm btn-primary" onclick="sendAdminCmd('player_setmaxhealth', document.getElementById('adminSetMaxHealth').value)">Set</button>
+              </div>
+              <div class="admin-cmd-row">
+                <span class="admin-cmd-label">Set Stamina</span>
+                <input type="number" id="adminSetStamina" class="form-input" placeholder="Amount" min="0" style="width:120px">
+                <button class="btn btn-sm btn-primary" onclick="sendAdminCmd('player_setstamina', document.getElementById('adminSetStamina').value)">Set</button>
+              </div>
+              <div class="admin-cmd-row">
+                <span class="admin-cmd-label">Set Max Stamina</span>
+                <input type="number" id="adminSetMaxStamina" class="form-input" placeholder="Amount" min="0" style="width:120px">
+                <button class="btn btn-sm btn-primary" onclick="sendAdminCmd('player_setmaxstamina', document.getElementById('adminSetMaxStamina').value)">Set</button>
+              </div>
+              <div class="admin-cmd-row" style="align-items:flex-start;flex-wrap:wrap;gap:6px">
+                <span class="admin-cmd-label" style="padding-top:8px">Give Item</span>
+                <div style="display:flex;gap:6px;flex:1;flex-wrap:wrap">
+                  <input type="text" id="adminItemName" class="form-input" placeholder="Item name (e.g. Honey)" style="flex:2;min-width:120px">
+                  <input type="number" id="adminItemQty" class="form-input" placeholder="Qty" min="1" value="1" style="width:70px">
+                  <button class="btn btn-sm btn-primary" onclick="sendAdminGiveItem()">Give</button>
+                </div>
+              </div>
+            </div>
+            <div id="adminCmdResult" style="display:none;margin-top:12px;font-size:13px;padding:8px;border-radius:6px"></div>
+            <div style="margin-top:16px;text-align:right">
+              <button class="btn" onclick="closeAdminModal()">Close</button>
+            </div>
+          </div>
+        </div>
 
         <!-- ── Chat ───────────────────────────────────────────── -->
         <section id="page-chat" class="page">
