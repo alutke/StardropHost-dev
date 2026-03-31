@@ -1260,10 +1260,13 @@ body {
   font-weight: 600;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
-/* "World Chat" pill is slightly larger to act as the primary tab */
+/* "World Chat" pill — primary tab, visually distinct */
 .chat-pill:first-child {
   font-size: 13px;
-  padding: 5px 16px;
+  font-weight: 600;
+  padding: 6px 18px;
+  background: var(--bg-secondary);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
 }
 .chat-color-row {
   display: flex;
@@ -1324,6 +1327,92 @@ body {
   align-items: center;
 }
 .chat-input { flex: 1; }
+
+/* ── Item Picker ──────────────────────────────────────────────── */
+.item-picker-list {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.item-picker-cat {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.item-picker-item {
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-primary);
+  transition: background 0.1s;
+}
+.item-picker-item:last-child { border-bottom: none; }
+.item-picker-item:hover { background: var(--bg-tertiary); }
+.item-picker-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Chat: DM pills & separator ────────────────────────────────── */
+.chat-dm-separator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 4px;
+}
+.chat-dm-separator::before {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+.chat-pill-dm {
+  font-size: 12px;
+  padding: 4px 12px;
+}
+.chat-pill-dm.active {
+  background: color-mix(in srgb, var(--accent-dark) 22%, var(--bg-secondary));
+}
+/* Chat target label as badge */
+#chatTargetLabel {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+#chatTargetLabel.dm-active {
+  background: color-mix(in srgb, var(--accent-dark) 25%, var(--bg-secondary));
+  border-color: var(--accent-dark);
+  color: var(--accent);
+}
+/* DM sent arrow */
+.chat-dm-sent { color: var(--accent); font-weight: 600; }
 
 /* ── Advanced config section ──────────────────────────────────── */
 .advanced-details {

@@ -1802,8 +1802,11 @@ async function loadFarm() {
     ).join('');
 
     ccEl.innerHTML = `
-      <div style="margin-bottom:8px;font-weight:600;color:var(--text-primary)">${cc.completedRooms}/${cc.totalRooms} Rooms Complete</div>
-      <div class="progress-bar" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="detail-label">Progress</span>
+        <span class="detail-value">${cc.completedRooms} / ${cc.totalRooms} Rooms (${cc.percentComplete}%)</span>
+      </div>
+      <div class="progress-bar" style="margin-bottom:16px;height:12px">
         <div class="progress-fill" style="width:${cc.percentComplete}%;${cc.percentComplete === 100 ? 'background:var(--accent)' : ''}"></div>
       </div>
       <div class="details-grid">${roomsHtml}</div>
@@ -2346,23 +2349,66 @@ const SDV_ITEMS = [
   { id:'Blue Grass Starter',    name:'Blue Grass Starter',     cat:'Misc' },
 ];
 
-function initAdminItemSelect() {
-  filterAdminItems('');
-  const search = document.getElementById('adminItemSearch');
+// ─── Item Picker ──────────────────────────────────────────────────
+
+let _selectedItemId   = '';
+let _selectedItemName = '';
+
+const ITEM_CAT_ORDER = ['Farming', 'Mining', 'Fishing', 'Misc', 'Books'];
+
+function openItemPicker() {
+  const search = document.getElementById('itemPickerSearch');
   if (search) search.value = '';
+  filterItemPicker('');
+  document.getElementById('itemPickerModal').style.display = '';
 }
 
-function filterAdminItems(query) {
-  const sel = document.getElementById('adminItemSelect');
-  if (!sel) return;
+function closeItemPicker() {
+  document.getElementById('itemPickerModal').style.display = 'none';
+}
+
+function selectItem(id, name) {
+  _selectedItemId   = id;
+  _selectedItemName = name;
+  const display = document.getElementById('adminSelectedItem');
+  if (display) display.textContent = name;
+  closeItemPicker();
+}
+
+function filterItemPicker(query) {
+  const list = document.getElementById('itemPickerList');
+  if (!list) return;
   const q = (query || '').toLowerCase().trim();
   const matches = q
     ? SDV_ITEMS.filter(i => i.name.toLowerCase().includes(q) || i.id.toLowerCase().includes(q))
     : SDV_ITEMS;
-  sel.innerHTML = matches.length
-    ? matches.map(i => `<option value="(O)${i.id}">[${i.cat}] ${i.name}</option>`).join('')
-    : '<option value="" disabled>No items found</option>';
+  if (!matches.length) {
+    list.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted)">No items found</div>';
+    return;
+  }
+  const groups = {};
+  for (const cat of ITEM_CAT_ORDER) groups[cat] = [];
+  for (const item of matches) {
+    if (!groups[item.cat]) groups[item.cat] = [];
+    groups[item.cat].push(item);
+  }
+  let html = '';
+  for (const cat of ITEM_CAT_ORDER) {
+    if (!groups[cat]?.length) continue;
+    html += `<div class="item-picker-cat">${escapeHtml(cat)}</div>`;
+    for (const item of groups[cat]) {
+      html += `<div class="item-picker-item" onclick="selectItem('(O)${escapeHtml(item.id)}','${escapeHtml(item.name.replace(/'/g,'&#39;'))}')">
+        <span>${escapeHtml(item.name)}</span>
+        <span class="item-picker-id">${escapeHtml(item.id)}</span>
+      </div>`;
+    }
+  }
+  list.innerHTML = html;
 }
+
+// Legacy stubs — kept so openAdminModal still compiles
+function initAdminItemSelect() {}
+function filterAdminItems() {}
 
 // ─── Admin Controls Modal ─────────────────────────────────────────
 
@@ -2373,12 +2419,15 @@ function openAdminModal(player) {
   _adminPlayer = player;
   document.getElementById('adminModalTitle').textContent = `Admin — ${player.name}`;
   // Clear inputs and result
-  ['adminSetMoney','adminSetHealth','adminSetMaxHealth','adminSetStamina','adminSetMaxStamina','adminItemName'].forEach(id => {
+  ['adminSetMoney','adminSetHealth','adminSetMaxHealth','adminSetStamina','adminSetMaxStamina'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const qty = document.getElementById('adminItemQty'); if (qty) qty.value = '1';
   const res = document.getElementById('adminCmdResult'); if (res) res.style.display = 'none';
-  initAdminItemSelect();
+  // Reset item selection
+  _selectedItemId = ''; _selectedItemName = '';
+  const display = document.getElementById('adminSelectedItem');
+  if (display) display.textContent = '— none selected —';
   document.getElementById('adminModal').style.display = '';
 }
 
@@ -2395,12 +2444,9 @@ async function sendAdminCmd(base, value) {
 }
 
 async function sendAdminGiveItem() {
-  const sel    = document.getElementById('adminItemSelect');
-  const itemId = sel?.value;
-  const qty    = parseInt(document.getElementById('adminItemQty').value || '1', 10) || 1;
-  if (!itemId) { _showAdminResult(false, '', 'Select an item first'); return; }
-  // player_add <qualifiedItemId> <count>  — gives to host player
-  const command = `player_add ${itemId} ${qty}`;
+  if (!_selectedItemId) { _showAdminResult(false, '', 'Browse and select an item first'); return; }
+  const qty = parseInt(document.getElementById('adminItemQty').value || '1', 10) || 1;
+  const command = `player_add ${_selectedItemId} ${qty}`;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
   _showAdminResult(data?.success, command, data?.error);
 }
@@ -2419,8 +2465,9 @@ function _showAdminResult(success, command, error) {
       const inp = document.getElementById(id); if (inp) inp.value = '';
     });
     const qty = document.getElementById('adminItemQty'); if (qty) qty.value = '1';
-    const search = document.getElementById('adminItemSearch'); if (search) search.value = '';
-    filterAdminItems('');
+    _selectedItemId = ''; _selectedItemName = '';
+    const display = document.getElementById('adminSelectedItem');
+    if (display) display.textContent = '— none selected —';
   }
 }
 
@@ -2538,33 +2585,43 @@ document.addEventListener('click', e => {
 function renderChatPlayerPills() {
   const row = document.getElementById('chatPlayerPills');
   if (!row) return;
-  const pills = [{ name: null, label: 'World Chat' }].concat(_chatPlayers.map(n => ({ name: n, label: n })));
-  row.innerHTML = pills.map(p => {
-    const active = (_chatTarget === p.name) ? ' active' : '';
-    const onclick = p.name ? `setChatTarget('${escapeHtml(p.name)}')` : 'clearChatTarget()';
-    return `<button class="chat-pill${active}" onclick="${onclick}">${escapeHtml(p.label)}</button>`;
-  }).join('');
+  const worldActive = (_chatTarget === null) ? ' active' : '';
+  let html = `<button class="chat-pill${worldActive}" onclick="clearChatTarget()">World Chat</button>`;
+  if (_chatPlayers.length > 0) {
+    html += `<span class="chat-dm-separator">DMs</span>`;
+    for (const name of _chatPlayers) {
+      const active = (_chatTarget === name) ? ' active' : '';
+      html += `<button class="chat-pill chat-pill-dm${active}" onclick="setChatTarget('${escapeHtml(name)}')">${escapeHtml(name)}</button>`;
+    }
+  }
+  row.innerHTML = html;
 }
 
 function setChatTarget(name) {
   _chatTarget = name;
-  _chatLastTs = 0; // reset so DM history loads fresh
-  document.getElementById('chatTargetLabel').textContent = `DM — ${name}`;
+  _chatLastTs = 0;
+  const label = document.getElementById('chatTargetLabel');
+  label.textContent = `DM — ${name}`;
+  label.classList.add('dm-active');
   document.getElementById('chatInput').placeholder = `Message ${name}…`;
   document.getElementById('chatInput').focus();
   const feed = document.getElementById('chatFeed');
-  if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">Loading messages…</div>';
+  if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">Loading…</div>';
   renderChatPlayerPills();
+  loadChatMessages();
 }
 
 function clearChatTarget() {
   _chatTarget = null;
   _chatLastTs = 0;
-  document.getElementById('chatTargetLabel').textContent = 'World Chat';
+  const label = document.getElementById('chatTargetLabel');
+  label.textContent = 'World Chat';
+  label.classList.remove('dm-active');
   document.getElementById('chatInput').placeholder = 'Message all players…';
   const feed = document.getElementById('chatFeed');
-  if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">No messages yet.</div>';
+  if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">Loading…</div>';
   renderChatPlayerPills();
+  loadChatMessages();
 }
 
 // Parse [colorname]text tags into colored <span> elements for display in the feed
@@ -2607,13 +2664,28 @@ async function loadChatMessages() {
     }
   }
 
+  const wasFirstLoad = (_chatLastTs === 0);
+
   const data = await API.get(`/api/chat/messages?since=${_chatLastTs}&limit=100`).catch(() => null);
-  if (!data?.messages?.length) return;
 
   const feed  = document.getElementById('chatFeed');
+  if (!feed) return;
+
+  if (!data?.messages?.length) {
+    // On first load with no messages, set correct empty state
+    if (wasFirstLoad) {
+      const emptyMsg = _chatTarget
+        ? `No messages with ${escapeHtml(_chatTarget)} yet.`
+        : 'No messages yet — chat from connected players will appear here.';
+      feed.innerHTML = `<div class="empty-state" id="chatEmpty">${emptyMsg}</div>`;
+    }
+    return;
+  }
+
   const empty = document.getElementById('chatEmpty');
   if (empty) empty.remove();
 
+  let renderedCount = 0;
   for (const msg of data.messages) {
     if (msg.ts <= _chatLastTs) continue;
     _chatLastTs = msg.ts;
@@ -2627,16 +2699,26 @@ async function loadChatMessages() {
     const time = new Date(msg.ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     let meta;
     if (msg.isHost && msg.to && msg.to !== 'all') {
-      meta = `Sent to <em>${escapeHtml(msg.to)}</em>`;
+      meta = `<span class="chat-dm-sent">→ ${escapeHtml(msg.to)}</span>`;
     } else {
       meta = escapeHtml(msg.from);
     }
     el.innerHTML = `<span class="chat-meta">${meta} <span class="chat-time">${time}</span></span><span class="chat-text">${renderChatText(msg.message)}</span>`;
     feed.appendChild(el);
+    renderedCount++;
   }
 
-  // Auto-scroll to bottom if within 80px of it
-  if (feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80) {
+  // If DM filter removed everything and feed is now empty, show empty state
+  if (renderedCount === 0 && !feed.querySelector('.chat-msg')) {
+    const emptyMsg = _chatTarget
+      ? `No messages with ${escapeHtml(_chatTarget)} yet.`
+      : 'No messages yet — chat from connected players will appear here.';
+    feed.innerHTML = `<div class="empty-state" id="chatEmpty">${emptyMsg}</div>`;
+    return;
+  }
+
+  // Scroll to bottom on first load (initial render), or when already near the bottom
+  if (wasFirstLoad || feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80) {
     feed.scrollTop = feed.scrollHeight;
   }
 }
@@ -3012,24 +3094,37 @@ async function loadConfig() {
         remText = 'Stopped'; remCls = 'offline';
       }
 
+      const _dis  = isTransitioning ? ' disabled' : '';
+      const _rdis = _remoteOptimisticState ? ' disabled' : '';
+
       const statusRow = document.createElement('div');
       statusRow.className = 'config-item';
       statusRow.innerHTML =
         `<div><div class="config-label">Server Status</div></div>
-         <div class="config-value">
+         <div class="config-value" style="gap:8px">
            <span id="configServerStatusBadge" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--text-primary)">
              <span class="status-dot ${statusCls}"></span>${escapeHtml(statusText)}
            </span>
+           <button id="serverToggleBtn" class="btn btn-sm ${running ? 'btn-danger' : 'btn-success'}" type="button"
+             onclick="${running ? 'stopServer()' : 'startServer()'}"${_dis}>${running ? 'Stop' : 'Start'}</button>
+           <button class="btn btn-sm btn-warning" type="button" onclick="restartServer()"${_dis}>Restart</button>
          </div>`;
+
+      const remBtnHtml = !lastRemoteData?.configured
+        ? `<button class="btn btn-sm btn-secondary" type="button" onclick="navigateTo('remote')">Setup</button>`
+        : lastRemoteData.anyRunning
+          ? `<button class="btn btn-sm btn-secondary" type="button" onclick="stopRemoteService()"${_rdis}>Pause</button>`
+          : `<button class="btn btn-sm btn-success" type="button" onclick="startRemoteService()"${_rdis}>Resume</button>`;
 
       const remoteRow = document.createElement('div');
       remoteRow.className = 'config-item';
       remoteRow.innerHTML =
         `<div><div class="config-label">Remote Status</div></div>
-         <div class="config-value">
+         <div class="config-value" style="gap:8px">
            <span id="configRemoteStatusBadge" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--text-primary)">
              <span class="status-dot ${remCls}"></span>${escapeHtml(remText)}
            </span>
+           ${remBtnHtml}
          </div>`;
 
       card.insertBefore(remoteRow, card.firstChild.nextSibling);
@@ -3055,27 +3150,6 @@ async function loadConfig() {
            <button class="btn btn-sm btn-secondary" type="button" onclick="checkAllUpdates()">Check Now</button>
          </div>`;
       card.appendChild(updateRow);
-
-      const actions = document.createElement('div');
-      actions.className = 'action-buttons';
-      actions.style.marginTop = '12px';
-      const _dis  = isTransitioning ? ' disabled' : '';
-      const _rdis = _remoteOptimisticState ? ' disabled' : '';
-      const remBtn = !lastRemoteData?.configured
-        ? `<button class="btn btn-sm btn-secondary" type="button" onclick="navigateTo('remote')">Setup Remote</button>`
-        : lastRemoteData.anyRunning
-          ? `<button class="btn btn-sm btn-secondary" type="button" onclick="stopRemoteService()"${_rdis}>Pause Remote</button>`
-          : `<button class="btn btn-sm btn-success"    type="button" onclick="startRemoteService()"${_rdis}>Resume Remote</button>`;
-      actions.innerHTML =
-        `<button id="serverToggleBtn" class="btn btn-sm ${running ? 'btn-danger' : 'btn-success'}" type="button"
-           onclick="${running ? 'stopServer()' : 'startServer()'}"${_dis}>
-           ${running ? 'Stop Server' : 'Start Server'}
-         </button>
-         <button class="btn btn-sm btn-warning" type="button" onclick="restartServer()"${_dis}>
-           Restart Server
-         </button>
-         ${remBtn}`;
-      card.appendChild(actions);
     }
 
     target.appendChild(card);
