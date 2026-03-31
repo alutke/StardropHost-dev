@@ -1729,20 +1729,22 @@ async function loadFarm() {
     return;
   }
 
-  // Farm tab players — quick overview: name + location only
   const farmPlayers = (data.players || []).filter(p => !p.isHost);
-  const playersHtml = farmPlayers.length
-    ? farmPlayers.map(p => `<div class="player-card">
-        <div class="player-avatar">${icon('players', 'icon')}</div>
-        <div>
-          <div class="player-name">${escapeHtml(p.name)}</div>
-          ${p.locationName ? `<div class="player-info">${escapeHtml(p.locationName)}</div>` : ''}
-        </div>
-      </div>`).join('')
-    : '<div class="empty-state">No players online</div>';
-
   const season  = capitalize(data.season);
   const weather = capitalize(data.weather);
+
+  const gameState = (() => {
+    if (data.serverState === 'running') return farmPlayers.length > 0 ? 'Playing' : 'Paused';
+    return capitalize(data.serverState) || '--';
+  })();
+
+  // Compact player strip
+  const playerStrip = farmPlayers.length
+    ? `<div class="farm-player-strip">
+        ${farmPlayers.map(p => `<span class="farm-player-dot">● ${escapeHtml(p.name)}</span>`).join('')}
+        <span style="color:var(--text-muted);font-size:12px">${farmPlayers.length} online</span>
+       </div>`
+    : `<div class="farm-player-strip" style="color:var(--text-muted)">No players online</div>`;
 
   liveEl.innerHTML = `
     <div class="details-grid">
@@ -1760,16 +1762,10 @@ async function loadFarm() {
       </div>
       <div class="detail-item">
         <div class="detail-label">Game State</div>
-        <div class="detail-value">${escapeHtml((() => {
-          if (data.serverState === 'running') {
-            const active = (data.players || []).filter(p => !p.isHost);
-            return active.length > 0 ? 'Playing' : 'Paused';
-          }
-          return capitalize(data.serverState) || '--';
-        })())}</div>
+        <div class="detail-value">${escapeHtml(gameState)}</div>
       </div>
     </div>
-    <div style="margin-top:12px">${playersHtml}</div>
+    <div style="margin-top:12px">${playerStrip}</div>
   `;
 
   // Community Center
@@ -1809,19 +1805,51 @@ async function loadFarm() {
         <div class="detail-value">${escapeHtml(data.farmType || '--')}</div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Money</div>
+        <div class="detail-label">Combined Money</div>
         <div class="detail-value">${data.money != null ? `${data.money.toLocaleString()}g` : '--'}</div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Total Earned</div>
+        <div class="detail-label">Combined Total Earned</div>
         <div class="detail-value">${data.totalEarned != null ? `${data.totalEarned.toLocaleString()}g` : '--'}</div>
       </div>
       <div class="detail-item">
-        <div class="detail-label">Playtime</div>
+        <div class="detail-label">Combined Farm Time</div>
         <div class="detail-value">${data.playtimeHours != null ? `${data.playtimeHours}h` : '--'}</div>
       </div>
     </div>
   `;
+}
+
+// ─── World Controls ───────────────────────────────────────────────
+
+let _worldFrozen = false;
+
+async function worldCmd(base, value) {
+  const command = value !== '' ? `${base} ${value}` : base;
+  const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
+  const el = document.getElementById('worldCmdResult');
+  if (!el) return;
+  el.textContent    = data?.success ? `✓ Sent: ${command}` : `✗ ${data?.error || 'Failed — is the server running?'}`;
+  el.style.color    = data?.success ? 'var(--accent)' : '#ef4444';
+  el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
+  el.style.display  = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+async function toggleWorldFreeze() {
+  const data = await API.post('/api/players/admin-command', { command: 'world_freezetime' }).catch(() => null);
+  if (data?.success) {
+    _worldFrozen = !_worldFrozen;
+    const stateEl = document.getElementById('worldFreezeState');
+    if (stateEl) stateEl.textContent = _worldFrozen ? '❄️ Frozen' : '▶ Running';
+  }
+  const el = document.getElementById('worldCmdResult');
+  if (!el) return;
+  el.textContent  = data?.success ? `✓ Time ${_worldFrozen ? 'frozen' : 'unfrozen'}` : `✗ ${data?.error || 'Failed'}`;
+  el.style.color  = data?.success ? 'var(--accent)' : '#ef4444';
+  el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
+  el.style.display = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
 function formatGameTime(t) {
