@@ -1185,6 +1185,9 @@ let isStarting             = false;
 let isTransitioning        = false; // true during any start/stop/restart/boot state
 let lastRemoteData         = null;
 let _remoteOptimisticState = null;  // 'starting' | 'stopping' | null
+let _remoteYaml            = '';
+let _configRevealTimer     = null;
+let _configCountdownTimer  = null;
 
 // ─── Theme ───────────────────────────────────────────────────────
 let currentTheme = (() => {
@@ -1239,6 +1242,21 @@ function showToast(message, type = 'info') {
   setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
+// ─── Copy-to-clipboard ───────────────────────────────────────────
+function setupCopyable() {
+  document.addEventListener('click', e => {
+    const el = e.target.closest('.copyable');
+    if (!el) return;
+    const text = el.textContent.trim();
+    if (!text || text === '--') return;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(`Copied: ${text}`, 'success');
+    }).catch(() => {
+      showToast('Copy failed', 'error');
+    });
+  });
+}
+
 // ─── Init ────────────────────────────────────────────────────────
 async function loadPanelVersion() {
   const data = await API.get('/api/panel-update/status').catch(() => null);
@@ -1250,6 +1268,7 @@ async function loadPanelVersion() {
 function init() {
   applyTheme();
   setupNavigation();
+  setupCopyable();
   setupWebSocket();
   loadDashboard();
   loadRemoteStatus();
@@ -2288,15 +2307,16 @@ function applyBackupStatus(status, silent = false) {
 
   stopBackupStatusPolling();
 
-  if (!silent) {
-    if (prevState === 'running' && status?.state === 'completed') {
-      showToast('Backup created!', 'success');
-      setTimeout(() => {
-        lastBackupStatus = null;
-        renderBackupStatus({ state: 'idle' });
-      }, 4000);
-    }
-    if (prevState === 'running' && status?.state === 'failed') showToast(status.error || 'Backup failed', 'error');
+  if (prevState === 'running' && status?.state === 'completed') {
+    if (!silent) showToast('Backup created!', 'success');
+    setTimeout(() => {
+      lastBackupStatus = null;
+      renderBackupStatus({ state: 'idle' });
+    }, 10000);
+  }
+
+  if (!silent && prevState === 'running' && status?.state === 'failed') {
+    showToast(status.error || 'Backup failed', 'error');
   }
 
   if (status?.state !== 'running') {
@@ -3238,6 +3258,74 @@ async function checkAllUpdates() {
   showToast('Update check complete', 'success');
 }
 
+// ─── Remote config reveal ─────────────────────────────────────────
+
+function showConfigPasswordPrompt() {
+  document.getElementById('remoteViewConfigBtn').style.display       = 'none';
+  document.getElementById('remoteConfigPasswordArea').style.display  = '';
+  document.getElementById('remoteConfigPasswordError').style.display = 'none';
+  document.getElementById('remoteConfigPassword').value              = '';
+  setTimeout(() => document.getElementById('remoteConfigPassword').focus(), 50);
+}
+
+function hideConfigPasswordPrompt() {
+  document.getElementById('remoteConfigPasswordArea').style.display = 'none';
+  document.getElementById('remoteViewConfigBtn').style.display      = '';
+}
+
+async function submitConfigPassword() {
+  const input = document.getElementById('remoteConfigPassword');
+  const errEl = document.getElementById('remoteConfigPasswordError');
+  const password = input.value;
+  if (!password) return;
+
+  try {
+    const res = await API.post('/api/auth/verify-password', { password });
+    if (!res?.valid) {
+      errEl.textContent = 'Incorrect password.';
+      errEl.style.display = '';
+      input.value = '';
+      input.focus();
+      return;
+    }
+  } catch {
+    errEl.textContent = 'Verification failed.';
+    errEl.style.display = '';
+    return;
+  }
+
+  // Correct — reveal YAML
+  hideConfigPasswordPrompt();
+  const yamlEl = document.getElementById('remoteCurrentYaml');
+  if (yamlEl) yamlEl.textContent = _remoteYaml;
+  document.getElementById('remoteConfigYamlArea').style.display = '';
+
+  // Start 60s countdown
+  clearInterval(_configCountdownTimer);
+  clearTimeout(_configRevealTimer);
+  let remaining = 60;
+  const countdownEl = document.getElementById('remoteConfigCountdown');
+  if (countdownEl) countdownEl.textContent = remaining;
+  _configCountdownTimer = setInterval(() => {
+    remaining -= 1;
+    if (countdownEl) countdownEl.textContent = remaining;
+    if (remaining <= 0) clearInterval(_configCountdownTimer);
+  }, 1000);
+  _configRevealTimer = setTimeout(hideConfigYaml, 60000);
+}
+
+function hideConfigYaml() {
+  clearTimeout(_configRevealTimer);
+  clearInterval(_configCountdownTimer);
+  _configRevealTimer    = null;
+  _configCountdownTimer = null;
+  const yamlArea = document.getElementById('remoteConfigYamlArea');
+  const yamlEl   = document.getElementById('remoteCurrentYaml');
+  if (yamlArea) yamlArea.style.display = 'none';
+  if (yamlEl)   yamlEl.textContent     = '';
+  document.getElementById('remoteViewConfigBtn').style.display = '';
+}
+
 // ─── Remote (tunnel compose management) ──────────────────────────
 
 async function loadRemoteStatus() {
@@ -3257,11 +3345,12 @@ async function loadRemoteStatus() {
 
     if (data.configured) {
       _renderRemoteServices(data.services || [], data.anyRunning);
-      const yamlEl = document.getElementById('remoteCurrentYaml');
-      if (yamlEl) yamlEl.textContent = data.yaml || '';
+      _remoteYaml = data.yaml || '';
       // Lock compose entry while a service is configured
       _lockComposeEntry(true);
     } else {
+      _remoteYaml = '';
+      hideConfigYaml();
       // Service was removed — re-enable compose entry
       _lockComposeEntry(false);
     }
@@ -3447,10 +3536,9 @@ async function removeRemoteService() {
 
 function editRemoteCompose() {
   // Pre-fill the compose textarea with the current YAML and scroll to it
-  const yamlEl   = document.getElementById('remoteCurrentYaml');
   const textarea = document.getElementById('remoteComposeInput');
-  if (textarea && yamlEl) {
-    textarea.value = yamlEl.textContent.trim();
+  if (textarea && _remoteYaml) {
+    textarea.value = _remoteYaml.trim();
     textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
     textarea.focus();
   }

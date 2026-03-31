@@ -403,22 +403,22 @@
             <div class="details-grid">
               <div class="detail-item">
                 <div class="detail-label">LAN IP</div>
-                <div class="detail-value" id="detail-join-ip">--</div>
+                <div class="detail-value copyable" id="detail-join-ip">--</div>
                 <div class="detail-note">Enter this IP in Stardew Valley's Co-op join screen when playing on local network.</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Local IP</div>
-                <div class="detail-value" id="detail-local-ips">--</div>
+                <div class="detail-value copyable" id="detail-local-ips">--</div>
                 <div class="detail-note">Used for remote connection setups, or if Stardew Valley is running on the same machine as StardropHost.</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Game Port</div>
-                <div class="detail-value">24642</div>
+                <div class="detail-value copyable" id="detail-game-port">24642</div>
                 <div class="detail-note">Used for remote connection to Stardew Valley Game.</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Dashboard Port</div>
-                <div class="detail-value" id="detail-panel-port">18642</div>
+                <div class="detail-value copyable" id="detail-panel-port">18642</div>
                 <div class="detail-note">Access the StardropHost dashboard from a browser on your network. Also can be used for remote connection to the Dashboard.</div>
               </div>
             </div>
@@ -704,10 +704,31 @@
                 <button class="btn"             type="button" id="remoteRemoveBtn" onclick="removeRemoteService()"
                   style="color:#ef4444;border-color:#ef4444">Stop &amp; Remove</button>
               </div>
-              <details style="margin-top:12px">
-                <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none">Show current compose config — useful if needing to delete farm and restart</summary>
-                <pre id="remoteCurrentYaml" style="margin:8px 0 0;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;overflow-x:auto;line-height:1.5"></pre>
-              </details>
+              <div id="remoteConfigReveal" style="margin-top:12px">
+                <button class="btn" type="button" id="remoteViewConfigBtn" onclick="showConfigPasswordPrompt()"
+                  style="font-size:12px;padding:6px 12px">View Config</button>
+                <div id="remoteConfigPasswordArea" style="display:none;margin-top:8px">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Enter your panel password to reveal the compose config:</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <input type="password" id="remoteConfigPassword" placeholder="Panel password"
+                      style="flex:1;min-width:160px;padding:7px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px"
+                      onkeydown="if(event.key==='Enter')submitConfigPassword()">
+                    <button class="btn btn-primary" type="button" onclick="submitConfigPassword()"
+                      style="font-size:12px;padding:6px 12px">Reveal</button>
+                    <button class="btn" type="button" onclick="hideConfigPasswordPrompt()"
+                      style="font-size:12px;padding:6px 12px">Cancel</button>
+                  </div>
+                  <div id="remoteConfigPasswordError" style="display:none;color:#ef4444;font-size:12px;margin-top:6px"></div>
+                </div>
+                <div id="remoteConfigYamlArea" style="display:none;margin-top:8px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                    <span style="font-size:11px;color:var(--text-muted)">Auto-hides in <span id="remoteConfigCountdown">60</span>s</span>
+                    <button class="btn" type="button" onclick="hideConfigYaml()"
+                      style="font-size:11px;padding:3px 8px">Hide</button>
+                  </div>
+                  <pre id="remoteCurrentYaml" style="margin:0;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;overflow-x:auto;line-height:1.5"></pre>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -311,6 +311,15 @@ function verifyMiddleware(req, res, next) {
   }
 }
 
+// POST /api/auth/verify-password  (requires JWT — extra confirmation step)
+async function verifyPassword(req, res) {
+  const { password } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'Password required' });
+  if (!panelConfig?.passwordHash) return res.status(500).json({ error: 'Server configuration error' });
+  const valid = await bcrypt.compare(password, panelConfig.passwordHash);
+  res.json({ valid });
+}
+
 // Used by wizard.js to set the panel password without going through HTTP
 async function setupPassword(password, username) {
   if (!panelConfig) return false;
@@ -333,6 +342,7 @@ module.exports = {
   login,
   verify,
   changePassword,
+  verifyPassword,
   verifyMiddleware,
   verifyToken,
   setupPassword,

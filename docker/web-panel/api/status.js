@@ -7,7 +7,8 @@ const fs = require('fs');
 const { execSync, spawnSync } = require('child_process');
 const http  = require('http');
 const https = require('https');
-const config = require('../server');
+const config    = require('../server');
+const savesAPI  = require('./saves');
 
 // -- Panel start time (used to compute container uptime, not host uptime) --
 const PANEL_START_TIME = Date.now();
@@ -459,6 +460,7 @@ function restartServer(req, res) {
       encoding: 'utf-8',
       timeout: 10000,
     });
+    savesAPI.triggerPreStopBackup();
     cachedStatus = null;
 
     res.json({ success: true, message: 'Game restart initiated' });
@@ -476,6 +478,7 @@ function stopServer(req, res) {
     fs.writeFileSync(STOP_FLAG, '');
     spawnSync('sh', ['-lc', 'pkill -f "StardewModdingAPI|Stardew Valley" >/dev/null 2>&1 || true'],
       { encoding: 'utf-8', timeout: 5000 });
+    savesAPI.triggerPreStopBackup();
     // Write offline state to live-status.json on disk immediately so "Starting..." shows correctly on next start
     try {
       if (fs.existsSync(config.LIVE_FILE)) {

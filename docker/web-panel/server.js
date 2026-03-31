@@ -53,8 +53,9 @@ app.use(express.urlencoded({ extended: false, limit: '60mb' }));
 app.get( '/api/auth/status',   auth.getStatus);
 app.post('/api/auth/setup',    auth.setup);
 app.post('/api/auth/login',    auth.login);
-app.get( '/api/auth/verify',   auth.verifyMiddleware, auth.verify);
-app.post('/api/auth/password', auth.verifyMiddleware, auth.changePassword);
+app.get( '/api/auth/verify',            auth.verifyMiddleware, auth.verify);
+app.post('/api/auth/password',          auth.verifyMiddleware, auth.changePassword);
+app.post('/api/auth/verify-password',   auth.verifyMiddleware, auth.verifyPassword);
 
 // -- Status --
 const statusAPI = require('./api/status');

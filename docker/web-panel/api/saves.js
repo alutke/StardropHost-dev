@@ -176,14 +176,17 @@ function createOverwriteBackup(saveNames) {
 
   ensureDir(config.BACKUPS_DIR);
 
-  const timestamp   = makeTimestamp();
-  const backupName  = `stardrop-pre-overwrite-${timestamp}.tar.gz`;
-  const backupPath  = path.join(config.BACKUPS_DIR, backupName);
-  const existing    = saveNames.filter(name => fs.existsSync(path.join(config.SAVES_DIR, name)));
+  const timestamp  = makeTimestamp();
+  const slug       = getFarmSlug();
+  const backupName = `${slug}-pre-overwrite-${timestamp}.zip`;
+  const backupPath = path.join(config.BACKUPS_DIR, backupName);
+  const existing   = saveNames.filter(name => fs.existsSync(path.join(config.SAVES_DIR, name)));
 
   if (existing.length === 0) return '';
 
-  runCommand('tar', getTarGzipArgs(backupPath, config.SAVES_DIR, existing, false), { timeout: 30000 });
+  runCommand('zip', ['-r', backupPath, ...existing, '-x', '*/ErrorLogs/*'], {
+    cwd: config.SAVES_DIR, timeout: 30000,
+  });
   return backupName;
 }
 
@@ -430,6 +433,28 @@ function startBackupJob() {
   });
 
   return getBackupStatusSnapshot();
+}
+
+// -- Pre-stop backup (fire-and-forget, called by status.js on stop/restart) --
+
+function triggerPreStopBackup() {
+  if (!fs.existsSync(config.SAVES_DIR)) return;
+  try {
+    ensureDir(config.BACKUPS_DIR);
+    const slug       = getFarmSlug();
+    const timestamp  = makeTimestamp();
+    const backupPath = path.join(config.BACKUPS_DIR, `${slug}-pre-stop-${timestamp}.zip`);
+    const child = spawn('zip', [
+      '-r', backupPath,
+      path.basename(config.SAVES_DIR),
+      '-x', '*/ErrorLogs/*',
+    ], {
+      cwd: path.dirname(config.SAVES_DIR),
+      stdio: 'ignore',
+      detached: true,
+    });
+    child.unref();
+  } catch {}
 }
 
 // -- Route Handlers --
@@ -706,4 +731,5 @@ module.exports = {
   downloadBackup,
   deleteBackup,
   deleteSave,
+  triggerPreStopBackup,
 };
