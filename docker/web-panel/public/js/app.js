@@ -4296,12 +4296,17 @@ function _renderRemoteServices(services, anyRunning) {
   if (startBtn) startBtn.style.display = anyRunning ? 'none' : '';
   if (stopBtn)  stopBtn.style.display  = anyRunning ? ''     : 'none';
 
+  const lanIp = lastStatusData?.network?.joinIp || lastStatusData?.network?.localIps?.[0] || '--';
+  const ipRow = `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">
+    Co-Op Game Join IP: <strong style="color:var(--text-primary);font-family:monospace">${escapeHtml(lanIp)}</strong>
+  </div>`;
+
   if (!services.length) {
-    el.innerHTML = '<span style="color:var(--text-muted);font-size:13px">No services found in config.</span>';
+    el.innerHTML = ipRow + '<span style="color:var(--text-muted);font-size:13px">No services found in config.</span>';
     return;
   }
 
-  el.innerHTML = services.map(s => {
+  el.innerHTML = ipRow + services.map(s => {
     const running = s.running;
     const dot     = running ? 'running' : 'offline';
     const label   = running
@@ -4317,16 +4322,18 @@ function _renderRemoteServices(services, anyRunning) {
 }
 
 function _lockComposeEntry(locked) {
-  const textarea  = document.getElementById('remoteComposeInput');
-  const btn       = document.getElementById('remoteApplyBtn');
-  const msgEl     = document.getElementById('remoteApplyMsg');
-  const inputWrap = document.getElementById('remoteComposeInputWrap');
-  if (textarea) textarea.disabled     = locked;
+  const textarea    = document.getElementById('remoteComposeInput');
+  const btn         = document.getElementById('remoteApplyBtn');
+  const msgEl       = document.getElementById('remoteApplyMsg');
+  const inputWrap   = document.getElementById('remoteComposeInputWrap');
+  const composeCard = document.getElementById('remoteComposeCard');
+  if (textarea) textarea.disabled        = locked;
   if (inputWrap) inputWrap.style.display = locked ? 'none' : '';
-  if (btn) btn.style.display          = locked ? 'none' : '';
+  if (btn) btn.style.display             = locked ? 'none' : '';
+  if (composeCard) composeCard.open      = !locked;
   if (msgEl) {
     if (locked) {
-      msgEl.innerHTML    = '<strong style="color:var(--text-primary);font-size:14px">&#x2713; Service configured.</strong> <span style="color:var(--text-secondary)">Stop &amp; Remove the current service to start a new one.</span>';
+      msgEl.innerHTML     = '<strong style="color:var(--text-primary);font-size:14px">&#x2713; Service configured.</strong> <span style="color:var(--text-secondary)">Stop &amp; Remove the current service to start a new one.</span>';
       msgEl.style.display = '';
     } else {
       msgEl.style.display = 'none';

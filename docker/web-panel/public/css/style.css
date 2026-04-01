@@ -1212,15 +1212,19 @@ select.form-input {
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 .remote-guide > summary::-webkit-details-marker { display: none; }
+.remote-guide > summary::marker { display: none; }
 .remote-guide > summary::before {
-  content: '▶';
-  font-size: 10px;
-  color: var(--text-muted);
-  transition: transform 0.15s;
+  content: '▸';
+  font-size: 11px;
+  color: var(--accent);
+  transition: transform 0.18s;
   flex-shrink: 0;
 }
 .remote-guide[open] > summary::before { transform: rotate(90deg); }

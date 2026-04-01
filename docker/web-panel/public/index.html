@@ -449,69 +449,65 @@
             </div>
           </div>
 
-          <div class="card" id="farm-admin-card">
-            <details>
-            <summary style="cursor:pointer;font-size:16px;font-weight:600;color:var(--text-primary);padding:2px 0;list-style:none;display:flex;align-items:center;gap:8px">
-              <svg class="icon" style="flex-shrink:0"><use href="#icon-settings"></use></svg>
-              World Controls
-            </summary>
-            <p style="font-size:13px;color:var(--text-secondary);margin:10px 0 14px">Commands sent directly to the running game via SMAPI.</p>
-            <div style="display:flex;flex-direction:column;gap:0">
-
-              <div class="admin-cmd-row">
-                <span class="admin-cmd-label">Set Time</span>
-                <input type="number" id="worldSetTime" class="form-input" placeholder="e.g. 1300 (1pm)" min="600" max="2600" style="width:150px">
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_settime', document.getElementById('worldSetTime').value, 'worldSetTime')">Set</button>
-              </div>
-
-              <div class="admin-cmd-row">
-                <span class="admin-cmd-label">Set Day</span>
-                <input type="number" id="worldSetDay" class="form-input" placeholder="1 – 28" min="1" max="28" style="width:100px">
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setday', document.getElementById('worldSetDay').value, 'worldSetDay')">Set</button>
-              </div>
-
-              <div class="admin-cmd-row">
-                <span class="admin-cmd-label">Set Season</span>
-                <select id="worldSetSeason" class="form-input" style="width:150px">
-                  <option value="spring">Spring</option>
-                  <option value="summer">Summer</option>
-                  <option value="fall">Fall</option>
-                  <option value="winter">Winter</option>
-                </select>
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setseason', document.getElementById('worldSetSeason').value)">Set</button>
-              </div>
-
-              <div class="admin-cmd-row">
-                <span class="admin-cmd-label">Set Year</span>
-                <input type="number" id="worldSetYear" class="form-input" placeholder="Year" min="1" style="width:100px">
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setyear', document.getElementById('worldSetYear').value, 'worldSetYear')">Set</button>
-              </div>
-
-
-              <div class="admin-cmd-row">
-                <span class="admin-cmd-label">Freeze Time</span>
-                <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
-                <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
-              </div>
-
-              <div class="admin-cmd-row" style="border-bottom:none">
-                <span class="admin-cmd-label">Actions</span>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn btn-sm" onclick="worldCmd('world_clear Farm', 'debris')">Clear Farm Debris</button>
-                </div>
-              </div>
-
-            </div>
-            <div id="worldCmdResult" style="display:none;margin-top:10px;font-size:13px;padding:8px;border-radius:6px"></div>
-            </details>
-          </div>
-
           <div class="card" id="farm-cc-card">
             <h3>Community Center</h3>
             <div id="farmCCData">
               <div class="empty-state">Loading save data...</div>
             </div>
           </div>
+
+          <details class="card admin-cred-details" id="farm-admin-card">
+            <summary>World Controls</summary>
+            <div style="padding-top:10px">
+              <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Commands sent directly to the running game via SMAPI.</p>
+              <div style="display:flex;flex-direction:column;gap:0">
+
+                <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Set Time</span>
+                  <input type="number" id="worldSetTime" class="form-input" placeholder="e.g. 1300 (1pm)" min="600" max="2600" style="width:150px">
+                  <button class="btn btn-sm btn-primary" onclick="worldCmd('world_settime', document.getElementById('worldSetTime').value, 'worldSetTime')">Set</button>
+                </div>
+
+                <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Set Day</span>
+                  <input type="number" id="worldSetDay" class="form-input" placeholder="1 – 28" min="1" max="28" style="width:100px">
+                  <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setday', document.getElementById('worldSetDay').value, 'worldSetDay')">Set</button>
+                </div>
+
+                <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Set Season</span>
+                  <select id="worldSetSeason" class="form-input" style="width:150px">
+                    <option value="spring">Spring</option>
+                    <option value="summer">Summer</option>
+                    <option value="fall">Fall</option>
+                    <option value="winter">Winter</option>
+                  </select>
+                  <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setseason', document.getElementById('worldSetSeason').value)">Set</button>
+                </div>
+
+                <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Set Year</span>
+                  <input type="number" id="worldSetYear" class="form-input" placeholder="Year" min="1" style="width:100px">
+                  <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setyear', document.getElementById('worldSetYear').value, 'worldSetYear')">Set</button>
+                </div>
+
+                <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Freeze Time</span>
+                  <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
+                  <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
+                </div>
+
+                <div class="admin-cmd-row" style="border-bottom:none">
+                  <span class="admin-cmd-label">Actions</span>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn btn-sm" onclick="worldCmd('world_clear Farm', 'debris')">Clear Farm Debris</button>
+                  </div>
+                </div>
+
+              </div>
+              <div id="worldCmdResult" style="display:none;margin-top:10px;font-size:13px;padding:8px;border-radius:6px"></div>
+            </div>
+          </details>
 
         </section>
 
@@ -799,20 +795,6 @@
 
           <div id="configContainer"></div>
           <div id="advancedHolder"></div>
-          <div class="card" style="margin-top:16px">
-            <h3>Feedback &amp; Support</h3>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-              <div>
-                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px">Found a bug or have a feature request? Open an issue on GitHub.</div>
-                <div style="font-size:12px;color:var(--text-muted)">Please select the appropriate label when submitting — <strong style="color:var(--text-secondary)">Bug</strong> or <strong style="color:var(--text-secondary)">Feature Request</strong>.</div>
-              </div>
-              <a href="https://github.com/Tomomoto10/StardropHost-dev/issues" target="_blank" rel="noopener noreferrer" class="btn btn-sm">
-                <svg class="icon"><use href="#icon-github"></use></svg>
-                Report / Request
-              </a>
-            </div>
-          </div>
-
           <details class="card admin-cred-details danger-zone-details" style="margin-top:16px">
             <summary>Danger Zone</summary>
             <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
@@ -825,38 +807,36 @@
             </div>
           </details>
 
+          <div class="card" style="margin-top:16px">
+            <h3>Feedback &amp; Support</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:6px">Found a bug or have a feature request? Open an issue on GitHub.</div>
+                <div style="font-size:12px;color:var(--text-muted)">Please select the appropriate label when submitting — <strong style="color:var(--text-secondary)">Bug</strong> or <strong style="color:var(--text-secondary)">Feature Request</strong>.</div>
+              </div>
+              <a href="https://github.com/Tomomoto10/StardropHost-dev/issues" target="_blank" rel="noopener noreferrer"
+                class="btn btn-sm" style="color:inherit;text-decoration:none">
+                <svg class="icon"><use href="#icon-github"></use></svg>
+                Report / Request
+              </a>
+            </div>
+          </div>
+
         </section>
 
         <!-- ── Remote ──────────────────────────────────────────── -->
         <section id="page-remote" class="page">
 
-          <!-- Header info bar -->
-          <div style="background:linear-gradient(135deg,var(--bg-tertiary),var(--bg-secondary));border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:16px">
-            <div style="font-size:16px;font-weight:700;color:var(--accent);margin-bottom:10px;letter-spacing:0.2px">
-              Remote Access — Friend Connect
-            </div>
-            <div style="display:grid;gap:7px">
-              <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
-                <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
-                Used to access your Stardew game or StardropHost dashboard remotely
-              </div>
-              <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
-                <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
-                Invite friends with a co-op IP or domain name — not in-game invite codes
-              </div>
-              <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
-                <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
-                Host multiple game instances on one VM easily (depends on the service used)
-              </div>
-              <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
-                <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
-                Recommended: <strong style="color:var(--text-primary)">playit.gg</strong> — tested and working. See the setup guide below.
-              </div>
-              <div style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--text-secondary)">
-                <span style="color:var(--accent);flex-shrink:0;margin-top:1px">●</span>
-                Other services should work by following their own setup guides
-              </div>
-            </div>
+          <!-- Header info card -->
+          <div class="card" style="margin-bottom:16px">
+            <h3>Remote Access</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 8px;line-height:1.6">Connect friends directly with a co-op IP or domain name — no in-game invite codes required.</p>
+            <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--text-secondary);line-height:1.8">
+              <li>Access your Stardew game or StardropHost dashboard from anywhere</li>
+              <li>Host multiple game instances on one VM easily (depends on the service used)</li>
+              <li>Recommended: <strong style="color:var(--text-primary)">playit.gg</strong> — tested and working. See the setup guide below.</li>
+              <li>Other services should work by following their own setup guides</li>
+            </ul>
           </div>
 
           <!-- Service Status card -->
@@ -911,9 +891,9 @@
           <!-- playit.gg guide (collapsible) -->
           <details class="card remote-guide" style="margin-bottom:16px">
             <summary>
-              <span style="font-weight:600;font-size:15px">playit.gg Setup Guide</span>
+              playit.gg Setup Guide
               <span class="remote-badge">RECOMMENDED</span>
-              <span style="color:var(--text-muted);font-size:13px;margin-left:8px">Paid / Free — No client setup needed</span>
+              <span style="color:var(--text-muted);font-size:12px;font-weight:400">Paid / Free — No client setup needed</span>
             </summary>
 
             <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;color:var(--text-secondary);line-height:1.75">
@@ -999,28 +979,28 @@
 
           </details>
 
-          <!-- Compose Entry card -->
-          <div class="card" style="margin-bottom:16px">
-            <h3>Compose Entry</h3>
-            <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px;line-height:1.6">
-              Paste a <code>docker-compose</code> snippet from your tunnel provider and click <strong>Apply &amp; Connect</strong>.
-              The service will start automatically and status will update above.
-            </p>
-            <div id="remoteComposeInputWrap">
-              <textarea id="remoteComposeInput" class="input" rows="10" placeholder=""
-                style="width:100%;font-family:monospace;font-size:12px;resize:vertical;line-height:1.5"></textarea>
+          <!-- Compose Entry card (collapsible) -->
+          <details class="card admin-cred-details" id="remoteComposeCard" style="margin-bottom:16px" open>
+            <summary>Compose Entry</summary>
+            <div style="padding-top:12px">
+              <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;line-height:1.6">
+                Paste a <code>docker-compose</code> snippet from your tunnel provider and click <strong>Apply &amp; Connect</strong>.
+                The service will start automatically and status will update above.
+              </p>
+              <div id="remoteComposeInputWrap">
+                <textarea id="remoteComposeInput" class="input" rows="10" placeholder=""
+                  style="width:100%;font-family:monospace;font-size:12px;resize:vertical;line-height:1.5"></textarea>
+              </div>
+              <div id="remoteApplyMsg" style="margin:8px 0;font-size:13px;display:none"></div>
+              <div style="margin-top:10px">
+                <button class="btn btn-primary" type="button" id="remoteApplyBtn" onclick="applyRemoteCompose()">Apply &amp; Connect</button>
+              </div>
             </div>
-            <div id="remoteApplyMsg" style="margin:8px 0;font-size:13px;display:none"></div>
-            <div style="margin-top:10px">
-              <button class="btn btn-primary" type="button" id="remoteApplyBtn" onclick="applyRemoteCompose()">Apply &amp; Connect</button>
-            </div>
-          </div>
+          </details>
 
           <!-- Other services (collapsible) -->
           <details class="card remote-guide">
-            <summary>
-              <span style="font-weight:600;font-size:15px">Other Options</span>
-            </summary>
+            <summary>Other Options</summary>
 
             <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;color:var(--text-secondary);line-height:1.75">
               <p style="margin:0 0 10px">
