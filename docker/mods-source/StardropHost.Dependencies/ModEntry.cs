@@ -116,6 +116,10 @@ namespace StardropHostDependencies
         private static bool _shouldDrawFrame = false;
         private static ModEntry _instance;
 
+        // ── DesyncKicker ─────────────────────────────────────────────────────
+        private System.Threading.CancellationTokenSource? _desyncBarrierCts;
+        private System.Threading.CancellationTokenSource? _desyncSaveCts;
+
         // ════════════════════════════════════════════════════════════════════
         // ENTRY
         // ════════════════════════════════════════════════════════════════════
@@ -169,6 +173,7 @@ namespace StardropHostDependencies
             helper.Events.GameLoop.UpdateTicked     += OnUpdateTicked;
             helper.Events.GameLoop.TimeChanged      += OnTimeChanged;
             helper.Events.GameLoop.Saving           += OnSaving;
+            helper.Events.GameLoop.Saved            += OnSaved;
             helper.Events.GameLoop.DayEnding        += OnDayEnding;
             helper.Events.Display.MenuChanged       += OnMenuChanged;
             helper.Events.Multiplayer.PeerConnected      += OnPeerConnected;
@@ -180,6 +185,21 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("unban", "Unban a player by name. Usage: unban <name|id>",             OnUnbanCommand);
             helper.ConsoleCommands.Add("say",   "Broadcast a chat message as host. Usage: say <message>",    OnSayCommand);
             helper.ConsoleCommands.Add("tell",  "Send a private message. Usage: tell <player> <message>",    OnTellCommand);
+
+            // Per-farmhand admin commands (used by web panel admin modal)
+            helper.ConsoleCommands.Add("stardrop_sethealth",   "Set a farmhand's health. Usage: stardrop_sethealth <name> <amount>",     OnSetHealthCommand);
+            helper.ConsoleCommands.Add("stardrop_setstamina",  "Set a farmhand's stamina. Usage: stardrop_setstamina <name> <amount>",   OnSetStaminaCommand);
+            helper.ConsoleCommands.Add("stardrop_give",        "Give item to a farmhand. Usage: stardrop_give <name> <itemId> <count>",  OnGiveItemCommand);
+            helper.ConsoleCommands.Add("stardrop_emote",       "Play emote for a farmhand. Usage: stardrop_emote <name> <emoteId>",     OnEmoteCommand);
+
+            // CropSaver — crops don't die when cabin owner is offline
+            try
+            {
+                harmony.Patch(
+                    AccessTools.Method(typeof(StardewValley.Crop), "Kill"),
+                    prefix: new HarmonyMethod(typeof(ModEntry), nameof(CropKill_Prefix)));
+            }
+            catch (Exception ex) { Monitor.Log($"[CropSaver] Crop.Kill patch failed: {ex.Message}", LogLevel.Warn); }
 
             Monitor.Log("StardropHost.Dependencies loaded.", LogLevel.Info);
         }
@@ -324,6 +344,34 @@ namespace StardropHostDependencies
         private void OnSaving(object? sender, SavingEventArgs e)
         {
             _shouldDrawFrame = true; // safety net — DayEnding should have already set this
+
+            // DesyncKicker: cancel barrier timer (we're past it), start save timeout.
+            _desyncBarrierCts?.Cancel();
+            if (Context.IsMainPlayer && Game1.otherFarmers.Count > 0)
+            {
+                _desyncSaveCts?.Cancel();
+                _desyncSaveCts = new System.Threading.CancellationTokenSource();
+                var token = _desyncSaveCts.Token;
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await System.Threading.Tasks.Task.Delay(60000);
+                    if (token.IsCancellationRequested) return;
+                    try
+                    {
+                        foreach (var farmer in Game1.otherFarmers.Values.ToArray())
+                        {
+                            var status = Game1.player.team.endOfNightStatus.GetStatusText(farmer.UniqueMultiplayerID);
+                            if (status != "ready")
+                            {
+                                Monitor.Log($"[DesyncKicker] Kicking {farmer.Name} — not ready after 60s.", LogLevel.Warn);
+                                Game1.server?.kick(farmer.UniqueMultiplayerID);
+                            }
+                        }
+                    }
+                    catch (Exception ex) { Monitor.Log($"[DesyncKicker] Save kick error: {ex.Message}", LogLevel.Warn); }
+                });
+            }
+
             if (!Context.IsMainPlayer) return;
 
             // Ensure host wakes in FarmHouse, not the Desert
@@ -349,11 +397,39 @@ namespace StardropHostDependencies
         private void OnDayEnding(object? sender, DayEndingEventArgs e)
         {
             // Re-enable drawing before the end-of-night save sequence.
-            // SaveGameMenu.update() checks hasDrawn (set inside Draw()) before it begins saving.
-            // If drawing is still suppressed here, the save deadlocks waiting for hasDrawn.
-            // OnDayStarted re-suppresses after the new day finishes loading.
             _shouldDrawFrame = true;
             GC.Collect();
+
+            // DesyncKicker: if a player doesn't reach the sleep barrier within 20s, kick them.
+            if (!Context.IsMainPlayer || Game1.otherFarmers.Count == 0) return;
+            _desyncBarrierCts?.Cancel();
+            _desyncBarrierCts = new System.Threading.CancellationTokenSource();
+            var token = _desyncBarrierCts.Token;
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                await System.Threading.Tasks.Task.Delay(20000);
+                if (token.IsCancellationRequested) return;
+                try
+                {
+                    var readyPlayers = Helper.Reflection
+                        .GetMethod(Game1.newDaySync, "barrierPlayers")
+                        .Invoke<System.Collections.Generic.HashSet<long>>("sleep");
+                    foreach (var id in Game1.otherFarmers.Keys.ToArray())
+                    {
+                        if (!readyPlayers.Contains(id))
+                        {
+                            Monitor.Log($"[DesyncKicker] Kicking {id} — not past sleep barrier.", LogLevel.Warn);
+                            Game1.server?.kick(id);
+                        }
+                    }
+                }
+                catch (Exception ex) { Monitor.Log($"[DesyncKicker] Barrier kick error: {ex.Message}", LogLevel.Warn); }
+            });
+        }
+
+        private void OnSaved(object? sender, SavedEventArgs e)
+        {
+            _desyncSaveCts?.Cancel();
         }
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
@@ -936,7 +1012,11 @@ namespace StardropHostDependencies
         // (SMAPI raises this only for remote players), so host messages are logged
         // explicitly in OnSayCommand / OnTellCommand.
         // sourceFarmer == 0 for system/server messages (e.g. join/leave notifications).
-        public static void ReceiveChatMessage_Postfix(long sourceFarmer, string message)
+        // chatKind enum (from SDV ChatBox):
+        //   0 = ChatMessage, 1 = ErrorMessage, 2 = UserNotification, 3 = PrivateMessage
+        private const int ChatKindPrivate = 3;
+
+        public static void ReceiveChatMessage_Postfix(long sourceFarmer, int chatKind, string message)
         {
             try
             {
@@ -952,7 +1032,14 @@ namespace StardropHostDependencies
 
                 var farmer = Game1.getFarmerMaybeOffline(sourceFarmer);
                 string name = farmer?.Name ?? $"#{sourceFarmer}";
-                _instance?.AppendChatLog(name, message, false);
+
+                // Private messages received here are always directed to the host (server).
+                // Set `to` so the web panel can route them to the correct DM tab.
+                string? to = (chatKind == ChatKindPrivate && sourceFarmer != 0)
+                    ? Game1.player?.Name
+                    : null;
+
+                _instance?.AppendChatLog(name, message, false, to);
             }
             catch { }
         }
@@ -1080,6 +1167,88 @@ namespace StardropHostDependencies
             // Attempt a private whisper via SDV's /message chat command.
             Game1.chatBox.textBoxEnter($"/message {targetName} {message}");
             AppendChatLog(Game1.player.Name, message, true, targetName);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // PER-FARMHAND ADMIN COMMANDS
+        // ════════════════════════════════════════════════════════════════════
+
+        private Farmer? FindFarmhand(string name)
+            => Game1.otherFarmers.Values.FirstOrDefault(
+                f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+        private void OnSetHealthCommand(string cmd, string[] args)
+        {
+            if (args.Length < 2) { Monitor.Log("Usage: stardrop_sethealth <name> <amount>", LogLevel.Info); return; }
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var farmer = FindFarmhand(args[0]);
+            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
+            if (!int.TryParse(args[1], out int amount)) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
+            farmer.health = Math.Clamp(amount, 0, farmer.maxHealth);
+            Monitor.Log($"[Admin] Set {farmer.Name} health to {farmer.health}.", LogLevel.Info);
+        }
+
+        private void OnSetStaminaCommand(string cmd, string[] args)
+        {
+            if (args.Length < 2) { Monitor.Log("Usage: stardrop_setstamina <name> <amount>", LogLevel.Info); return; }
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var farmer = FindFarmhand(args[0]);
+            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
+            if (!float.TryParse(args[1], out float amount)) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
+            farmer.stamina = Math.Clamp(amount, 0f, farmer.maxStamina.Value);
+            Monitor.Log($"[Admin] Set {farmer.Name} stamina to {farmer.stamina}.", LogLevel.Info);
+        }
+
+        private void OnGiveItemCommand(string cmd, string[] args)
+        {
+            if (args.Length < 2) { Monitor.Log("Usage: stardrop_give <name> <itemId> [count]", LogLevel.Info); return; }
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var farmer = FindFarmhand(args[0]);
+            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
+            string itemId = args[1];
+            int count = args.Length >= 3 && int.TryParse(args[2], out int c) ? Math.Max(1, c) : 1;
+            try
+            {
+                var item = ItemRegistry.Create(itemId, count);
+                if (item == null) { Monitor.Log($"[Admin] Unknown item ID: {itemId}.", LogLevel.Warn); return; }
+                farmer.addItemByMenuIfNecessary(item);
+                Monitor.Log($"[Admin] Gave {count}x {item.DisplayName} to {farmer.Name}.", LogLevel.Info);
+            }
+            catch (Exception ex) { Monitor.Log($"[Admin] Give item failed: {ex.Message}", LogLevel.Warn); }
+        }
+
+        private void OnEmoteCommand(string cmd, string[] args)
+        {
+            if (args.Length < 2) { Monitor.Log("Usage: stardrop_emote <name> <emoteId>", LogLevel.Info); return; }
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var farmer = FindFarmhand(args[0]);
+            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
+            if (!int.TryParse(args[1], out int emoteId)) { Monitor.Log("[Admin] emoteId must be an integer.", LogLevel.Warn); return; }
+            farmer.doEmote(emoteId);
+            Monitor.Log($"[Admin] Played emote {emoteId} for {farmer.Name}.", LogLevel.Info);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // CROPSAVER — crops don't die when cabin owner is offline
+        // ════════════════════════════════════════════════════════════════════
+
+        // Prefix on Crop.Kill(). Returns false (skip kill) if the plot's
+        // cabin owner is currently offline.
+        // Crop.Kill(HoeDirt soil) — soil.currentLocation tells us where the crop lives.
+        public static bool CropKill_Prefix(StardewValley.TerrainFeatures.HoeDirt soil)
+        {
+            try
+            {
+                if (!Context.IsMainPlayer || !Context.IsWorldReady) return true;
+                if (soil?.currentLocation is Cabin cabin)
+                {
+                    long ownerId = cabin.getFarmhand()?.UniqueMultiplayerID ?? 0L;
+                    if (ownerId != 0L && !Game1.otherFarmers.ContainsKey(ownerId))
+                        return false; // owner offline — spare the crop
+                }
+            }
+            catch { /* never block the kill on error */ }
+            return true;
         }
 
         // ════════════════════════════════════════════════════════════════════

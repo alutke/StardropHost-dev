@@ -9,7 +9,7 @@
 
 const fs = require('fs');
 const http = require('http');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const PORT        = parseInt(process.env.MANAGER_PORT || '18700', 10);
 const PROJECT_DIR = process.env.PROJECT_DIR || '/workspace';
@@ -386,6 +386,18 @@ const server = http.createServer(async (req, res) => {
     try {
       await removeRemote();
       sendJson(res, 200, { success: true, action: 'remove' });
+    } catch (e) { sendJson(res, 500, { error: e.message }); }
+    return;
+  }
+
+  // Docker container logs
+  if (req.method === 'GET' && req.url.startsWith('/docker-logs')) {
+    try {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const lines  = Math.min(parseInt(urlObj.searchParams.get('lines') || '500', 10), 5000);
+      const result = spawnSync('docker', ['logs', '--tail', String(lines), 'stardrop'], { encoding: 'utf-8' });
+      const output = (result.stdout || '') + (result.stderr || '');
+      sendJson(res, 200, { lines: output.split('\n') });
     } catch (e) { sendJson(res, 500, { error: e.message }); }
     return;
   }

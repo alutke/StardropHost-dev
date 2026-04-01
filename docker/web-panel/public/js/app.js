@@ -1946,6 +1946,26 @@ async function downloadUpdateLog() {
   }
 }
 
+async function downloadDockerLogs() {
+  const btn = document.getElementById('logDockerDownload');
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
+  try {
+    const data = await API.get('/api/logs/docker?lines=1000');
+    if (!data?.lines?.length) { showToast('No docker logs available', 'warn'); return; }
+    const text = data.lines.join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.href = url; a.download = `stardrop-docker-${ts}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    showToast('Failed to download docker logs', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Docker Logs'; }
+  }
+}
+
 async function downloadLogs() {
   const btn = document.getElementById('logDownload');
   if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
@@ -2053,7 +2073,11 @@ function renderPlayerStats(p, separateWallets) {
     ? `<div class="player-info">💰 ${p.money.toLocaleString()}g${p.totalEarned != null ? ` · Earned: ${p.totalEarned.toLocaleString()}g` : ''}</div>`
     : '';
 
-  return statsLine + skillsLine + moneyLine;
+  const playtimeLine = p.totalPlaytimeHours != null
+    ? `<div class="player-info" style="font-size:11px;color:var(--text-muted)">⏱ ${p.totalPlaytimeHours}h played · ${p.daysPlayed ?? '--'} days</div>`
+    : (p.daysPlayed != null ? `<div class="player-info" style="font-size:11px;color:var(--text-muted)">${p.daysPlayed} days played</div>` : '');
+
+  return statsLine + skillsLine + moneyLine + playtimeLine;
 }
 
 function timeAgo(ms) {

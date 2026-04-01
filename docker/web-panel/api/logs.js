@@ -4,6 +4,7 @@
  */
 
 const fs = require('fs');
+const http = require('http');
 const path = require('path');
 const config = require('../server');
 
@@ -240,6 +241,38 @@ function getSetupLog(req, res) {
   }
 }
 
+// -- Docker container logs (proxied from manager) --
+
+function getDockerLogs(req, res) {
+  const lines = Math.min(parseInt(req.query.lines || '500', 10), 5000);
+  const managerUrl = new URL(`/docker-logs?lines=${lines}`, config.MANAGER_URL);
+
+  const request = http.get({
+    hostname: managerUrl.hostname,
+    port:     managerUrl.port,
+    path:     managerUrl.pathname + managerUrl.search,
+    timeout:  10000,
+  }, (response) => {
+    let data = '';
+    response.setEncoding('utf8');
+    response.on('data', chunk => { data += chunk; });
+    response.on('end', () => {
+      try {
+        const parsed = JSON.parse(data);
+        res.json(parsed);
+      } catch { res.status(500).json({ error: 'Invalid response from manager' }); }
+    });
+  });
+
+  request.on('error', (e) => {
+    res.status(503).json({ error: 'Manager unavailable', details: e.message });
+  });
+  request.on('timeout', () => {
+    request.destroy();
+    res.status(504).json({ error: 'Manager timeout' });
+  });
+}
+
 module.exports = {
   getLogs,
   getErrors,
@@ -248,4 +281,5 @@ module.exports = {
   getGameLogs,
   subscribeLogs,
   getSetupLog,
+  getDockerLogs,
 };

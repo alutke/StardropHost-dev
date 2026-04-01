@@ -16,6 +16,8 @@ namespace StardropDashboard
         public bool   IsFestivalDay      { get; set; }
         public string FestivalName       { get; set; } = "";
         public int    SharedMoney        { get; set; }
+        public bool   SeparateWallets   { get; set; }
+        public string FarmType          { get; set; } = "";
         public List<PlayerData> Players  { get; set; } = new();
         public List<CabinData>  Cabins   { get; set; } = new();
     }
@@ -36,7 +38,8 @@ namespace StardropDashboard
         public int    TileX        { get; set; }
         public int    TileY        { get; set; }
         public SkillData Skills    { get; set; } = new();
-        public int    DaysPlayed   { get; set; }
+        public int    DaysPlayed          { get; set; }
+        public double TotalPlaytimeHours  { get; set; }
     }
 
     public class SkillData

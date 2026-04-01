@@ -44,8 +44,8 @@ module.exports = config;
 const app    = express();
 const server = http.createServer(app);
 
-app.use(express.json({ limit: '60mb' }));
-app.use(express.urlencoded({ extended: false, limit: '60mb' }));
+app.use(express.json({ limit: '75mb' }));
+app.use(express.urlencoded({ extended: false, limit: '75mb' }));
 
 // ─── Routes ──────────────────────────────────────────────────────
 
@@ -77,6 +77,7 @@ app.get('/api/logs/server',          auth.verifyMiddleware, logsAPI.getServerLog
 app.get('/api/logs/mods',            auth.verifyMiddleware, logsAPI.getModLogs);
 app.get('/api/logs/game',            auth.verifyMiddleware, logsAPI.getGameLogs);
 app.get('/api/logs/setup',           logsAPI.getSetupLog);  // no auth — needed during wizard
+app.get('/api/logs/docker',          auth.verifyMiddleware, logsAPI.getDockerLogs);
 
 // -- Players --
 const playersAPI = require('./api/players');
@@ -263,6 +264,15 @@ function handleWebSocketMessage(ws, msg) {
       ws.send(JSON.stringify({ type: 'error', message: `Unknown message type: ${msg.type}` }));
   }
 }
+
+// ─── Global error handler — returns JSON for body-too-large and other Express errors ───
+app.use((err, req, res, _next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'File too large — maximum upload size is 50MB' });
+  }
+  console.error('[StardropHost] Unhandled error:', err.message);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
 
 // ─── Start ────────────────────────────────────────────────────────
 

@@ -21,9 +21,48 @@ STATUS_FILE="/home/steam/web-panel/data/game-update-status.json"
 LOG_FILE="/home/steam/web-panel/data/game-update.log"
 STEAMCMD="/home/steam/steamcmd/steamcmd.sh"
 CHECK_FILE="/home/steam/web-panel/data/game-update-available.json"
+SAVE_DIR="/home/steam/.config/StardewValley"
+BACKUP_DIR="/home/steam/.local/share/stardrop/backups"
 
 write_status() { echo "$1" > "$STATUS_FILE"; }
 write_log()    { echo "[$(date '+%H:%M:%S')] $1" | tee -a "$LOG_FILE"; }
+
+# -- Pre-update save backup --
+pre_update_backup() {
+    mkdir -p "$BACKUP_DIR"
+    local saves_dir="$SAVE_DIR/Saves"
+    [ -d "$saves_dir" ] || return 0
+
+    local farm_slug
+    farm_slug=$(node -e "
+const fs = require('fs'), path = require('path');
+const SAVES  = '${SAVE_DIR}/Saves';
+const PREFS  = '${SAVE_DIR}/startup_preferences';
+const MARKER = '${SAVE_DIR}/.selected_save';
+try {
+    let saveName = '';
+    if (fs.existsSync(PREFS)) {
+        const m = fs.readFileSync(PREFS, 'utf8').match(/<saveFolderName>([^<]+)<\/saveFolderName>/);
+        if (m) saveName = m[1].trim();
+    }
+    if (!saveName && fs.existsSync(MARKER)) saveName = fs.readFileSync(MARKER, 'utf8').trim();
+    if (!saveName) { process.stdout.write('stardrop'); return; }
+    const xml = fs.readFileSync(path.join(SAVES, saveName, 'SaveGameInfo'), 'utf8');
+    const n = xml.match(/<farmName>([^<]+)<\/farmName>/);
+    const slug = (n ? n[1] : 'stardrop').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
+    process.stdout.write(slug || 'stardrop');
+} catch { process.stdout.write('stardrop'); }
+" 2>/dev/null || echo "stardrop")
+
+    local timestamp
+    timestamp=$(date -u '+%Y-%m-%dT%H-%M-%SZ')
+    local backup_file="$BACKUP_DIR/${farm_slug}-pre-update-${timestamp}.zip"
+
+    write_log "Creating pre-update save backup..."
+    (cd "$(dirname "$saves_dir")" && zip -r "$backup_file" "$(basename "$saves_dir")" -x "*/ErrorLogs/*") 2>/dev/null \
+        && write_log "  Backup saved: $(basename "$backup_file")" \
+        || write_log "  Backup skipped (no saves found)"
+}
 
 # -- Read credentials from JSON --
 if [ ! -f "$CREDS_FILE" ]; then
@@ -45,6 +84,9 @@ fi
 > "$LOG_FILE"
 write_log "Starting game update..."
 write_status '{"state":"downloading","message":"Connecting to Steam..."}'
+
+# -- Back up current saves before overwriting game files --
+pre_update_backup
 
 # -- Build steamcmd argument list --
 ARGS=(+force_install_dir /home/steam/stardewvalley)

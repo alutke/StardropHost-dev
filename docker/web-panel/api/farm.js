@@ -226,12 +226,13 @@ function getFarmOverview(req, res) {
     serverState: live?.serverState ?? null,
 
     // Rich fields from save file
-    farmName:    saveData?.farmName    ?? live?.farmName    ?? null,
-    playerName:  saveData?.playerName  ?? null,
-    farmType:    saveData?.farmType    ?? null,
-    money:       saveData?.money       ?? null,
-    totalEarned: saveData?.totalEarned ?? null,
-    playtimeHours: saveData?.playtimeHours ?? null,
+    farmName:        saveData?.farmName    ?? live?.farmName    ?? null,
+    playerName:      saveData?.playerName  ?? null,
+    farmType:        live?.farmType        ?? saveData?.farmType ?? null,
+    separateWallets: live?.separateWallets ?? null,
+    money:           saveData?.money       ?? null,
+    totalEarned:     saveData?.totalEarned ?? null,
+    playtimeHours:   saveData?.playtimeHours ?? null,
     communityCenter: saveData?.communityCenter ?? null,
   };
 

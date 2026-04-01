@@ -106,7 +106,8 @@ namespace StardropDashboard
                         LocationName = farmer.currentLocation?.Name ?? "",
                         TileX        = farmer.TilePoint.X,
                         TileY        = farmer.TilePoint.Y,
-                        DaysPlayed   = (int)farmer.stats.DaysPlayed,
+                        DaysPlayed          = (int)farmer.stats.DaysPlayed,
+                        TotalPlaytimeHours  = Math.Round(farmer.millisecondsPlayed / 3600000.0, 1),
                         Skills       = new SkillData
                         {
                             Farming  = farmer.FarmingLevel,
@@ -180,6 +181,19 @@ namespace StardropDashboard
                 IsFestivalDay    = isFestival,
                 FestivalName     = festivalName,
                 SharedMoney      = Game1.player.Money,
+                SeparateWallets  = Game1.player.team.useSeparateWallets.Value,
+                FarmType         = Game1.whichFarm switch
+                {
+                    0 => "Standard",
+                    1 => "Riverlands",
+                    2 => "Forest",
+                    3 => "Hilltop",
+                    4 => "Combat",
+                    5 => "FourCorners",
+                    6 => "Beach",
+                    7 => "Meadowlands",
+                    _ => $"Custom ({Game1.whichFarm})",
+                },
                 Players          = players,
                 Cabins           = cabins,
             };
