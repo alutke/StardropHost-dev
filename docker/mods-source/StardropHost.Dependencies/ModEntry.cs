@@ -1173,10 +1173,6 @@ namespace StardropHostDependencies
         // PER-FARMHAND ADMIN COMMANDS
         // ════════════════════════════════════════════════════════════════════
 
-        private Farmer? FindFarmhand(string name)
-            => Game1.otherFarmers.Values.FirstOrDefault(
-                f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-
         private void OnSetHealthCommand(string cmd, string[] args)
         {
             if (args.Length < 2) { Monitor.Log("Usage: stardrop_sethealth <name> <amount>", LogLevel.Info); return; }
