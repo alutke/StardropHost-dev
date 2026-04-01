@@ -31,11 +31,6 @@ function loadSecurity() {
         blocklist: (raw.blocklist || []).map(normaliseEntry).filter(e => e.value),
         allowlist: (raw.allowlist || []).map(normaliseEntry).filter(e => e.value),
       };
-      // Allow mode with empty allowlist blocks everyone — almost certainly accidental, reset to block
-      if (sec.mode === 'allow' && sec.allowlist.length === 0) {
-        sec.mode = 'block';
-        saveSecurity(sec);
-      }
       return sec;
     }
     // Migrate from legacy ip-blocklist.json
@@ -465,8 +460,17 @@ function updateNameIpEntry(req, res) {
 
 function deleteNameIpEntry(req, res) {
   const name = decodeURIComponent(req.params.name);
+  const ip   = req.query.ip ? decodeURIComponent(req.query.ip) : null;
   const map  = loadNameIpMap();
-  delete map[name];
+  if (ip) {
+    // Remove just this IP — if no IPs left, remove the player entry entirely
+    const existing = Array.isArray(map[name]) ? map[name] : (map[name] ? [map[name]] : []);
+    const remaining = existing.filter(i => i !== ip);
+    if (remaining.length) map[name] = remaining;
+    else delete map[name];
+  } else {
+    delete map[name];
+  }
   saveNameIpMap(map);
   res.json({ success: true, nameIpMap: map });
 }

@@ -2104,7 +2104,8 @@ async function loadPlayers() {
       <div class="player-card">
         <div class="player-avatar">${icon('players', 'icon')}</div>
         <div class="player-body">
-          <div class="player-name">${escapeHtml(p.name)}${p.knownIps?.length ? p.knownIps.map(ip => `<span class="player-ip">${escapeHtml(ip)}</span>`).join('') : ''}</div>
+          <div class="player-name">${escapeHtml(p.name)}</div>
+          ${(() => { const ips = p.knownIps || []; if (!ips.length) return ''; const current = ips[ips.length - 1]; const others = ips.slice(0, -1); return `<div class="player-ip-line"><span>Current IP: <strong>${escapeHtml(current)}</strong></span>${others.length ? `<span class="player-ip-sep">|</span><span>Other Known: ${others.map(ip => escapeHtml(ip)).join(', ')}</span>` : ''}</div>`; })()}
           ${p.location ? `<div class="player-info">${escapeHtml(p.location)}</div>` : ''}
           ${renderPlayerStats(p, sw)}
         </div>
@@ -2246,15 +2247,15 @@ function _renderNameIpMap(map) {
     el.innerHTML = '<div class="security-empty">No players recorded yet. IPs are captured automatically when players join.</div>';
     return;
   }
-  el.innerHTML = entries.map(([name, ips]) => {
+  el.innerHTML = entries.flatMap(([name, ips]) => {
     const ipList = Array.isArray(ips) ? ips : (ips ? [ips] : []);
-    return `
+    return ipList.map(ip => `
     <div class="sec-entry">
       <span class="sec-badge sec-badge-name">Name</span>
       <span class="sec-value">${escapeHtml(name)}</span>
-      <span>${ipList.map(ip => `<span class="sec-known-ip">${escapeHtml(ip)}</span>`).join(' ')}</span>
-      <button class="btn btn-sm btn-danger" onclick="deleteNameIp('${escapeHtml(name)}')">Remove</button>
-    </div>`;
+      <span class="sec-known-ip">${escapeHtml(ip)}</span>
+      <button class="btn btn-sm btn-danger" onclick="deleteNameIp('${escapeHtml(name)}','${escapeHtml(ip)}')">Remove</button>
+    </div>`);
   }).join('');
 }
 
@@ -2312,9 +2313,10 @@ async function updateNameIp(name) {
   else showToast('Failed to update IP', 'error');
 }
 
-async function deleteNameIp(name) {
-  if (!confirm(`Remove ${name} from known IPs?`)) return;
-  const data = await API.del(`/api/players/name-ip-map/${encodeURIComponent(name)}`).catch(() => null);
+async function deleteNameIp(name, ip) {
+  if (!confirm(`Remove ${name} (${ip}) from known IPs?`)) return;
+  const url = `/api/players/name-ip-map/${encodeURIComponent(name)}?ip=${encodeURIComponent(ip)}`;
+  const data = await API.del(url).catch(() => null);
   if (data?.success) _renderNameIpMap(data.nameIpMap);
   else showToast('Failed to remove entry', 'error');
 }

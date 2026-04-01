@@ -629,6 +629,9 @@ body {
 .player-avatar .icon { width: 20px; height: 20px; }
 .player-name         { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .player-ip           { font-size: 11px; font-family: monospace; color: var(--text-muted); font-weight: 400; }
+.player-ip-line      { font-size: 11px; font-family: monospace; color: var(--text-muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.player-ip-line strong { color: var(--text-secondary); }
+.player-ip-sep       { color: var(--border); }
 .player-info         { font-size: 12px; color: var(--text-secondary); }
 .player-actions      { display: flex; gap: 6px; }
 
