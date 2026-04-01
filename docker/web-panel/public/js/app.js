@@ -2075,8 +2075,8 @@ function renderPlayerStats(p, separateWallets) {
     : '';
 
   const playtimeLine = p.totalPlaytimeHours != null
-    ? `<div class="player-info" style="font-size:11px;color:var(--text-muted)">⏱ ${p.totalPlaytimeHours}h played · ${p.daysPlayed ?? '--'} days</div>`
-    : (p.daysPlayed != null ? `<div class="player-info" style="font-size:11px;color:var(--text-muted)">${p.daysPlayed} days played</div>` : '');
+    ? `<div class="player-info" style="font-size:11px;color:var(--text-muted)">⏱ ${p.totalPlaytimeHours}h played · ${p.daysPlayed ?? '--'} in-game days</div>`
+    : (p.daysPlayed != null ? `<div class="player-info" style="font-size:11px;color:var(--text-muted)">${p.daysPlayed} in-game days</div>` : '');
 
   return statsLine + skillsLine + moneyLine + playtimeLine;
 }
@@ -2253,8 +2253,8 @@ function _renderNameIpMap(map, ipLocks) {
     const ipList = Array.isArray(ips) ? ips : (ips ? [ips] : []);
     const isLocked = locks.includes(name);
     const lockBtn = isLocked
-      ? `<button class="btn btn-sm" style="color:#fbbf24;border-color:#fbbf24" onclick="removeIpLock('${escapeHtml(name)}')">🔒 Unlock</button>`
-      : `<button class="btn btn-sm" onclick="addIpLock('${escapeHtml(name)}')">🔓 Lock</button>`;
+      ? `<button class="btn btn-sm" style="background:rgba(251,191,36,0.15);color:#fbbf24;border-color:rgba(251,191,36,0.4)" onclick="removeIpLock('${escapeHtml(name)}')">🔒 Unlock</button>`
+      : `<button class="btn btn-sm" style="background:rgba(251,191,36,0.08);color:#fbbf24;border-color:rgba(251,191,36,0.25)" onclick="addIpLock('${escapeHtml(name)}')">🔓 Lock</button>`;
     const ipBadges = ipList.map(ip =>
       `<span class="sec-known-ip">${escapeHtml(ip)}
         <button class="btn btn-sm btn-danger" style="padding:1px 6px;font-size:11px;margin-left:4px" onclick="deleteNameIp('${escapeHtml(name)}','${escapeHtml(ip)}')">✕</button>
