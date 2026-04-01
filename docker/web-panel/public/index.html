@@ -546,7 +546,7 @@
           </div>
 
           <!-- Block List -->
-          <div class="card">
+          <div class="card" id="blocklistCard">
             <h3>Block List</h3>
             <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Players matching a name or IP are kicked on connection. IP aliases of blocked names are also caught.</p>
             <div id="blocklistEntries" style="margin-bottom:12px"></div>
@@ -563,10 +563,9 @@
           </div>
 
           <!-- Allow List -->
-          <div class="card">
+          <div class="card" id="allowlistCard">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
               <h3 style="margin:0">Allow List</h3>
-              <span id="allowlistBadge" style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-tertiary);color:var(--text-muted)">Inactive in Block Mode</span>
             </div>
             <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Only players on this list can join when Allow List Mode is active.</p>
             <div id="allowlistEntries" style="margin-bottom:12px"></div>

@@ -2194,20 +2194,21 @@ let _securityMode = 'block';
 function renderSecurity(security, nameIpMap) {
   _securityMode = security.mode || 'block';
 
-  const blockBtn = document.getElementById('secModeBlockBtn');
-  const allowBtn = document.getElementById('secModeAllowBtn');
-  const modeDesc = document.getElementById('secModeDesc');
-  const badge    = document.getElementById('allowlistBadge');
+  const blockBtn  = document.getElementById('secModeBlockBtn');
+  const allowBtn  = document.getElementById('secModeAllowBtn');
+  const modeDesc  = document.getElementById('secModeDesc');
+  const blockCard = document.getElementById('blocklistCard');
+  const allowCard = document.getElementById('allowlistCard');
+
   if (blockBtn) blockBtn.classList.toggle('active', _securityMode === 'block');
   if (allowBtn) allowBtn.classList.toggle('active', _securityMode === 'allow');
   if (modeDesc) modeDesc.textContent = _securityMode === 'block'
     ? 'Block List Mode — everyone can join except blocked players.'
-    : 'Allow List Mode — only players on the Allow List can join.';
-  if (badge) {
-    badge.textContent          = _securityMode === 'allow' ? 'Active' : 'Inactive in Block Mode';
-    badge.style.background     = _securityMode === 'allow' ? 'rgba(34,197,94,0.15)' : 'var(--bg-tertiary)';
-    badge.style.color          = _securityMode === 'allow' ? '#22c55e' : 'var(--text-muted)';
-  }
+    : 'Allow List Mode — only players on the Allow List can join. Empty list blocks everyone.';
+
+  // Show only the relevant card
+  if (blockCard) blockCard.style.display = _securityMode === 'block' ? '' : 'none';
+  if (allowCard) allowCard.style.display = _securityMode === 'allow' ? '' : 'none';
 
   _renderSecurityList('blocklistEntries', security.blocklist || [], 'block', nameIpMap);
   _renderSecurityList('allowlistEntries', security.allowlist || [], 'allow', nameIpMap);

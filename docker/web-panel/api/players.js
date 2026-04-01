@@ -61,6 +61,25 @@ function saveNameIpMap(map) {
   try { fs.writeFileSync(NAME_IP_MAP_FILE, JSON.stringify(map, null, 2), 'utf-8'); } catch {}
 }
 
+// Parse name→IP pairs from SMAPI join messages and persist to name-ip-map.json
+function syncNameIpMapFromLog() {
+  try {
+    if (!fs.existsSync(config.SMAPI_LOG)) return;
+    const content = fs.readFileSync(config.SMAPI_LOG, 'utf-8');
+    const map = loadNameIpMap();
+    let changed = false;
+    // Matches: "PlayerName (192.168.x.x) has joined" in game log lines
+    const re = /\]\s+(.+?) \((\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\) has joined/g;
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const name = m[1].trim();
+      const ip   = m[2];
+      if (name && ip && map[name] !== ip) { map[name] = ip; changed = true; }
+    }
+    if (changed) saveNameIpMap(map);
+  } catch {}
+}
+
 // -- Player history (24h at 5min intervals) --
 const playerHistory = [];
 const MAX_PLAYER_HISTORY = 288;
@@ -167,9 +186,11 @@ function getPlayersFromLiveStatus() {
             tileY:       p.tileY,
           }));
         for (const p of online) playerSnapshots.set(p.id, p);
-        // Only return if we have online farmhands — otherwise fall through to log parsing
         if (online.length > 0) return online;
       }
+      // Live-status exists and server is running — trust it, don't fall back to log parsing
+      // (prevents half-connected farmhand IDs from appearing during player load)
+      if (live.serverState === 'running') return [];
     }
   } catch {}
   return null;
@@ -231,6 +252,7 @@ function getPlayers(req, res) {
   const bannedIds   = new Set(bans.map(b => b.id).filter(Boolean));
   const bannedNames = new Set(bans.map(b => b.name).filter(Boolean));
   const security   = loadSecurity();
+  syncNameIpMapFromLog();
   const nameIpMap  = loadNameIpMap();
 
   // Enforce blocklist / allowlist — only checks players not yet cleared this session
@@ -241,9 +263,9 @@ function getPlayers(req, res) {
       (e.type === 'name' && e.value.toLowerCase() === (p.name || '').toLowerCase()) ||
       (e.type === 'ip'   && playerIp && e.value === playerIp)
     );
-    if (blocked) { sendConsoleCommand(`kick "${p.name}"`); continue; }
+    if (blocked) { sendConsoleCommand(`ban "${p.name}"`); continue; }
 
-    if (security.mode === 'allow' && security.allowlist.length > 0) {
+    if (security.mode === 'allow') {
       const allowed = security.allowlist.some(e =>
         (e.type === 'name' && e.value.toLowerCase() === (p.name || '').toLowerCase()) ||
         (e.type === 'ip'   && playerIp && e.value === playerIp)
