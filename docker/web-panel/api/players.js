@@ -163,7 +163,8 @@ function getPlayersFromLiveStatus() {
             tileY:       p.tileY,
           }));
         for (const p of online) playerSnapshots.set(p.id, p);
-        return online;
+        // Only return if we have online farmhands — otherwise fall through to log parsing
+        if (online.length > 0) return online;
       }
     }
   } catch {}
@@ -226,6 +227,24 @@ function getPlayers(req, res) {
   const bannedNames = new Set(bans.map(b => b.name).filter(Boolean));
   const security   = loadSecurity();
   const nameIpMap  = loadNameIpMap();
+
+  // Enforce blocklist / allowlist on every poll cycle (catches players who joined since last check)
+  for (const p of players) {
+    const playerIp = nameIpMap[p.name] || null;
+    const blocked = security.blocklist.some(e =>
+      (e.type === 'name' && e.value.toLowerCase() === (p.name || '').toLowerCase()) ||
+      (e.type === 'ip'   && playerIp && e.value === playerIp)
+    );
+    if (blocked) { sendConsoleCommand(`kick "${p.name}"`); continue; }
+
+    if (security.mode === 'allow' && security.allowlist.length > 0) {
+      const allowed = security.allowlist.some(e =>
+        (e.type === 'name' && e.value.toLowerCase() === (p.name || '').toLowerCase()) ||
+        (e.type === 'ip'   && playerIp && e.value === playerIp)
+      );
+      if (!allowed) sendConsoleCommand(`kick "${p.name}"`);
+    }
+  }
 
   // Attach known IP to each online player
   const playersWithIp = players.map(p => ({
@@ -409,7 +428,8 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'player_setstamina', 'player_setmaxstamina', 'player_add',
   'world_settime', 'world_setday', 'world_setseason', 'world_setyear',
   'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
-  'stardrop_emote', 'stardrop_sethealth', 'stardrop_setstamina', 'stardrop_give',
+  'stardrop_emote', 'stardrop_sethealth', 'stardrop_setmaxhealth',
+  'stardrop_setstamina', 'stardrop_setmaxstamina', 'stardrop_setmoney', 'stardrop_give',
 ]);
 
 function adminCommand(req, res) {

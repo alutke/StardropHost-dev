@@ -2579,9 +2579,20 @@ function closeAdminModal() {
   _adminPlayer = null;
 }
 
+// Map host-only ConsoleCommands to per-farmhand stardrop_ equivalents
+const _FARMHAND_CMD_MAP = {
+  'player_sethealth':    (name, val) => `stardrop_sethealth ${name} ${val}`,
+  'player_setmaxhealth': (name, val) => `stardrop_setmaxhealth ${name} ${val}`,
+  'player_setstamina':   (name, val) => `stardrop_setstamina ${name} ${val}`,
+  'player_setmaxstamina':(name, val) => `stardrop_setmaxstamina ${name} ${val}`,
+  'player_setmoney':     (name, val) => `stardrop_setmoney ${name} ${val}`,
+};
+
 async function sendAdminCmd(base, value) {
   if (!value && value !== 0) return;
-  const command = `${base} ${value}`;
+  const name = _adminPlayer?.name;
+  const remap = name && _FARMHAND_CMD_MAP[base];
+  const command = remap ? remap(name, value) : `${base} ${value}`;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
   _showAdminResult(data?.success, command, data?.error);
 }
@@ -2589,7 +2600,8 @@ async function sendAdminCmd(base, value) {
 async function sendAdminGiveItem() {
   if (!_selectedItemId) { _showAdminResult(false, '', 'Browse and select an item first'); return; }
   const qty = parseInt(document.getElementById('adminItemQty').value || '1', 10) || 1;
-  const command = `player_add ${_selectedItemId} ${qty}`;
+  const name = _adminPlayer?.name;
+  const command = name ? `stardrop_give ${name} ${_selectedItemId} ${qty}` : `player_add ${_selectedItemId} ${qty}`;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
   _showAdminResult(data?.success, command, data?.error);
 }
