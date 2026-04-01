@@ -1852,9 +1852,10 @@ async function loadFarm() {
 
 let _worldFrozen = false;
 
-async function worldCmd(base, value) {
+async function worldCmd(base, value, clearId) {
   const command = value !== '' ? `${base} ${value}` : base;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
+  if (data?.success && clearId) { const inp = document.getElementById(clearId); if (inp) inp.value = ''; }
   const el = document.getElementById('worldCmdResult');
   if (!el) return;
   el.textContent    = data?.success ? `✓ Sent: ${command}` : `✗ ${data?.error || 'Failed — is the server running?'}`;
@@ -2649,6 +2650,10 @@ const CHAT_EMOTES = [
   'happy','sad','surprise','angry','exclamation','heart',
   'note','question','sleep','taunt','laugh','cry','blush','x','yes','no',
 ];
+const EMOTE_IDS = {
+  happy:0, sad:4, surprise:8, angry:12, exclamation:16, heart:20,
+  note:24, question:28, sleep:32, taunt:36, laugh:40, cry:44, blush:48, x:52, yes:56, no:60,
+};
 
 function initChatColorRow() {
   const row = document.getElementById('chatColorRow');
@@ -2682,7 +2687,7 @@ function initChatEmoteMenu() {
   for (const name of CHAT_EMOTES) {
     const btn = document.createElement('button');
     btn.className = 'chat-emote-item'; btn.textContent = name;
-    btn.onclick = () => insertEmote(name);
+    btn.onclick = () => sendEmote(name);
     menu.appendChild(btn);
   }
 }
@@ -2705,13 +2710,27 @@ function toggleEmoteMenu() {
   else document.getElementById('chatEmoteBtn').classList.remove('active');
 }
 
-function insertEmote(name) {
-  const input = document.getElementById('chatInput');
-  if (!input) return;
-  input.value = `/emote ${name}`;
+async function sendEmote(name) {
   document.getElementById('chatEmoteMenu').style.display = 'none';
   document.getElementById('chatEmoteBtn').classList.remove('active');
-  input.focus();
+
+  const emoteId = EMOTE_IDS[name];
+  if (emoteId === undefined) return;
+
+  if (_chatTarget) {
+    // DM mode — play on the target player only
+    await API.post('/api/players/admin-command', {
+      command: `stardrop_emote ${_chatTarget} ${emoteId}`,
+    }).catch(() => null);
+  } else {
+    // World chat — play on every online non-host farmhand
+    const farmhands = (_lastPlayersData?.players || []).filter(p => !p.isHost);
+    await Promise.all(farmhands.map(p =>
+      API.post('/api/players/admin-command', {
+        command: `stardrop_emote ${p.name} ${emoteId}`,
+      }).catch(() => null)
+    ));
+  }
 }
 
 // Close emote menu when clicking outside

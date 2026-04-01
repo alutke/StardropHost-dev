@@ -461,13 +461,13 @@
               <div class="admin-cmd-row">
                 <span class="admin-cmd-label">Set Time</span>
                 <input type="number" id="worldSetTime" class="form-input" placeholder="e.g. 1300 (1pm)" min="600" max="2600" style="width:150px">
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_settime', document.getElementById('worldSetTime').value)">Set</button>
+                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_settime', document.getElementById('worldSetTime').value, 'worldSetTime')">Set</button>
               </div>
 
               <div class="admin-cmd-row">
                 <span class="admin-cmd-label">Set Day</span>
                 <input type="number" id="worldSetDay" class="form-input" placeholder="1 – 28" min="1" max="28" style="width:100px">
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setday', document.getElementById('worldSetDay').value)">Set</button>
+                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setday', document.getElementById('worldSetDay').value, 'worldSetDay')">Set</button>
               </div>
 
               <div class="admin-cmd-row">
@@ -484,26 +484,14 @@
               <div class="admin-cmd-row">
                 <span class="admin-cmd-label">Set Year</span>
                 <input type="number" id="worldSetYear" class="form-input" placeholder="Year" min="1" style="width:100px">
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setyear', document.getElementById('worldSetYear').value)">Set</button>
+                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setyear', document.getElementById('worldSetYear').value, 'worldSetYear')">Set</button>
               </div>
 
-              <div class="admin-cmd-row">
-                <span class="admin-cmd-label">Set Weather</span>
-                <select id="worldSetWeather" class="form-input" style="width:150px">
-                  <option value="sun">Sunny</option>
-                  <option value="rain">Rain</option>
-                  <option value="storm">Storm</option>
-                  <option value="snow">Snow</option>
-                  <option value="wind">Wind</option>
-                </select>
-                <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setweather', document.getElementById('worldSetWeather').value)">Set</button>
-              </div>
 
               <div class="admin-cmd-row">
                 <span class="admin-cmd-label">Freeze Time</span>
                 <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
                 <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
-                <span class="detail-note" style="margin-left:8px">Only for debugging when no players are online</span>
               </div>
 
               <div class="admin-cmd-row" style="border-bottom:none">

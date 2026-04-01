@@ -195,7 +195,9 @@ function applyRemote(yaml) {
   const serviceNames = extractServiceNames(yaml);
   if (!serviceNames.length) throw new Error('No services found in compose YAML');
 
-  fs.writeFileSync(COMPOSE_OVERRIDE, yaml, { mode: 0o644 });
+  // Strip obsolete 'version:' top-level key — Docker Compose v2 ignores it with a warning
+  const cleaned = yaml.split('\n').filter(l => !/^\s*version\s*:/.test(l)).join('\n').replace(/^\n+/, '');
+  fs.writeFileSync(COMPOSE_OVERRIDE, cleaned, { mode: 0o644 });
 
   const command = [
     `docker compose -f ${COMPOSE_FILE} -f ${COMPOSE_OVERRIDE}`,

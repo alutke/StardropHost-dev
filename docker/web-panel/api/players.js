@@ -408,7 +408,8 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'player_setmoney', 'player_sethealth', 'player_setmaxhealth',
   'player_setstamina', 'player_setmaxstamina', 'player_add',
   'world_settime', 'world_setday', 'world_setseason', 'world_setyear',
-  'world_setweather', 'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
+  'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
+  'stardrop_emote', 'stardrop_sethealth', 'stardrop_setstamina', 'stardrop_give',
 ]);
 
 function adminCommand(req, res) {
