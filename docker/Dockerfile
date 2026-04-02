@@ -69,7 +69,7 @@ WORKDIR /home/steam
 USER steam
 
 # -- Download SteamCMD + SMAPI --
-RUN wget -qO- 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | \
+RUN wget -qO- --timeout=120 --tries=2 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz' | \
         tar zxf - -C /home/steam/steamcmd && \
     SMAPI_URL=$(curl -s https://api.github.com/repos/Pathoschild/SMAPI/releases/latest \
         | grep -o '"browser_download_url": "[^"]*installer\.zip"' | head -1 | cut -d'"' -f4) && \

@@ -134,11 +134,34 @@ else
     print_success "SMAPI will be updated when the server restarts"
 fi
 
-# -- Step 2: Stop containers --
-print_step "Step 2: Stopping containers..."
+# -- Step 2: Rebuild image (incremental) --
+# Build FIRST while the panel is still running — this is the slow step.
+# The panel stays accessible during the entire build phase.
+print_step "Step 2: Rebuilding Docker image..."
+print_info "Docker will reuse cached layers for anything that hasn't changed."
+print_info "Only modified files (scripts, web panel, config) are rebuilt."
+print_info "The dashboard stays online during this step."
+echo ""
+
+if ! $COMPOSE_CMD build stardrop-server stardrop-manager stardrop-steam-auth; then
+    echo ""
+    print_error "Build failed — dashboard is still running, no downtime occurred."
+    echo ""
+    echo "  Common causes:"
+    echo "    - No internet connection during build (Steam CDN timeout)"
+    echo "    - Not enough disk space (need ~500 MB free for rebuild)"
+    echo "    - A syntax error in a recently changed file"
+    echo ""
+    echo "  Fix the error and re-run:  sudo bash update.sh"
+    exit 1
+fi
+
+print_success "Image rebuilt successfully"
+
+# -- Step 3: Stop containers --
+print_step "Step 3: Stopping containers..."
 
 # Remember whether the server was explicitly stopped via the web panel.
-# The stop flag on the host filesystem is the source of truth — no need to inspect the container.
 _STOP_FLAG="$SCRIPT_DIR/data/panel/server-stopped"
 _WAS_EXPLICITLY_STOPPED=false
 [ -f "$_STOP_FLAG" ] && _WAS_EXPLICITLY_STOPPED=true
@@ -158,7 +181,6 @@ docker rm -f "${CONTAINER_PREFIX}" \
              "${CONTAINER_PREFIX}-init" >/dev/null 2>&1 || true
 print_success "Containers stopped"
 
-
 # Schedule SMAPI update — remove old binary and write a marker file so the
 # entrypoint downloads the correct version at startup instead of re-using the
 # version that was baked into the Docker image at build time.
@@ -172,27 +194,6 @@ if [ "$_SMAPI_NEEDS_UPDATE" = "true" ]; then
         print_success "SMAPI update queued — latest version will be downloaded on next start"
     fi
 fi
-
-# -- Step 3: Rebuild image (incremental) --
-print_step "Step 3: Rebuilding Docker image..."
-print_info "Docker will reuse cached layers for anything that hasn't changed."
-print_info "Only modified files (scripts, web panel, config) are rebuilt — this is fast."
-echo ""
-
-if ! $COMPOSE_CMD build stardrop-server stardrop-manager stardrop-steam-auth; then
-    echo ""
-    print_error "Build failed — check the output above for the cause."
-    echo ""
-    echo "  Common causes:"
-    echo "    - No internet connection during build"
-    echo "    - Not enough disk space (need ~500 MB free for rebuild)"
-    echo "    - A syntax error in a recently changed file"
-    echo ""
-    echo "  Fix the error and re-run:  sudo bash update.sh"
-    exit 1
-fi
-
-print_success "Image rebuilt successfully"
 
 # -- Step 4: Start containers --
 print_step "Step 4: Starting containers..."
