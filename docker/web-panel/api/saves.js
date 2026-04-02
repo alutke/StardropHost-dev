@@ -195,6 +195,14 @@ function createOverwriteBackup(saveNames) {
   return backupName;
 }
 
+// Return a free save folder name — appends (1), (2)… if the name already exists
+function findFreeSaveName(baseName) {
+  if (!fs.existsSync(path.join(config.SAVES_DIR, baseName))) return baseName;
+  let n = 1;
+  while (fs.existsSync(path.join(config.SAVES_DIR, `${baseName} (${n})`))) n++;
+  return `${baseName} (${n})`;
+}
+
 function installSaveArchive(zipPath, setAsDefault) {
   ensureDir(config.SAVES_DIR);
 
@@ -207,24 +215,11 @@ function installSaveArchive(zipPath, setAsDefault) {
       throw new Error('No valid Stardew Valley save folders found in the archive');
     }
 
-    const collidingNames  = saveDirs
-      .map(d => path.basename(d))
-      .filter(name => fs.existsSync(path.join(config.SAVES_DIR, name)));
-
-    const overwriteBackup = createOverwriteBackup(collidingNames);
-
-    const importedSaves   = [];
-    const overwrittenSaves = [];
+    const importedSaves = [];
 
     for (const saveDir of saveDirs) {
-      const saveName = path.basename(saveDir);
+      const saveName = findFreeSaveName(path.basename(saveDir));
       const destDir  = path.join(config.SAVES_DIR, saveName);
-
-      if (fs.existsSync(destDir)) {
-        overwrittenSaves.push(saveName);
-        removePath(destDir);
-      }
-
       runCommand('cp', ['-a', saveDir, destDir], { timeout: 30000 });
       importedSaves.push(saveName);
     }
@@ -241,7 +236,7 @@ function installSaveArchive(zipPath, setAsDefault) {
       defaultSkipped = true;
     }
 
-    return { importedSaves, overwrittenSaves, overwriteBackup, defaultSaveName, defaultApplied, defaultSkipped };
+    return { importedSaves, overwrittenSaves: [], overwriteBackup: null, defaultSaveName, defaultApplied, defaultSkipped };
   } finally {
     removePath(tempRoot);
   }

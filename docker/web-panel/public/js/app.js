@@ -3142,12 +3142,11 @@ async function handleSaveUpload(input) {
       setText('saveUploadStatus', '');
       input.value = '';
       if (data?.success) {
-        let msg = 'Save uploaded.';
-        if (data.defaultApplied)  msg = 'Save uploaded and set as active.';
+        let msg = 'Save uploaded. Restart the container to apply.';
+        if (data.defaultApplied)  msg = 'Save uploaded and set as active. Restart to apply.';
         if (data.defaultSkipped)  msg += ' Multiple saves found — active save unchanged.';
-        if (data.overwriteBackup) msg += ` Pre-overwrite backup: ${data.overwriteBackup}.`;
-        msg += ' Restart the container to apply.';
         showToast(msg, 'success');
+        showRestartModal('Save uploaded. Restart the container to apply.');
         loadSaves();
       } else {
         showToast(data?.error || 'Upload failed', 'error');
