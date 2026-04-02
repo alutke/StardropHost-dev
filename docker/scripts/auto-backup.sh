@@ -34,22 +34,27 @@ LAST_BACKUP_TIME=0
 get_farm_slug() {
     node -e "
 const fs = require('fs'), path = require('path');
-const SAVES    = '${SAVE_DIR}/Saves';
-const LIVE     = '/home/steam/.local/share/stardrop/live-status.json';
-function toSlug(name) { return name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'') || 'stardrop'; }
+const LIVE  = '/home/steam/.local/share/stardrop/live-status.json';
+const SAVES = '${SAVE_DIR}/Saves';
 try {
-    // Primary: live-status.json written by StardropDashboard (always up-to-date)
+    // Primary: live-status.json (game is always running during auto-backup)
     if (fs.existsSync(LIVE)) {
-        const live = JSON.parse(fs.readFileSync(LIVE,'utf8'));
-        if (live.farmName) { process.stdout.write(toSlug(live.farmName)); return; }
+        const live = JSON.parse(fs.readFileSync(LIVE, 'utf8'));
+        if (live.farmName) {
+            const slug = live.farmName.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
+            if (slug) { process.stdout.write(slug); return; }
+        }
     }
-    // Fallback: scan all SaveGameInfo files and pick first farmName found
+    // Fallback: scan SaveGameInfo files
     if (fs.existsSync(SAVES)) {
         for (const dir of fs.readdirSync(SAVES)) {
             const info = path.join(SAVES, dir, 'SaveGameInfo');
             if (!fs.existsSync(info)) continue;
-            const m = fs.readFileSync(info,'utf8').match(/<farmName>([^<]+)<\/farmName>/);
-            if (m) { process.stdout.write(toSlug(m[1])); return; }
+            const m = fs.readFileSync(info, 'utf8').match(/<farmName>([^<]+)<\/farmName>/);
+            if (m) {
+                const slug = m[1].toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
+                if (slug) { process.stdout.write(slug); return; }
+            }
         }
     }
 } catch(e) {}

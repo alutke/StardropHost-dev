@@ -36,24 +36,22 @@ pre_update_backup() {
     local farm_slug
     farm_slug=$(node -e "
 const fs = require('fs'), path = require('path');
-const SAVES = '${SAVE_DIR}/Saves';
-const LIVE  = '/home/steam/.local/share/stardrop/live-status.json';
-function toSlug(name) { return name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'') || 'stardrop'; }
+const SAVES  = '${SAVE_DIR}/Saves';
+const PREFS  = '${SAVE_DIR}/startup_preferences';
+const MARKER = '${SAVE_DIR}/Saves/.selected_save';
 try {
-    if (fs.existsSync(LIVE)) {
-        const live = JSON.parse(fs.readFileSync(LIVE,'utf8'));
-        if (live.farmName) { process.stdout.write(toSlug(live.farmName)); return; }
+    let saveName = '';
+    if (fs.existsSync(PREFS)) {
+        const m = fs.readFileSync(PREFS, 'utf8').match(/<saveFolderName>([^<]+)<\/saveFolderName>/);
+        if (m) saveName = m[1].trim();
     }
-    if (fs.existsSync(SAVES)) {
-        for (const dir of fs.readdirSync(SAVES)) {
-            const info = path.join(SAVES, dir, 'SaveGameInfo');
-            if (!fs.existsSync(info)) continue;
-            const m = fs.readFileSync(info,'utf8').match(/<farmName>([^<]+)<\/farmName>/);
-            if (m) { process.stdout.write(toSlug(m[1])); return; }
-        }
-    }
-} catch(e) {}
-process.stdout.write('stardrop');
+    if (!saveName && fs.existsSync(MARKER)) saveName = fs.readFileSync(MARKER, 'utf8').trim();
+    if (!saveName) { process.stdout.write('stardrop'); return; }
+    const xml = fs.readFileSync(path.join(SAVES, saveName, 'SaveGameInfo'), 'utf8');
+    const n = xml.match(/<farmName>([^<]+)<\/farmName>/);
+    const slug = (n ? n[1] : 'stardrop').toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
+    process.stdout.write(slug || 'stardrop');
+} catch { process.stdout.write('stardrop'); }
 " 2>/dev/null || echo "stardrop")
 
     local timestamp
