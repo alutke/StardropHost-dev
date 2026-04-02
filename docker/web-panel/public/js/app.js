@@ -1318,7 +1318,11 @@ function init() {
   };
 
   document.getElementById('menuToggle').onclick = () => {
-    document.getElementById('sidebar').classList.toggle('open');
+    const sidebar = document.getElementById('sidebar');
+    const isOpen  = sidebar.classList.toggle('open');
+    document.getElementById('menuIconOpen').style.display  = isOpen ? 'none' : '';
+    document.getElementById('menuIconClose').style.display = isOpen ? '' : 'none';
+    _updateMenuToggleDot();
   };
 
   // Log controls — smart auto-scroll: pauses when user scrolls up, resumes at bottom
@@ -1404,6 +1408,9 @@ function navigateTo(page) {
 
   setText('pageTitle', PAGE_TITLES[page] || page);
   document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('menuIconOpen').style.display  = '';
+  document.getElementById('menuIconClose').style.display = 'none';
+  _updateMenuToggleDot();
 
   switch (page) {
     case 'dashboard': loadDashboard(); loadRemoteStatus(); renderQuickActions(); break;
@@ -1761,6 +1768,7 @@ function updateDashboardUI(data) {
   if (configBadge) configBadge.style.display = hasUpdate ? '' : 'none';
   const updatesCardDot = document.getElementById('updatesCardDot');
   if (updatesCardDot) updatesCardDot.style.display = hasUpdate ? '' : 'none';
+  _updateMenuToggleDot();
 
 }
 
@@ -2105,14 +2113,15 @@ function renderPlayerStats(p, separateWallets) {
 
   if (separateWallets && p.money != null) cells.push(`
     <div class="player-stat-cell">
-      <div class="player-stat-label">Money</div>
-      <div class="player-stat-value">💰 ${p.money.toLocaleString()}g</div>
+      <div class="player-stat-label">Money / Total Earned</div>
+      <div class="player-stat-value">💰 ${p.money.toLocaleString()}g / ${p.totalEarned != null ? p.totalEarned.toLocaleString() + 'g' : '—'}</div>
     </div>`);
 
-  if (separateWallets && p.totalEarned != null) cells.push(`
+  const s = p.skills;
+  if (s) cells.push(`
     <div class="player-stat-cell">
-      <div class="player-stat-label">Total Earned</div>
-      <div class="player-stat-value">${p.totalEarned.toLocaleString()}g</div>
+      <div class="player-stat-label">Skills</div>
+      <div class="player-stat-value" style="letter-spacing:0.5px">🌱${s.farming} ⛏${s.mining} 🌲${s.foraging} 🎣${s.fishing} ⚔️${s.combat} 🍀${s.luck}</div>
     </div>`);
 
   if (p.daysPlayed != null) cells.push(`
@@ -2121,19 +2130,7 @@ function renderPlayerStats(p, separateWallets) {
       <div class="player-stat-value">${p.totalPlaytimeHours != null ? `⏱ ${p.totalPlaytimeHours}h · ` : ''}${p.daysPlayed} in-game days</div>
     </div>`);
 
-  const grid = cells.length
-    ? `<div class="player-stats-grid">${cells.join('')}</div>`
-    : '';
-
-  const s = p.skills;
-  const skills = s
-    ? `<div class="player-skills-row">
-         <span class="player-stat-label">Skills</span>
-         <span class="player-skills-values">🌱${s.farming} &nbsp;⛏${s.mining} &nbsp;🌲${s.foraging} &nbsp;🎣${s.fishing} &nbsp;⚔️${s.combat} &nbsp;🍀${s.luck}</span>
-       </div>`
-    : '';
-
-  return grid + skills;
+  return cells.length ? `<div class="player-stats-grid">${cells.join('')}</div>` : '';
 }
 
 function timeAgo(ms) {
@@ -2164,7 +2161,6 @@ async function loadPlayers() {
           ${renderPlayerStats(p, sw)}
         </div>
         <div class="player-actions">
-          <button class="btn btn-sm" onclick="openAdminModal(_lastPlayersData.players.find(x=>x.id==='${escapeHtml(p.id)}'))">Admin</button>
           <button class="btn btn-sm" onclick="kickPlayer(this,'${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Kick</button>
           <button class="btn btn-sm btn-danger" onclick="banPlayer(this,'${escapeHtml(p.id)}','${escapeHtml(p.name)}')">Ban</button>
         </div>
@@ -2756,10 +2752,21 @@ async function _pollChatNotifs() {
 function _updateChatBadges() {
   const hasAny = Object.values(_chatNotifs).some(Boolean);
   const sb = document.getElementById('chatNavBadge');
-  const mb = document.getElementById('chatMobNavBadge');
   if (sb) sb.style.display = hasAny ? '' : 'none';
-  if (mb) mb.style.display = hasAny ? '' : 'none';
   if (currentPage === 'chat') renderChatPlayerPills();
+  _updateMenuToggleDot();
+}
+
+function _updateMenuToggleDot() {
+  const dot = document.getElementById('menuToggleDot');
+  if (!dot) return;
+  const sidebarOpen  = document.getElementById('sidebar')?.classList.contains('open');
+  if (sidebarOpen) { dot.style.display = 'none'; return; }
+  const chatBadge   = document.getElementById('chatNavBadge');
+  const configBadge = document.getElementById('configNavBadge');
+  const hasChat   = chatBadge   && chatBadge.style.display   !== 'none';
+  const hasUpdate = configBadge && configBadge.style.display !== 'none';
+  dot.style.display = (hasChat || hasUpdate) ? '' : 'none';
 }
 let _chatColor       = null;   // null = no color, 'rainbow', or color name string
 let _chatRainbowIdx  = 0;      // cycles per send when rainbow active

@@ -160,6 +160,11 @@
         <path d="M4.5 7h15"/><path d="M4.5 12h15"/><path d="M4.5 17h15"/>
       </g>
     </symbol>
+    <symbol id="icon-chevron-left" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 18l-6-6 6-6"/>
+      </g>
+    </symbol>
     <symbol id="icon-loader" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 4.5a7.5 7.5 0 1 0 7 4.8"/><path d="M18 4.5h1.5V8"/>
@@ -316,23 +321,14 @@
     </nav>
 
     <!-- Mobile bottom nav -->
-    <nav id="mobile-nav">
-      <button class="mob-nav-item active" type="button" data-page="dashboard"><svg class="icon"><use href="#icon-dashboard"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="farm"><svg class="icon"><use href="#icon-sprout"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="players"><svg class="icon"><use href="#icon-players"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="chat" style="position:relative"><svg class="icon"><use href="#icon-chat"></use></svg><span class="notif-dot" id="chatMobNavBadge" style="display:none;position:absolute;top:4px;right:4px;width:7px;height:7px"></span></button>
-      <button class="mob-nav-item" type="button" data-page="saves"><svg class="icon"><use href="#icon-saves"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="mods"><svg class="icon"><use href="#icon-mods"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="terminal"><svg class="icon"><use href="#icon-terminal"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="remote"><svg class="icon"><use href="#icon-globe"></use></svg></button>
-      <button class="mob-nav-item" type="button" data-page="config"><svg class="icon"><use href="#icon-config"></use></svg></button>
-    </nav>
 
     <!-- Main content -->
     <main id="content">
       <header id="topbar">
-        <button id="menuToggle" class="btn-icon mobile-only" type="button">
-          <svg class="icon"><use href="#icon-menu"></use></svg>
+        <button id="menuToggle" class="btn-icon mobile-only" type="button" style="position:relative">
+          <svg class="icon" id="menuIconOpen"><use href="#icon-menu"></use></svg>
+          <svg class="icon" id="menuIconClose" style="display:none"><use href="#icon-chevron-left"></use></svg>
+          <span class="notif-dot" id="menuToggleDot" style="display:none;position:absolute;top:2px;right:2px;width:8px;height:8px;pointer-events:none"></span>
         </button>
         <h2 id="pageTitle">Dashboard</h2>
         <div class="topbar-right">
@@ -525,6 +521,12 @@
                   <span class="admin-cmd-label">Freeze Time</span>
                   <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
                   <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
+                </div>
+
+                <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Set Shared Money</span>
+                  <input type="number" id="worldSetMoney" class="form-input" placeholder="Amount in gold" min="0" style="width:150px">
+                  <button class="btn btn-sm btn-primary" onclick="worldCmd('player_setmoney', document.getElementById('worldSetMoney').value, 'worldSetMoney')">Set</button>
                 </div>
 
                 <div class="admin-cmd-row" style="border-bottom:none">
