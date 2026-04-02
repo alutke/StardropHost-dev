@@ -61,9 +61,10 @@ const CONFIG_SCHEMA = {
     { key: 'ENABLE_LOG_MONITOR',  label: 'Log Monitor',   type: 'boolean', default: 'true' },
     { key: 'METRICS_PORT',        label: 'Metrics Port',  type: 'number',  default: '9090' },
   ],
-  'Server': [
-    { key: 'PANEL_UPDATE_CHECK_HOURS', label: 'Update checks', type: 'number', default: '24',
-      description: 'Frequency of update checks. Leave empty to disable.' },
+  'Server': [],
+  'Updates': [
+    { key: 'PANEL_UPDATE_CHECK_HOURS', label: 'Update check interval', type: 'number', default: '24',
+      description: 'How often to check for panel and game updates (hours). Leave empty to disable.' },
   ],
 };
 

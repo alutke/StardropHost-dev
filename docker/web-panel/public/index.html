@@ -292,6 +292,7 @@
         <li class="nav-item" data-page="config">
           <span class="nav-icon"><svg class="icon"><use href="#icon-config"></use></svg></span>
           <span class="nav-label">Config</span>
+          <span class="notif-dot" id="configNavBadge" style="display:none"></span>
         </li>
       </ul>
       <div id="sidebarVersion" style="text-align:center;font-size:11px;color:var(--text-muted);padding:4px 0 0;opacity:0.6"></div>
@@ -599,7 +600,8 @@
           <!-- Known Player IPs -->
           <div class="card" id="knownIpsCard">
             <h3>Known Player IPs</h3>
-            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Automatically recorded when players join. Used for IP-alias blocking. You can manually update a friend's IP if it changes.</p>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 4px">Automatically recorded when players join. Used for IP-alias blocking. You can manually update a friend's IP if it changes.</p>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px">Press the lock button to lock this user (Device/IP) to the Player. If another IP/Device tries to connect to that Player they will be kicked.</p>
             <div id="knownIpsEntries"></div>
           </div>
 

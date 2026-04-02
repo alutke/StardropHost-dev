@@ -1755,6 +1755,11 @@ function updateDashboardUI(data) {
   _renderGameNotif(document.getElementById('gameUpdateNotification'));
   _renderGameNotif(document.getElementById('configGameUpdateNotif'));
 
+  // Config nav badge — show whenever an update is available
+  const hasUpdate = (liveRunning && data.panelUpdateAvailable) || (liveRunning && data.gameUpdateAvailable);
+  const configBadge = document.getElementById('configNavBadge');
+  if (configBadge) configBadge.style.display = hasUpdate ? '' : 'none';
+
 }
 
 // ─── Farm ────────────────────────────────────────────────────────
@@ -3335,7 +3340,7 @@ async function loadConfig() {
   if (containerTop) containerTop.innerHTML = '';
   if (advHolder)    advHolder.innerHTML    = '';
 
-  const TOP_GROUPS        = new Set(['Server']);
+  const TOP_GROUPS        = new Set(['Server', 'Updates']);
   const ADVANCED_GROUPS   = new Set(['VNC & Display', 'Stability', 'Monitoring']);
   const COLLAPSIBLE_GROUPS = new Set(['Backup', 'Performance']);
 
@@ -3434,6 +3439,10 @@ async function loadConfig() {
       card.insertBefore(remoteRow, card.firstChild.nextSibling);
       card.insertBefore(statusRow, card.firstChild.nextSibling);
 
+    }
+
+    // Updates card — inject notifs + Check Now button after config items
+    if (group.name === 'Updates') {
       const cfgPanelNotif = document.createElement('div');
       cfgPanelNotif.id = 'configPanelUpdateNotif';
       cfgPanelNotif.style.display = 'none';
@@ -3444,16 +3453,15 @@ async function loadConfig() {
       cfgGameNotif.style.display = 'none';
       card.appendChild(cfgGameNotif);
 
-      // Check for Updates — own config-item row
-      const updateRow = document.createElement('div');
-      updateRow.className = 'config-item';
-      updateRow.innerHTML =
+      const checkRow = document.createElement('div');
+      checkRow.className = 'config-item';
+      checkRow.innerHTML =
         `<div><div class="config-label">Check for Updates</div>
-              <div class="config-help">Checks for StardropHost panel and game updates.</div></div>
+              <div class="config-help">Check for StardropHost panel and game updates now.</div></div>
          <div class="config-value">
            <button class="btn btn-sm btn-secondary" type="button" onclick="checkAllUpdates()">Check Now</button>
          </div>`;
-      card.appendChild(updateRow);
+      card.appendChild(checkRow);
     }
 
     target.appendChild(card);
