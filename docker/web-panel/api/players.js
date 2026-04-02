@@ -160,7 +160,7 @@ function saveBans(bans) {
 // Regex uses [-0-9]+ to match actual numeric IDs
 function parsePlayersFromLogs() {
   const now = Date.now();
-  if (now - lastLogParse < 10000) return connectedPlayers;
+  if (now - lastLogParse < 2000) return connectedPlayers;
 
   try {
     if (!fs.existsSync(config.SMAPI_LOG)) return connectedPlayers;
