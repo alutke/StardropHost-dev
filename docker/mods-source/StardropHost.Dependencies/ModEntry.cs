@@ -1014,6 +1014,9 @@ namespace StardropHostDependencies
         {
             try
             {
+                // Skip host's own messages — already logged by OnSayCommand / OnTellCommand.
+                if (sourceFarmer != 0 && sourceFarmer == Game1.player?.UniqueMultiplayerID) return;
+
                 // Detect join messages: "PlayerName (192.168.0.1) has joined."
                 // These are system messages with sourceFarmer == 0 that contain the player IP.
                 if (sourceFarmer == 0)
