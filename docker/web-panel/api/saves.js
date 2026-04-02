@@ -14,7 +14,14 @@ const STARTUP_PREFS_FILE = path.join(config.CONFIG_DIR, 'startup_preferences');
 let activeBackup = null;
 
 function makeTimestamp() {
-  return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const d = new Date();
+  const dd   = String(d.getUTCDate()).padStart(2, '0');
+  const mm   = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = d.getUTCFullYear();
+  const hh   = String(d.getUTCHours()).padStart(2, '0');
+  const min  = String(d.getUTCMinutes()).padStart(2, '0');
+  const ss   = String(d.getUTCSeconds()).padStart(2, '0');
+  return `D${dd}-${mm}-${yyyy}-T${hh}-${min}-${ss}`;
 }
 
 // -- Helpers --
@@ -176,7 +183,7 @@ function createOverwriteBackup(saveNames) {
 
   const timestamp  = makeTimestamp();
   const slug       = getFarmSlug();
-  const backupName = `${slug}-pre-overwrite-${timestamp}.zip`;
+  const backupName = `${slug}-pre-overwrite-backup-${timestamp}.zip`;
   const backupPath = path.join(config.BACKUPS_DIR, backupName);
   const existing   = saveNames.filter(name => fs.existsSync(path.join(config.SAVES_DIR, name)));
 
@@ -336,7 +343,7 @@ function startBackupJob() {
   ensureDir(config.BACKUPS_DIR);
   ensureDir(config.DATA_DIR);
 
-  const timestamp    = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const timestamp    = makeTimestamp();
   const farmSlug     = getFarmSlug();
   const backupName   = `${farmSlug}-manual-backup-${timestamp}.zip`;
   const backupPath   = path.join(config.BACKUPS_DIR, backupName);
@@ -441,7 +448,7 @@ function triggerPreStopBackup() {
     ensureDir(config.BACKUPS_DIR);
     const slug       = getFarmSlug();
     const timestamp  = makeTimestamp();
-    const backupPath = path.join(config.BACKUPS_DIR, `${slug}-pre-stop-${timestamp}.zip`);
+    const backupPath = path.join(config.BACKUPS_DIR, `${slug}-pre-stop-backup-${timestamp}.zip`);
     const child = spawn('zip', [
       '-r', backupPath,
       path.basename(config.SAVES_DIR),

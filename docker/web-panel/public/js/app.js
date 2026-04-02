@@ -2974,10 +2974,13 @@ async function loadChatMessages() {
     if (_chatTarget) {
       // DM view: show messages to/from this player only
       if (msg.from !== _chatTarget && msg.to !== _chatTarget) continue;
+    } else {
+      // World chat: DMs are completely separate — never show here
+      if (isDm) continue;
     }
 
     const el = document.createElement('div');
-    // System/log messages → right; host DMs → left (amber); host world → right (purple)
+    // System/log messages → right; host world → left (purple)
     el.className = 'chat-msg' +
       (isLog                     ? ' chat-msg-log'  :
        msg.isHost && !isDm       ? ' chat-msg-host' : '') +

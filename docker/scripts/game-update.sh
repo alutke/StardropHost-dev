@@ -55,8 +55,8 @@ try {
 " 2>/dev/null || echo "stardrop")
 
     local timestamp
-    timestamp=$(date -u '+%Y-%m-%dT%H-%M-%SZ')
-    local backup_file="$BACKUP_DIR/${farm_slug}-pre-update-${timestamp}.zip"
+    timestamp=$(date -u '+D%d-%m-%Y-T%H-%M-%S')
+    local backup_file="$BACKUP_DIR/${farm_slug}-update-backup-${timestamp}.zip"
 
     write_log "Creating pre-update save backup..."
     (cd "$(dirname "$saves_dir")" && zip -r "$backup_file" "$(basename "$saves_dir")" -x "*/ErrorLogs/*") 2>/dev/null \
