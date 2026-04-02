@@ -796,13 +796,9 @@
             <div id="logOutput" class="log-output console-log-output"></div>
             <div class="console-divider">
               <span>SMAPI Console</span>
-              <div>
-                <button class="btn btn-sm btn-success" id="termConnect" type="button" onclick="terminalConnect()">Connect</button>
-                <button class="btn btn-sm btn-danger" id="termDisconnect" type="button" onclick="terminalDisconnect()" style="display:none">Disconnect</button>
-              </div>
             </div>
             <div id="termOutput" class="terminal-output console-term-output">
-              <div class="terminal-hint">Click Connect to attach to the running SMAPI process. Type SMAPI commands below — this is not a Linux shell.</div>
+              <div class="terminal-hint">Connecting to SMAPI… Type commands below — this is not a Linux shell.</div>
             </div>
             <div class="terminal-input-row">
               <input type="text" id="termInput" class="input" placeholder="Type a SMAPI command..." disabled

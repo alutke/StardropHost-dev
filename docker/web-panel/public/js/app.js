@@ -1392,6 +1392,9 @@ function navigateTo(page) {
   // Stop chat polling when leaving both players and chat tabs
   if (page !== 'chat' && _chatPollTimer) { clearInterval(_chatPollTimer); _chatPollTimer = null; }
 
+  // Disconnect terminal when leaving console page
+  if (page !== 'terminal') terminalDisconnect();
+
   document.querySelectorAll('.nav-item, .mob-nav-item').forEach(i => i.classList.remove('active'));
   document.querySelectorAll(`.nav-item[data-page="${page}"], .mob-nav-item[data-page="${page}"]`)
     .forEach(i => i.classList.add('active'));
@@ -1426,7 +1429,7 @@ function navigateTo(page) {
       break;
     case 'saves':     loadSaves();                                           break;
     case 'mods':      loadMods();                                            break;
-    case 'terminal':  loadLogs('game'); subscribeToLogs('game');             break;
+    case 'terminal':  loadLogs('game'); subscribeToLogs('game'); terminalConnect(); break;
     case 'config':    loadConfig();                                          break;
     case 'remote':    loadRemoteStatus();                                    break;
   }
@@ -1457,10 +1460,8 @@ function handleWsMessage(msg) {
     case 'terminal:output':  appendTerminalOutput(msg.data);   break;
     case 'terminal:opened':
       appendTerminalOutput(msg.data);
-      document.getElementById('termInput').disabled    = false;
-      document.getElementById('termSendBtn').disabled  = false;
-      document.getElementById('termConnect').style.display    = 'none';
-      document.getElementById('termDisconnect').style.display = '';
+      document.getElementById('termInput').disabled   = false;
+      document.getElementById('termSendBtn').disabled = false;
       break;
     case 'terminal:closed':
     case 'terminal:error':
@@ -2054,10 +2055,8 @@ function subscribeToLogs(filter) {
 function terminalConnect()    { wsSend({ type: 'terminal:open' }); }
 function terminalDisconnect() {
   wsSend({ type: 'terminal:close' });
-  document.getElementById('termInput').disabled    = true;
-  document.getElementById('termSendBtn').disabled  = true;
-  document.getElementById('termConnect').style.display    = '';
-  document.getElementById('termDisconnect').style.display = 'none';
+  document.getElementById('termInput').disabled   = true;
+  document.getElementById('termSendBtn').disabled = true;
 }
 
 function terminalSend() {
