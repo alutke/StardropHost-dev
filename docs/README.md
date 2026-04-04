@@ -4,21 +4,23 @@
 
 <div align="center">
 
-# StardropHost
+languagelanguage# StardropHost
 
 ### Self-hosted Stardew Valley dedicated server — managed entirely from your browser
 
 *Run a 24/7 Stardew Valley farm your friends can join any time, even when you're offline.*
 
+
+
 ---
 
 **No Steam account required to run the server**
 
-<sub>Steam is optional — only needed if you don't already have the game files</sub>
+`<sub>`Steam is optional — only needed if you don't already have the game files`</sub>`
 
 </div>
 
----
+language---
 
 ## What is StardropHost?
 
@@ -30,30 +32,30 @@ Set it up once on a Linux machine or VM. Everything after that — players, save
 
 ## Current Features
 
-| Feature | Status |
-| --- | --- |
-| First-run setup wizard | ✅ Working |
-| Web panel (Dashboard, Players, Saves, Mods, Logs, Terminal, Config) | ✅ Working |
-| Always-on server (24/7, no host required) | ✅ Working |
-| Up to 4 players *per instance | ✅ Working |
-| Multiple instances (separate VMs) | ✅ Working |
-| LAN multiplayer | ✅ Working |
-| Save management — backup, upload, download, switch farms | ✅ Working |
-| Live farm data — season, time, active players | ✅ Working |
-| Mod uploads via web panel | ✅ Working |
-| Real-time SMAPI logs and browser terminal | ✅ Working |
-| VNC remote desktop (one-click, auto-shutoff after 30min) | ✅ Working |
-| Auto-backup on schedule | ✅ Working |
-| Server auto-restart on crash | ✅ Working |
-| Quick Actions — configurable shortcut buttons, drag-to-reorder | ✅ Working |
-| Update script — git pull, rebuild, state-aware restart | ✅ Working |
-| Steam game download via install script | ✅ Working |
-| Internet play via Steam invite code | 🔧 In Development |
-| Player kick / ban / admin | 🔧 In Development |
-| Nexus mod browser and downloader | 🔧 Planned |
-| Chat commands in Web UI (`!kick`, `!ban`, `!login`) | 🔧 Planned |
-| Crop preservation when owner is offline | 🔧 Planned |
-| Password-gated lobby | 🔧 Planned |
+| Feature                                                             | Status            |
+| ------------------------------------------------------------------- | ----------------- |
+| First-run setup wizard                                              | ✅ Working        |
+| Web panel (Dashboard, Players, Saves, Mods, Logs, Terminal, Config) | ✅ Working        |
+| Always-on server (24/7, no host required)                           | ✅ Working        |
+| Up to 4 players *per instance                                       | ✅ Working        |
+| Multiple instances (separate VMs)                                   | ✅ Working        |
+| LAN multiplayer                                                     | ✅ Working        |
+| Save management — backup, upload, download, switch farms           | ✅ Working        |
+| Live farm data — season, time, active players                      | ✅ Working        |
+| Mod uploads via web panel                                           | ✅ Working        |
+| Real-time SMAPI logs and browser terminal                           | ✅ Working        |
+| VNC remote desktop (one-click, auto-shutoff after 30min)            | ✅ Working        |
+| Auto-backup on schedule                                             | ✅ Working        |
+| Server auto-restart on crash                                        | ✅ Working        |
+| Quick Actions — configurable shortcut buttons, drag-to-reorder     | ✅ Working        |
+| Update script — git pull, rebuild, state-aware restart             | ✅ Working        |
+| Steam game download via install script                              | ✅ Working        |
+| Internet play via Steam invite code                                 | 🔧 In Development |
+| Player kick / ban / admin                                           | 🔧 In Development |
+| Nexus mod browser and downloader                                    | 🔧 Planned        |
+| Chat commands in Web UI (`!kick`, `!ban`, `!login`)           | 🔧 Planned        |
+| Crop preservation when owner is offline                             | 🔧 Planned        |
+| Password-gated lobby                                                | 🔧 Planned        |
 
 ---
 
@@ -75,7 +77,7 @@ Set it up once on a Linux machine or VM. Everything after that — players, save
 └──────────┴──────────────────────────────────┘
 ```
 
----
+text---
 
 ## Architecture
 
@@ -90,11 +92,11 @@ StardropHost runs as four Docker containers:
 └─────────────────────────────────────────────────┘
 ```
 
-| Port | Purpose |
-| --- | --- |
-| `18642` | Web management panel |
+text| Port      | Purpose                               |
+| --------- | ------------------------------------- |
+| `18642` | Web management panel                  |
 | `24642` | Game server (UDP — open in firewall) |
-| `5900` | VNC (optional, disabled by default) |
+| `5900`  | VNC (optional, disabled by default)   |
 
 ---
 
@@ -115,7 +117,7 @@ StardropHost runs as four Docker containers:
 curl -fsSL https://raw.githubusercontent.com/Tomomoto10/StardropHost-dev/main/quick-start.sh | bash
 ```
 
-Then open `http://your-server-ip:18642` and follow the setup wizard.
+bashThen open `http://your-server-ip:18642` and follow the setup wizard.
 
 ---
 
@@ -134,17 +136,17 @@ cd StardropHost
 docker compose down
 ```
 
-Then delete the `StardropHost/` directory. Game saves are stored in `StardropHost/data/saves/` — back these up before deleting if you want to keep them.
+bashThen delete the `StardropHost/` directory. Game saves are stored in `StardropHost/data/saves/` — back these up before deleting if you want to keep them.
 
 ---
 
 <div align="center">
 
-Built on [puppy-stardew-server](https://github.com/truman-world/puppy-stardew-server) and [JunimoServer](https://github.com/stardew-valley-dedicated-server/server) · Powered by [Nexus Mods](https://www.nexusmods.com/) and [SMAPI](https://smapi.io/) · Runs on [Docker](https://www.docker.com/)
+languageBuilt on [puppy-stardew-server](https://github.com/truman-world/puppy-stardew-server) and [JunimoServer](https://github.com/stardew-valley-dedicated-server/server) · Powered by [Nexus Mods](https://www.nexusmods.com/) and [SMAPI](https://smapi.io/) · Runs on [Docker](https://www.docker.com/)
 
 </div>
 
----
+language---
 
 ## License
 
