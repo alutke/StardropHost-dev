@@ -1918,6 +1918,68 @@ async function loadFarm() {
 let _worldFrozen = false;
 let _worldPaused = false;
 
+// ─── Freeze message color picker ─────────────────────────────────
+const _FREEZE_COLORS = [
+  { name: 'white',       css: '#ffffff' },
+  { name: 'red',         css: '#e84040' },
+  { name: 'blue',        css: '#5b8dd9' },
+  { name: 'green',       css: '#3cb04a' },
+  { name: 'jade',        css: '#44b89b' },
+  { name: 'yellowgreen', css: '#9acd32' },
+  { name: 'pink',        css: '#e87bb0' },
+  { name: 'purple',      css: '#9b59b6' },
+  { name: 'yellow',      css: '#f0d000' },
+  { name: 'orange',      css: '#e8841e' },
+  { name: 'brown',       css: '#8b5e3c' },
+  { name: 'gray',        css: '#888888' },
+  { name: 'cream',       css: '#f5e6c8' },
+  { name: 'salmon',      css: '#fa8072' },
+  { name: 'peach',       css: '#ffb07a' },
+  { name: 'aqua',        css: '#00bcd4' },
+  { name: 'jungle',      css: '#2e7d4f' },
+  { name: 'plum',        css: '#b065b0' },
+];
+let _freezeMsgColor = 'white';
+
+function _initFreezeMsgColorPicker() {
+  const picker = document.getElementById('worldFreezeMsgColorPicker');
+  const dot    = document.getElementById('worldFreezeMsgColorBtn');
+  if (!picker || !dot) return;
+  picker.innerHTML = _FREEZE_COLORS.map(c =>
+    `<button class="freeze-color-swatch${c.name === _freezeMsgColor ? ' selected' : ''}"
+      style="background:${c.css}" title="${c.name}"
+      onclick="selectFreezeMsgColor('${c.name}','${c.css}',this)"></button>`
+  ).join('');
+}
+
+function toggleFreezeMsgColors(e) {
+  e.stopPropagation();
+  const picker = document.getElementById('worldFreezeMsgColorPicker');
+  if (!picker) return;
+  if (picker.style.display === 'none') {
+    _initFreezeMsgColorPicker();
+    picker.style.display = 'flex';
+    setTimeout(() => document.addEventListener('click', _closeFreezeColorPicker, { once: true }), 0);
+  } else {
+    picker.style.display = 'none';
+  }
+}
+
+function _closeFreezeColorPicker() {
+  const picker = document.getElementById('worldFreezeMsgColorPicker');
+  if (picker) picker.style.display = 'none';
+}
+
+function selectFreezeMsgColor(name, css, el) {
+  _freezeMsgColor = name;
+  const dot = document.getElementById('worldFreezeMsgColorBtn');
+  if (dot) dot.style.background = css;
+  document.querySelectorAll('.freeze-color-swatch').forEach(s => s.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  const picker = document.getElementById('worldFreezeMsgColorPicker');
+  if (picker) picker.style.display = 'none';
+}
+
 async function worldCmd(base, value, clearId) {
   const command = value !== '' ? `${base} ${value}` : base;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
@@ -1956,8 +2018,13 @@ async function toggleWorldFreeze() {
     _worldFrozen = !_worldFrozen;
     const stateEl = document.getElementById('worldFreezeState');
     if (stateEl) stateEl.textContent = _worldFrozen ? '❄️ Frozen' : '▶ Running';
-    const msg = (document.getElementById('worldFreezeMsg')?.value || '').trim();
-    if (msg) API.post('/api/players/admin-command', { command: `say ${msg}` }).catch(() => null);
+    const msgEl = document.getElementById('worldFreezeMsg');
+    const msg = (msgEl?.value || '').trim();
+    if (msg) {
+      const colored = _freezeMsgColor && _freezeMsgColor !== 'white' ? `[${_freezeMsgColor}]${msg}` : msg;
+      API.post('/api/players/admin-command', { command: `say ${colored}` }).catch(() => null);
+      if (msgEl) msgEl.value = '';
+    }
   }
   const el = document.getElementById('worldCmdResult');
   if (!el) return;

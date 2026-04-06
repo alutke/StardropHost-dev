@@ -326,6 +326,45 @@ body {
 }
 .progress-fill.danger { background: var(--accent-error); }
 
+/* Freeze message color picker */
+.freeze-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: border-color 0.15s;
+}
+.freeze-color-dot:hover { border-color: var(--accent); }
+.freeze-color-picker {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 180px;
+  z-index: 300;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.freeze-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.freeze-color-swatch:hover { transform: scale(1.2); }
+.freeze-color-swatch.selected { border-color: var(--text-primary); }
+
 /* ─── Dashboard Details ───────────────────────────────────────── */
 
 .details-grid {
