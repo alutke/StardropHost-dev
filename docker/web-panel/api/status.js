@@ -204,6 +204,9 @@ function collectStatus(req = null) {
       if (live.players?.length > 0) {
         status.players.online = live.players.filter(p => p.isOnline && !p.isHost).length;
       }
+      if (live.cabins?.length > 0) {
+        status.players.max = live.cabins.length;
+      }
       if (live.serverState === 'running' && live.season) status.season = live.season;
       if (live.serverState === 'running' && live.day) {
         const season = live.season ? live.season.charAt(0).toUpperCase() + live.season.slice(1).toLowerCase() : live.season;

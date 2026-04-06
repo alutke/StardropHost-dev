@@ -1702,7 +1702,7 @@ function updateDashboardUI(data) {
   // Disable all restart buttons while in any transitional state
   document.querySelectorAll('.btn[onclick="restartServer()"]').forEach(btn => { btn.disabled = starting; });
 
-  setText('stat-players', `${data.players?.online ?? 0}/8`);
+  setText('stat-players', `${data.players?.online ?? 0}/${data.players?.max ?? 8}`);
   setText('stat-uptime',  formatUptime(data.uptime || 0));
   setText('stat-day',     data.paused ? 'Paused' : (data.day || '--'));
   setText('stat-backups', data.backupCount ?? 0);
@@ -2164,7 +2164,7 @@ async function loadPlayers() {
 
   const sw   = data.separateWallets === true;
   const list = document.getElementById('playersList');
-  setText('playerCount', `${data.online ?? 0} / 8`);
+  setText('playerCount', `${data.online ?? 0} / ${data.max ?? 8}`);
 
   if (!data.players?.length) {
     list.innerHTML = `<div class="empty-state">${icon('players', 'icon empty-icon')}<div>No players online</div></div>`;
@@ -2300,12 +2300,6 @@ async function loadFarmhands() {
           ${isPending ? `<span class="status-badge restarting" style="font-size:11px;padding:1px 7px">Removal Pending</span>` : ''}
         </div>
         <div class="farmhand-slot-actions">
-          ${!unclaimed && !isPending
-            ? `<button class="btn btn-sm btn-danger" onclick="removeFarmhandSlot(this,'${escapeHtml(name)}')">Remove</button>`
-            : ''}
-          ${isPending
-            ? `<button class="btn btn-sm btn-secondary" onclick="cancelFarmhandRemoval(this,'${escapeHtml(name)}')">Cancel</button>`
-            : ''}
         </div>
       </div>`;
   }).join('');
@@ -4106,6 +4100,7 @@ async function deleteMod(folder, name) {
 async function triggerGameRestart() {
   isGameRestarting       = true;
   gameRestartInitiatedAt = Date.now();
+  navigateTo('dashboard');
   if (lastStatusData) updateDashboardUI(lastStatusData);
   const data = await API.post('/api/server/restart').catch(() => null);
   if (!data?.success) {
@@ -4545,6 +4540,7 @@ async function gameUpdateRestart() {
   const btn = document.getElementById('guRestartBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Restarting...'; }
   closeGameUpdateModal();
+  navigateTo('dashboard');
   await API.post('/api/server/restart').catch(() => null);
   showToast('Server restarting with updated game files...', 'success');
   _pollServerState(true, 120000);

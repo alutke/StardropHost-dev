@@ -346,9 +346,17 @@ function getPlayers(req, res) {
     Object.entries(nameIpMap).filter(([k]) => !k.startsWith('Unnamed'))
   );
 
+  let cabinMax = 8;
+  try {
+    if (fs.existsSync(config.LIVE_FILE)) {
+      const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+      if (live.cabins?.length > 0) cabinMax = live.cabins.length;
+    }
+  } catch {}
+
   res.json({
     online: Math.max(online, players.length),
-    max: 8,
+    max: cabinMax,
     players: playersWithIp,
     recentPlayers:   Array.from(recentPlayers.values()).sort((a, b) => b.lastSeen - a.lastSeen),
     history:         playerHistory,
