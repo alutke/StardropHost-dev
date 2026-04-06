@@ -1016,6 +1016,51 @@
             </div>
           </div>
 
+          <!-- Connection Addresses card -->
+          <div class="card" style="margin-bottom:16px">
+            <h3 style="margin-bottom:12px">Connection Addresses</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+
+              <!-- Game -->
+              <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">Co-Op Game</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="color:var(--text-muted);width:64px;flex-shrink:0">LAN</span>
+                <code id="remote-lan-game" style="flex:1;min-width:160px;font-size:13px;background:var(--bg-tertiary);padding:6px 10px;border-radius:6px;color:var(--text-primary)">--</code>
+                <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('remote-lan-game')" title="Copy">
+                  <svg class="icon"><use href="#icon-copy"></use></svg>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="color:var(--text-muted);width:64px;flex-shrink:0">Remote</span>
+                <input id="remote-playit-game" class="input" type="text" placeholder="e.g. 12.34.56.78:12345"
+                  style="flex:1;min-width:160px;font-size:13px" oninput="_remoteAddrDirty('game')">
+                <button class="btn btn-sm btn-secondary" id="remote-save-game-btn" onclick="saveRemoteAddress('game')" style="display:none">Save</button>
+                <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('remote-playit-game')" title="Copy">
+                  <svg class="icon"><use href="#icon-copy"></use></svg>
+                </button>
+              </div>
+
+              <!-- Dashboard -->
+              <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Dashboard</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="color:var(--text-muted);width:64px;flex-shrink:0">LAN</span>
+                <code id="remote-lan-dash" style="flex:1;min-width:160px;font-size:13px;background:var(--bg-tertiary);padding:6px 10px;border-radius:6px;color:var(--text-primary)">--</code>
+                <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('remote-lan-dash')" title="Copy">
+                  <svg class="icon"><use href="#icon-copy"></use></svg>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="color:var(--text-muted);width:64px;flex-shrink:0">Remote</span>
+                <input id="remote-playit-dash" class="input" type="text" placeholder="e.g. yourname.playit.plus:54321"
+                  style="flex:1;min-width:160px;font-size:13px" oninput="_remoteAddrDirty('dashboard')">
+                <button class="btn btn-sm btn-secondary" id="remote-save-dash-btn" onclick="saveRemoteAddress('dashboard')" style="display:none">Save</button>
+                <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('remote-playit-dash')" title="Copy">
+                  <svg class="icon"><use href="#icon-copy"></use></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- playit.gg guide (collapsible) -->
           <details class="card remote-guide" style="margin-bottom:16px">
             <summary>
@@ -1085,7 +1130,7 @@
                     Domain: <strong style="color:var(--accent)">yourname.playit.plus</strong><br>
                     IP &amp; Port: <strong style="color:var(--accent)">12.34.56.78:12345</strong>
                   </span>
-                  <strong style="font-size:14px;color:var(--text-primary)">Share either the domain name or the IP &amp; Port with your friends — they enter it in Stardew Valley's co-op join screen to connect from anywhere.</strong>
+                  <strong style="font-size:14px;color:var(--text-primary)">Share the IP &amp; Port with your friends — they enter it in Stardew Valley's co-op join screen to connect from anywhere.</strong>
                 </li>
               </ol>
               <p style="font-size:12px;color:var(--text-muted);margin:10px 0 4px;line-height:1.6"><strong>*To use StardropHost Dashboard remotely:</strong> See <em>Remote Dashboard Setup</em> below — requires a TCP tunnel (Premium). No proxy server support yet.</p>
@@ -1194,6 +1239,9 @@
               </p>
               <p style="margin:0 0 4px;color:var(--text-muted);font-size:12px">
                 ⚠ Advanced — modifying docker-compose.yml incorrectly can break your stack. Take a backup first.
+              </p>
+              <p style="margin:8px 0 0;font-size:12px;color:var(--accent);font-style:italic">
+                Advanced docker features coming to the dashboard soon — no more SSH required.
               </p>
 
               <details class="remote-sub" style="margin-top:12px">

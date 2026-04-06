@@ -15,6 +15,9 @@ services:
     image: stardrop-manager:local
     container_name: ${CONTAINER_PREFIX:-stardrop}-manager
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - PROJECT_DIR=${PWD}
       - COMPOSE_FILE=${PWD}/docker-compose.yml
@@ -33,6 +36,9 @@ services:
     container_name: ${CONTAINER_PREFIX:-stardrop}-init
     user: root
     entrypoint: ["/home/steam/scripts/init-container.sh"]
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - USE_GPU=${USE_GPU:-false}
     volumes:
@@ -50,6 +56,9 @@ services:
     image: stardrop-server:local
     container_name: ${CONTAINER_PREFIX:-stardrop}
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     depends_on:
       stardrop-manager:
         condition: service_started
@@ -99,5 +108,8 @@ services:
     image: stardrop-steam-auth:local
     container_name: ${CONTAINER_PREFIX:-stardrop}-steam-auth
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - STEAM_AUTH_PORT=18700

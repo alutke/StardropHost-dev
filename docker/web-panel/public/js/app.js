@@ -1213,6 +1213,7 @@ let isTransitioning        = false; // true during any start/stop/restart/boot s
 let lastRemoteData         = null;
 let _remoteOptimisticState = null;  // 'starting' | 'stopping' | null
 let _remoteYaml            = '';
+let _remoteAddressCache    = { game: '', dashboard: '' };
 let _configRevealTimer     = null;
 let _configCountdownTimer  = null;
 
@@ -4924,7 +4925,17 @@ async function loadRemoteStatus() {
   const configured = document.getElementById('remoteConfigured');
 
   try {
-    const data = await API.get('/api/remote/status');
+    const [data, cfg] = await Promise.all([
+      API.get('/api/remote/status'),
+      API.get('/api/config').catch(() => null),
+    ]);
+
+    if (cfg) {
+      const serverGroup = cfg.groups?.find(g => g.name === 'Server');
+      _remoteAddressCache.game      = serverGroup?.items?.find(i => i.key === 'PLAYIT_GAME_ADDRESS')?.value      || '';
+      _remoteAddressCache.dashboard = serverGroup?.items?.find(i => i.key === 'PLAYIT_DASHBOARD_ADDRESS')?.value || '';
+    }
+    _populateConnectionAddresses();
     lastRemoteData         = data;
     _remoteOptimisticState = null;
     _updateRemoteBadge();
@@ -4986,6 +4997,54 @@ function _updateRemoteBadge() {
   }
 
   renderQuickActions();
+}
+
+function _populateConnectionAddresses() {
+  const lanIp    = lastStatusData?.network?.joinIp || lastStatusData?.network?.localIps?.[0] || '--';
+  const gamePort = 24642;
+  const dashPort = lastStatusData?.panelPort || 18642;
+
+  const lanGame = document.getElementById('remote-lan-game');
+  const lanDash = document.getElementById('remote-lan-dash');
+  if (lanGame) lanGame.textContent = lanIp !== '--' ? `${lanIp}:${gamePort}` : '--';
+  if (lanDash) lanDash.textContent = lanIp !== '--' ? `${lanIp}:${dashPort}` : '--';
+
+  const gameInput = document.getElementById('remote-playit-game');
+  const dashInput = document.getElementById('remote-playit-dash');
+  if (gameInput && gameInput !== document.activeElement) gameInput.value = _remoteAddressCache.game;
+  if (dashInput && dashInput !== document.activeElement) dashInput.value = _remoteAddressCache.dashboard;
+}
+
+function _remoteAddrDirty(type) {
+  const btn = document.getElementById(type === 'game' ? 'remote-save-game-btn' : 'remote-save-dash-btn');
+  if (btn) btn.style.display = '';
+}
+
+async function saveRemoteAddress(type) {
+  const isGame = type === 'game';
+  const input  = document.getElementById(isGame ? 'remote-playit-game' : 'remote-playit-dash');
+  const btn    = document.getElementById(isGame ? 'remote-save-game-btn' : 'remote-save-dash-btn');
+  const key    = isGame ? 'PLAYIT_GAME_ADDRESS' : 'PLAYIT_DASHBOARD_ADDRESS';
+  const val    = input?.value?.trim() || '';
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await API.put('/api/config', { [key]: val });
+    _remoteAddressCache[isGame ? 'game' : 'dashboard'] = val;
+    if (btn) btn.style.display = 'none';
+    showToast('Address saved', 'success');
+  } catch {
+    showToast('Failed to save address', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+  }
+}
+
+function copyRemoteAddr(elId) {
+  const el  = document.getElementById(elId);
+  const val = el?.value ?? el?.textContent ?? '';
+  if (!val || val === '--') { showToast('Nothing to copy', 'warn'); return; }
+  navigator.clipboard.writeText(val).then(() => showToast('Copied!', 'success')).catch(() => showToast('Copy failed', 'error'));
 }
 
 function _renderRemoteServices(services, anyRunning) {

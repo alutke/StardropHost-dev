@@ -61,7 +61,12 @@ const CONFIG_SCHEMA = {
     { key: 'ENABLE_LOG_MONITOR',  label: 'Log Monitor',   type: 'boolean', default: 'true' },
     { key: 'METRICS_PORT',        label: 'Metrics Port',  type: 'number',  default: '9090' },
   ],
-  'Server': [],
+  'Server': [
+    { key: 'PLAYIT_GAME_ADDRESS', label: 'Remote Game Address', type: 'text', default: '',
+      description: 'Your playit.gg game tunnel IP & port (e.g. 12.34.56.78:12345). Share with players for remote co-op.' },
+    { key: 'PLAYIT_DASHBOARD_ADDRESS', label: 'Remote Dashboard Address', type: 'text', default: '',
+      description: 'Your playit.gg TCP tunnel address for the dashboard (e.g. yourname.playit.plus:54321).' },
+  ],
   'Updates': [
     { key: 'PANEL_UPDATE_CHECK_HOURS', label: 'Update check interval', type: 'number', default: '24',
       description: 'How often to check for panel and game updates (hours). Leave empty to disable.' },
