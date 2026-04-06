@@ -2274,25 +2274,30 @@ async function loadFarmhands() {
   card.style.display = '';
 
   el.innerHTML = cabins.map((c, i) => {
-    const unclaimed = !c.OwnerName || c.OwnerName === 'Unclaimed';
-    const isPending = pending.some(p => p.tileX === c.TileX && p.tileY === c.TileY);
-    const onlineDot = c.IsOwnerOnline
-      ? `<span class="status-dot running" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>`
+    // live-status.json is camelCase (SMAPI JSON serializer)
+    const name      = c.ownerName || c.OwnerName;
+    const online    = c.isOwnerOnline ?? c.IsOwnerOnline;
+    const tx        = c.tileX ?? c.TileX;
+    const ty        = c.tileY ?? c.TileY;
+    const unclaimed = !name || name === 'Unclaimed';
+    const isPending = pending.some(p => p.tileX === tx && p.tileY === ty);
+    const onlineDot = online
+      ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>`
       : '';
     return `
       <div class="farmhand-slot${unclaimed ? ' farmhand-slot-empty' : ''}">
         <div class="farmhand-slot-info">
           <span class="farmhand-slot-num">Slot ${i + 1}</span>
           ${onlineDot}
-          <span class="farmhand-slot-name">${unclaimed ? 'Unclaimed' : escapeHtml(c.OwnerName)}</span>
+          <span class="farmhand-slot-name">${unclaimed ? 'Unclaimed' : escapeHtml(name)}</span>
           ${isPending ? `<span class="status-badge restarting" style="font-size:11px;padding:1px 7px">Removal Pending</span>` : ''}
         </div>
         <div class="farmhand-slot-actions">
           ${!unclaimed && !isPending
-            ? `<button class="btn btn-sm btn-danger" onclick="removeFarmhandSlot(this,'${escapeHtml(c.OwnerName)}',${c.TileX},${c.TileY})">Remove</button>`
+            ? `<button class="btn btn-sm btn-danger" onclick="removeFarmhandSlot(this,'${escapeHtml(name)}',${tx},${ty})">Remove</button>`
             : ''}
           ${isPending
-            ? `<button class="btn btn-sm btn-secondary" onclick="cancelFarmhandRemoval(this,${c.TileX},${c.TileY})">Cancel</button>`
+            ? `<button class="btn btn-sm btn-secondary" onclick="cancelFarmhandRemoval(this,${tx},${ty})">Cancel</button>`
             : ''}
         </div>
       </div>`;
