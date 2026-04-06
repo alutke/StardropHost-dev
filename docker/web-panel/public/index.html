@@ -533,19 +533,20 @@
                   <span id="worldPauseState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
                 </div>
 
-                <div class="admin-cmd-row">
-                  <span class="admin-cmd-label">Freeze Time</span>
-                  <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
-                  <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
-                </div>
-                <div class="admin-cmd-row" style="border-bottom:none;padding-top:0">
-                  <span class="admin-cmd-label"></span>
-                  <div style="position:relative;display:flex;align-items:center;gap:6px;flex:1;max-width:340px">
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="admin-cmd-label" style="margin:0">Freeze Time</span>
+                    <button class="btn btn-sm" id="worldFreezeBtn" onclick="toggleWorldFreeze()">Toggle Freeze</button>
+                    <span id="worldFreezeState" style="font-size:12px;color:var(--text-muted)"></span>
+                  </div>
+                  <div style="position:relative;display:flex;align-items:center;gap:6px;width:100%;max-width:340px">
                     <input type="text" id="worldFreezeMsg" class="form-input" placeholder="Chat message on toggle (optional)" style="flex:1">
                     <button id="worldFreezeMsgColorBtn" class="freeze-color-dot" onclick="toggleFreezeMsgColors(event)" title="Chat color"></button>
                     <div id="worldFreezeMsgColorPicker" class="freeze-color-picker" style="display:none"></div>
                   </div>
                 </div>
+
+                <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
 
                 <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Clear</span>
