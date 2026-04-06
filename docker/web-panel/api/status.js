@@ -3,7 +3,8 @@
  * Server status, metrics and control
  */
 
-const fs = require('fs');
+const fs   = require('fs');
+const path = require('path');
 const { execSync, spawnSync } = require('child_process');
 const http  = require('http');
 const https = require('https');
@@ -403,6 +404,12 @@ function collectStatus(req = null) {
     players: status.players.online,
   });
   if (statusHistory.length > MAX_HISTORY) statusHistory.shift();
+
+  // VNC enabled state
+  try {
+    const vncState = JSON.parse(fs.readFileSync(path.join(config.DATA_DIR, 'vnc-state.json'), 'utf-8'));
+    status.vncEnabled = vncState.enabled === true;
+  } catch { status.vncEnabled = false; }
 
   return status;
 }
