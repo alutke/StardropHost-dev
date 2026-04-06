@@ -3140,7 +3140,7 @@ async function loadChatMessages() {
   }
 }
 
-function _makeLineInput(placeholder) {
+function _makeLineInput(placeholder, removable) {
   const wrap  = document.createElement('div');
   wrap.className = 'chat-line-wrap';
   const input = document.createElement('input');
@@ -3148,6 +3148,13 @@ function _makeLineInput(placeholder) {
   input.placeholder = placeholder; input.maxLength = 200; input.autocomplete = 'off';
   input.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
   wrap.appendChild(input);
+  if (removable) {
+    const rm = document.createElement('button');
+    rm.className = 'btn btn-sm btn-secondary'; rm.textContent = '−'; rm.title = 'Remove line';
+    rm.style.flexShrink = '0';
+    rm.onclick = () => wrap.remove();
+    wrap.appendChild(rm);
+  }
   return wrap;
 }
 
@@ -3155,13 +3162,13 @@ function _resetChatLines() {
   const container = document.getElementById('chatLines');
   if (!container) return;
   container.innerHTML = '';
-  container.appendChild(_makeLineInput('Message all players…'));
+  container.appendChild(_makeLineInput('Message all players…', false));
 }
 
 function addChatLine() {
   const container = document.getElementById('chatLines');
   if (!container) return;
-  const wrap = _makeLineInput('Next line…');
+  const wrap = _makeLineInput('Next line…', true);
   container.appendChild(wrap);
   wrap.querySelector('input').focus();
 }
