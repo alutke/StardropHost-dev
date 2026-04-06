@@ -29,32 +29,58 @@ log ""
 
 mkdir -p "$BACKUP_DIR"
 
-LAST_BACKUP_TIME=0
+LAST_BACKUP_TIME=$(date +%s)
 
 get_farm_slug() {
     node -e "
 const fs = require('fs'), path = require('path');
-const LIVE  = '/home/steam/.local/share/stardrop/live-status.json';
-const SAVES = '${SAVE_DIR}/Saves';
+const SAVE_DIR   = '${SAVE_DIR}';
+const SAVES      = path.join(SAVE_DIR, 'Saves');
+const LIVE       = '/home/steam/.local/share/stardrop/live-status.json';
+const PREFS      = path.join(SAVE_DIR, 'startup_preferences');
+const SEL_MARKER = path.join(SAVES, '.selected_save');
+
+function slugify(name) {
+    const s = name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
+    return s || null;
+}
+
+function farmNameFromSaveDir(saveDir) {
+    try {
+        const info = path.join(SAVES, saveDir, 'SaveGameInfo');
+        if (!fs.existsSync(info)) return null;
+        const m = fs.readFileSync(info, 'utf8').match(/<farmName>([^<]+)<\/farmName>/);
+        return m ? m[1] : null;
+    } catch { return null; }
+}
+
 try {
-    // Primary: live-status.json (game is always running during auto-backup)
-    if (fs.existsSync(LIVE)) {
-        const live = JSON.parse(fs.readFileSync(LIVE, 'utf8'));
-        if (live.farmName) {
-            const slug = live.farmName.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
-            if (slug) { process.stdout.write(slug); return; }
+    // 1. startup_preferences <saveFolderName>
+    if (fs.existsSync(PREFS)) {
+        const m = fs.readFileSync(PREFS, 'utf8').match(/<saveFolderName>([^<]+)<\/saveFolderName>/);
+        if (m && m[1].trim()) {
+            const name = farmNameFromSaveDir(m[1].trim());
+            if (name) { const s = slugify(name); if (s) { process.stdout.write(s); process.exit(0); } }
         }
     }
-    // Fallback: scan SaveGameInfo files
+    // 2. .selected_save marker
+    if (fs.existsSync(SEL_MARKER)) {
+        const sel = fs.readFileSync(SEL_MARKER, 'utf8').trim();
+        if (sel) {
+            const name = farmNameFromSaveDir(sel);
+            if (name) { const s = slugify(name); if (s) { process.stdout.write(s); process.exit(0); } }
+        }
+    }
+    // 3. live-status.json farmName
+    if (fs.existsSync(LIVE)) {
+        const live = JSON.parse(fs.readFileSync(LIVE, 'utf8'));
+        if (live.farmName) { const s = slugify(live.farmName); if (s) { process.stdout.write(s); process.exit(0); } }
+    }
+    // 4. Scan all SaveGameInfo files
     if (fs.existsSync(SAVES)) {
         for (const dir of fs.readdirSync(SAVES)) {
-            const info = path.join(SAVES, dir, 'SaveGameInfo');
-            if (!fs.existsSync(info)) continue;
-            const m = fs.readFileSync(info, 'utf8').match(/<farmName>([^<]+)<\/farmName>/);
-            if (m) {
-                const slug = m[1].toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'');
-                if (slug) { process.stdout.write(slug); return; }
-            }
+            const name = farmNameFromSaveDir(dir);
+            if (name) { const s = slugify(name); if (s) { process.stdout.write(s); process.exit(0); } }
         }
     }
 } catch(e) {}

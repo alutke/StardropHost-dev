@@ -30,8 +30,7 @@ write_log()    { echo "[$(date '+%H:%M:%S')] $1" | tee -a "$LOG_FILE"; }
 # -- Pre-update save backup --
 pre_update_backup() {
     mkdir -p "$BACKUP_DIR"
-    local saves_dir="$SAVE_DIR/Saves"
-    [ -d "$saves_dir" ] || return 0
+    [ -d "$SAVE_DIR" ] || return 0
 
     local farm_slug
     farm_slug=$(node -e "
@@ -58,10 +57,10 @@ try {
     timestamp=$(date -u '+D%d-%m-%Y-T%H-%M-%S')
     local backup_file="$BACKUP_DIR/${farm_slug}-update-backup-${timestamp}.zip"
 
-    write_log "Creating pre-update save backup..."
-    (cd "$(dirname "$saves_dir")" && zip -r "$backup_file" "$(basename "$saves_dir")" -x "*/ErrorLogs/*") 2>/dev/null \
+    write_log "Creating pre-update backup..."
+    (cd "$(dirname "$SAVE_DIR")" && zip -r "$backup_file" "$(basename "$SAVE_DIR")" -x "*/ErrorLogs/*") 2>/dev/null \
         && write_log "  Backup saved: $(basename "$backup_file")" \
-        || write_log "  Backup skipped (no saves found)"
+        || write_log "  Backup skipped"
 }
 
 # -- Read credentials from JSON --

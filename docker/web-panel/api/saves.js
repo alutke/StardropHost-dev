@@ -445,7 +445,7 @@ function startBackupJob() {
 // tag: 'stop' | 'restart' | 'update'
 
 function triggerTaggedBackup(tag) {
-  if (!fs.existsSync(config.SAVES_DIR)) return;
+  if (!fs.existsSync(config.CONFIG_DIR)) return;
   try {
     ensureDir(config.BACKUPS_DIR);
     const slug       = getFarmSlug();
@@ -453,10 +453,10 @@ function triggerTaggedBackup(tag) {
     const backupPath = path.join(config.BACKUPS_DIR, `${slug}-${tag}-backup-${timestamp}.zip`);
     const child = spawn('zip', [
       '-r', backupPath,
-      path.basename(config.SAVES_DIR),
+      path.basename(config.CONFIG_DIR),
       '-x', '*/ErrorLogs/*',
     ], {
-      cwd: path.dirname(config.SAVES_DIR),
+      cwd: path.dirname(config.CONFIG_DIR),
       stdio: 'ignore',
       detached: true,
     });
