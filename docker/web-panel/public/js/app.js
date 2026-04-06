@@ -3813,13 +3813,8 @@ async function loadConfig() {
       rowTarget.appendChild(cfgGameNotif);
 
       const checkRow = document.createElement('div');
-      checkRow.className = 'config-item';
-      checkRow.innerHTML =
-        `<div><div class="config-label">Check for Updates</div>
-              <div class="config-help">Check for StardropHost panel and game updates now.</div></div>
-         <div class="config-value">
-           <button class="btn btn-sm btn-secondary" type="button" onclick="checkAllUpdates()">Check Now</button>
-         </div>`;
+      checkRow.style.cssText = 'padding:6px 0';
+      checkRow.innerHTML = `<button class="btn btn-secondary" id="checkUpdatesBtn" type="button" onclick="checkAllUpdates()">Check Now</button>`;
       rowTarget.appendChild(checkRow);
     }
 
