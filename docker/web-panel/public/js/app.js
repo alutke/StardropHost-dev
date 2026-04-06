@@ -1424,7 +1424,7 @@ function navigateTo(page) {
   document.getElementById('menuIconOpen').style.display  = '';
   document.getElementById('menuIconClose').style.display = 'none';
   document.getElementById('menuOverlay').classList.remove('active');
-  document.getElementById('page-container')?.scrollTo(0, 0);
+  document.getElementById('content')?.scrollTo(0, 0);
   _updateMenuToggleDot();
 
   switch (page) {

@@ -1215,14 +1215,13 @@ select.form-input {
   #page-container { padding: 12px; }
 }
 
-/* ─── Landscape mobile — hide sidebar like portrait, no overlay ── */
+/* ─── Landscape mobile — hide sidebar like portrait ──────────── */
 @media (orientation: landscape) and (max-height: 600px) {
   #sidebar { transform: translateX(-100%); }
   #sidebar.open { transform: translateX(0); }
   #content { margin-left: 0; }
   .mobile-only { display: block; }
   #sidebarCloseBtn { display: block; }
-  #menuOverlay { display: none !important; }
 }
 
 /* ── Remote tab ──────────────────────────────────────────────── */
