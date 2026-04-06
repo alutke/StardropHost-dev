@@ -534,6 +534,12 @@
                 </div>
 
                 <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Freeze players+time</span>
+                  <button class="btn btn-sm" id="worldPauseBtn" onclick="toggleWorldPause()">Pause</button>
+                  <span id="worldPauseState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
+                </div>
+
+                <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Clear</span>
                   <select id="worldClearLocation" class="form-input" style="width:130px">
                     <option value="Farm">Farm</option>
@@ -564,7 +570,7 @@
                     <option value="owned">Own Buildings (owned)</option>
                     <option value="on">Everyone (on)</option>
                   </select>
-                  <button class="btn btn-sm btn-primary" onclick="worldCmd('movebuildingpermission', document.getElementById('worldBuildPermission').value)">Set</button>
+                  <button class="btn btn-sm btn-primary" onclick="worldCmd('say', '/movebuildingpermission ' + document.getElementById('worldBuildPermission').value)">Set</button>
                 </div>
 
                 <div class="admin-cmd-row" style="border-bottom:none">

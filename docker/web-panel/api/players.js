@@ -545,7 +545,7 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'player_setstamina', 'player_setmaxstamina', 'player_add',
   'world_settime', 'world_setday', 'world_setseason', 'world_setyear',
   'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
-  'upgrade_cabins', 'movebuildingpermission',
+  'upgrade_cabins', 'say',
   'stardrop_emote', 'stardrop_sethealth', 'stardrop_setmaxhealth',
   'stardrop_setstamina', 'stardrop_setmaxstamina', 'stardrop_setmoney', 'stardrop_give',
 ]);

@@ -1916,6 +1916,7 @@ async function loadFarm() {
 // ─── World Controls ───────────────────────────────────────────────
 
 let _worldFrozen = false;
+let _worldPaused = false;
 
 async function worldCmd(base, value, clearId) {
   const command = value !== '' ? `${base} ${value}` : base;
@@ -1924,6 +1925,25 @@ async function worldCmd(base, value, clearId) {
   const el = document.getElementById('worldCmdResult');
   if (!el) return;
   el.textContent    = data?.success ? `✓ Sent: ${command}` : `✗ ${data?.error || 'Failed — is the server running?'}`;
+  el.style.color    = data?.success ? 'var(--accent)' : '#ef4444';
+  el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
+  el.style.display  = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+async function toggleWorldPause() {
+  const cmd  = _worldPaused ? 'say /resume' : 'say /pause';
+  const data = await API.post('/api/players/admin-command', { command: cmd }).catch(() => null);
+  if (data?.success) {
+    _worldPaused = !_worldPaused;
+    const btn     = document.getElementById('worldPauseBtn');
+    const stateEl = document.getElementById('worldPauseState');
+    if (btn)     btn.textContent     = _worldPaused ? 'Resume' : 'Pause';
+    if (stateEl) stateEl.textContent = _worldPaused ? '⏸ Paused' : '▶ Running';
+  }
+  const el = document.getElementById('worldCmdResult');
+  if (!el) return;
+  el.textContent    = data?.success ? `✓ ${_worldPaused ? 'Paused' : 'Resumed'}` : `✗ ${data?.error || 'Failed'}`;
   el.style.color    = data?.success ? 'var(--accent)' : '#ef4444';
   el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
   el.style.display  = '';
@@ -3350,6 +3370,8 @@ async function clearAllChat() {
     if (feed) feed.innerHTML = `<div class="empty-state" id="chatEmpty">All chat history cleared.</div>`;
     _updateChatBadges();
     showToast('All chat history cleared', 'success');
+    // Also clear in-game chat via SMAPI
+    API.post('/api/players/admin-command', { command: 'say /clear' }).catch(() => null);
   } else {
     showToast('Failed to clear chat', 'error');
   }
