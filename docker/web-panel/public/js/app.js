@@ -2928,9 +2928,11 @@ function renderChatPlayerPills() {
   if (_chatPlayers.length > 0) {
     html += `<span class="chat-dm-separator">Private Chats</span>`;
     for (const name of _chatPlayers) {
-      const active = (_chatTarget === name) ? ' active' : '';
-      const dot = _chatNotifs[name] ? '<span class="notif-dot"></span>' : '';
-      html += `<button class="chat-pill chat-pill-dm${active}" onclick="setChatTarget('${escapeHtml(name)}')">${escapeHtml(name)}${dot}</button>`;
+      const active   = (_chatTarget === name) ? ' active' : '';
+      const dot      = _chatNotifs[name] ? '<span class="notif-dot"></span>' : '';
+      const offline  = !_chatOnlinePlayers.includes(name);
+      const offlineTxt = offline ? ' <span style="font-size:11px;opacity:0.6">(offline)</span>' : '';
+      html += `<button class="chat-pill chat-pill-dm${active}" onclick="setChatTarget('${escapeHtml(name)}')">${escapeHtml(name)}${offlineTxt}${dot}</button>`;
     }
   }
   row.innerHTML = html;
@@ -3049,8 +3051,11 @@ async function loadChatMessages() {
     if (isLog && msg.message?.includes('Unnamed Farmhand')) continue;
 
     if (_chatTarget) {
-      // DM view: show messages to/from this player only
-      if (msg.from !== _chatTarget && msg.to !== _chatTarget) continue;
+      // DM view: show messages to/from this player, plus log events mentioning them (join/quit/ban)
+      const isPlayerLog = isLog && msg.message && (
+        msg.message.startsWith(_chatTarget + ' ') || msg.message.startsWith(_chatTarget + '(')
+      );
+      if (!isPlayerLog && msg.from !== _chatTarget && msg.to !== _chatTarget) continue;
     } else {
       // World chat: DMs are completely separate — never show here
       if (isDm) continue;
