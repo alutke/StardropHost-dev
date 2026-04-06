@@ -1346,7 +1346,6 @@ select.form-input {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
 }
 .chat-pill {
   padding: 5px 14px;
@@ -1505,21 +1504,49 @@ select.form-input {
 .chat-pill-dm.active {
   background: color-mix(in srgb, var(--accent-dark) 22%, var(--bg-secondary));
 }
-/* Chat target label as badge */
-#chatTargetLabel {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
+/* Chat title label — replaces h3 + badge */
+.chat-title-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  transition: color 0.2s;
 }
-#chatTargetLabel.dm-active {
-  background: color-mix(in srgb, var(--accent-dark) 25%, var(--bg-secondary));
-  border-color: var(--accent-dark);
-  color: var(--accent);
+.chat-title-label.dm-active { color: var(--accent); }
+
+/* Pills wrap + scroll arrow */
+.chat-pills-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+.chat-scroll-arrow {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(to right, transparent, var(--bg-secondary) 40%);
+  border: none;
+  padding: 4px 6px 4px 20px;
+  font-size: 20px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+}
+.chat-scroll-arrow .notif-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+@media (max-width: 768px) {
+  .chat-player-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .chat-player-pills::-webkit-scrollbar { display: none; }
+  .chat-scroll-arrow { display: flex; align-items: center; }
 }
 /* DM sent arrow */
 .chat-dm-sent { color: var(--accent); font-weight: 600; }

@@ -685,15 +685,20 @@
         <section id="page-chat" class="page">
           <div class="card">
             <div class="section-header">
-              <h3>Chat</h3>
-              <span class="detail-note" id="chatTargetLabel">World Chat</span>
+              <span id="chatTargetLabel" class="chat-title-label">World Chat</span>
               <div class="action-group" style="margin-left:auto">
                 <button class="btn btn-sm btn-secondary" onclick="downloadChatLog()" title="Download all chat logs">Download</button>
                 <button class="btn btn-sm btn-secondary" onclick="clearCurrentChat()" title="Clear current chat">Clear</button>
                 <button class="btn btn-sm btn-danger" onclick="clearAllChat()" title="Clear all chat history">Clear All</button>
               </div>
             </div>
-            <div id="chatPlayerPills" class="chat-player-pills"></div>
+            <div class="chat-pills-wrap">
+              <div id="chatPlayerPills" class="chat-player-pills"></div>
+              <button id="chatScrollArrow" class="chat-scroll-arrow" style="display:none" onclick="_chatScrollToNotif()">
+                <span>&#8250;</span>
+                <span class="notif-dot" id="chatScrollDot" style="display:none"></span>
+              </button>
+            </div>
             <div id="chatFeed" class="chat-feed">
               <div class="empty-state" id="chatEmpty">No messages yet — chat from connected players will appear here.</div>
             </div>

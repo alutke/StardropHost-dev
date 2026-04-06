@@ -2936,6 +2936,43 @@ function renderChatPlayerPills() {
     }
   }
   row.innerHTML = html;
+  _updateChatScrollArrow();
+  // Re-attach scroll listener each render
+  row.onscroll = _updateChatScrollArrow;
+}
+
+function _updateChatScrollArrow() {
+  const row    = document.getElementById('chatPlayerPills');
+  const arrow  = document.getElementById('chatScrollArrow');
+  const dot    = document.getElementById('chatScrollDot');
+  if (!row || !arrow) return;
+  const hasOverflow  = row.scrollWidth > row.clientWidth;
+  const atEnd        = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4;
+  arrow.style.display = (hasOverflow && !atEnd) ? '' : 'none';
+  // Show notif dot if any off-screen DM has a pending notif
+  const hasOffscreenNotif = _chatPlayers.some(name => {
+    if (!_chatNotifs[name]) return false;
+    const btn = [...row.querySelectorAll('.chat-pill-dm')].find(b => b.textContent.startsWith(name));
+    if (!btn) return false;
+    return btn.offsetLeft + btn.offsetWidth > row.scrollLeft + row.clientWidth;
+  });
+  if (dot) dot.style.display = hasOffscreenNotif ? '' : 'none';
+}
+
+function _chatScrollToNotif() {
+  const row = document.getElementById('chatPlayerPills');
+  if (!row) return;
+  // Find first off-screen pill with a notif, or just scroll right
+  const target = _chatPlayers.find(name => {
+    if (!_chatNotifs[name]) return false;
+    const btn = [...row.querySelectorAll('.chat-pill-dm')].find(b => b.textContent.startsWith(name));
+    return btn && btn.offsetLeft + btn.offsetWidth > row.scrollLeft + row.clientWidth;
+  });
+  if (target) {
+    const btn = [...row.querySelectorAll('.chat-pill-dm')].find(b => b.textContent.startsWith(target));
+    if (btn) { row.scrollTo({ left: btn.offsetLeft - 8, behavior: 'smooth' }); return; }
+  }
+  row.scrollBy({ left: 120, behavior: 'smooth' });
 }
 
 function setChatTarget(name) {
