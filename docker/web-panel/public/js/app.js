@@ -2112,7 +2112,7 @@ async function downloadUpdateLog() {
   } catch {
     showToast('Failed to download update log', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<svg class="icon"><use href="#icon-download"></use></svg> Update Log'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Game Update'; }
   }
 }
 
@@ -2132,7 +2132,27 @@ async function downloadDockerLogs() {
   } catch {
     showToast('Failed to download docker logs', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Docker Logs'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Server'; }
+  }
+}
+
+async function downloadSetupLog() {
+  const btn = document.getElementById('logSetupDownload');
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading...'; }
+  try {
+    const data = await API.get('/api/logs/setup?lines=5000');
+    if (!data?.lines?.length) { showToast('No server setup log available', 'warn'); return; }
+    const text = data.lines.map(l => l.text).join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ts   = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    a.href = url; a.download = `stardrop-setup-${ts}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    showToast('Failed to download server setup log', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Server Setup'; }
   }
 }
 

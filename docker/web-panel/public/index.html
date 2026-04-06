@@ -894,9 +894,10 @@
                   </button>
                   <div class="log-dl-menu" id="logDlMenu" style="display:none">
                     <button type="button" onclick="downloadLogs(); toggleLogDlMenu()">Current View</button>
-                    <button type="button" id="logSmApiDownloadBtn" onclick="downloadSmapiLog(); toggleLogDlMenu()">Full SMAPI Log</button>
-                    <button type="button" id="logUpdateDownload" onclick="downloadUpdateLog(); toggleLogDlMenu()">Update Log</button>
-                    <button type="button" id="logDockerDownload" onclick="downloadDockerLogs(); toggleLogDlMenu()">Docker Logs</button>
+                    <button type="button" id="logSmApiDownloadBtn" onclick="downloadSmapiLog(); toggleLogDlMenu()">SMAPI</button>
+                    <button type="button" id="logUpdateDownload" onclick="downloadUpdateLog(); toggleLogDlMenu()">Game Update</button>
+                    <button type="button" id="logDockerDownload" onclick="downloadDockerLogs(); toggleLogDlMenu()">Server</button>
+                    <button type="button" id="logSetupDownload" onclick="downloadSetupLog(); toggleLogDlMenu()">Server Setup</button>
                   </div>
                 </div>
                 <button class="btn btn-sm btn-icon" id="logClear" type="button" title="Clear display">
@@ -1031,6 +1032,7 @@
               <p style="margin:8px 0 4px">
                 Premium is <strong>highly recommended</strong>. Free tier works but has no TCP —
                 StardropHost/Stardew works on UDP (PC &amp; Mobile only). Consoles require TCP/UDP.
+                <strong>Remote Dashboard access requires a TCP tunnel (Premium only).</strong>
               </p>
               <ul style="margin:0 0 4px 18px;padding:0">
                 <li>Paid is only ~$5/mo — worth it for custom domain names and other premium features</li>
@@ -1086,7 +1088,32 @@
                   <strong style="font-size:14px;color:var(--text-primary)">Share either the domain name or the IP &amp; Port with your friends — they enter it in Stardew Valley's co-op join screen to connect from anywhere.</strong>
                 </li>
               </ol>
-              <p style="font-size:12px;color:var(--text-muted);margin:10px 0 4px;line-height:1.6"><strong>*To use StardropHost Dashboard remotely:</strong> Add another Tunnel to your Agent using the Dashboard Port displayed on the Dashboard Tab (default 18642)</p>
+              <p style="font-size:12px;color:var(--text-muted);margin:10px 0 4px;line-height:1.6"><strong>*To use StardropHost Dashboard remotely:</strong> See <em>Remote Dashboard Setup</em> below — requires a TCP tunnel (Premium). No proxy server support yet.</p>
+            </details>
+
+            <!-- Remote Dashboard Setup -->
+            <details class="remote-sub">
+              <summary>Remote Dashboard Setup <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:6px">TCP — Premium required</span></summary>
+              <p style="font-size:12px;color:var(--text-muted);margin:8px 0 10px;line-height:1.6">
+                The StardropHost dashboard is a web app served over HTTP. To access it remotely via playit.gg you need a <strong>TCP tunnel</strong> (Premium only — free tier is UDP only).
+                No proxy server is required or supported yet.
+              </p>
+              <ol class="remote-steps">
+                <li>In playit.gg → <strong>Tunnels</strong> → <strong>Create Tunnel</strong></li>
+                <li>Name it (e.g. <code>Stardrop-Dashboard</code>), select type <strong>TCP</strong>, port count <strong>1</strong></li>
+                <li>For <strong>Local IP &amp; Port</strong>: use your server's <strong>LAN IP</strong> and port <code>18642</code> (the dashboard port)</li>
+                <li>For <strong>Public End Point</strong> — select the region closest to you</li>
+                <li>Select the agent created in Agent Setup, then click <strong>Create Tunnel</strong></li>
+                <li>Your tunnel will show a domain and port — access the dashboard from anywhere at:<br>
+                  <span style="display:block;margin:6px 0 4px;padding:8px 12px;background:var(--bg-primary);border-radius:6px;font-family:monospace;font-size:12px;color:var(--text-primary)">
+                    http://<strong style="color:var(--accent)">yourname.playit.plus:PORT</strong>
+                  </span>
+                </li>
+                <li>Log in with your StardropHost panel username and password</li>
+              </ol>
+              <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0;line-height:1.6">
+                ⚠ HTTP only — no HTTPS yet. Do not expose sensitive credentials over an untrusted network. HTTPS via Certbot is a planned future feature.
+              </p>
             </details>
 
             <!-- Docker Compose Example -->
@@ -1150,6 +1177,54 @@
               <p style="margin:0;color:var(--text-muted);font-size:12px">
                 Other VPS, VPN, port forwarding and other services should work but are untested.
               </p>
+            </div>
+          </details>
+
+          <!-- Advanced Docker Config -->
+          <details class="card remote-guide" style="margin-top:16px">
+            <summary>
+              Advanced Docker Config
+              <span class="remote-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.3)">ADVANCED</span>
+            </summary>
+
+            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;font-size:13px;color:var(--text-secondary);line-height:1.75">
+              <p style="margin:0 0 10px">
+                For services that need to run alongside StardropHost but aren't tunnel providers — for example <strong>Certbot</strong> (HTTPS), a reverse proxy, or other infrastructure tools.
+                These are added directly to your <code>docker-compose.yml</code> via SSH on your host machine.
+              </p>
+              <p style="margin:0 0 4px;color:var(--text-muted);font-size:12px">
+                ⚠ Advanced — modifying docker-compose.yml incorrectly can break your stack. Take a backup first.
+              </p>
+
+              <details class="remote-sub" style="margin-top:12px">
+                <summary>HTTPS with Certbot (Let's Encrypt)</summary>
+                <p style="font-size:12px;color:var(--text-muted);margin:8px 0 10px;line-height:1.6">
+                  Certbot obtains a free TLS certificate from Let's Encrypt so the dashboard can be served over HTTPS.
+                  Requires a <strong>domain name pointed at your server's public IP</strong> and <strong>port 80 open</strong> for the ACME challenge.
+                </p>
+                <ol class="remote-steps">
+                  <li>Point your domain's DNS A record at your server's public IP</li>
+                  <li>Open port <code>80</code> on your VM/firewall (needed for certificate issuance only)</li>
+                  <li>SSH into your host and add a Certbot service to <code>docker-compose.yml</code>:
+                    <pre style="background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;overflow-x:auto;margin:8px 0;line-height:1.6;color:var(--text-primary)">  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: >
+      certbot certonly --webroot
+      --webroot-path=/var/www/certbot
+      --email you@example.com
+      --agree-tos --no-eff-email
+      -d yourdomain.com</pre>
+                  </li>
+                  <li>Run <code>docker compose up certbot</code> to obtain the certificate</li>
+                  <li>Add a reverse proxy (e.g. Nginx, Caddy) to serve the dashboard over HTTPS using the certificate in <code>./data/certbot/conf/</code></li>
+                </ol>
+                <p style="font-size:12px;color:var(--text-muted);margin:8px 0 0;line-height:1.6">
+                  Full HTTPS + reverse proxy setup guide coming in a future update.
+                </p>
+              </details>
             </div>
           </details>
 
