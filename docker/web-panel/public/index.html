@@ -699,15 +699,10 @@
             </div>
             <!-- Color swatches -->
             <div class="chat-color-row" id="chatColorRow"></div>
-            <!-- Offline note -->
-            <div id="chatOfflineNote" style="display:none;font-size:12px;color:var(--text-muted);padding:6px 0 2px;text-align:center">Player offline — messages cannot be sent</div>
             <!-- Compose -->
-            <div class="chat-compose-row">
-              <div class="chat-emote-wrap">
-                <button class="btn btn-sm chat-emote-btn" id="chatEmoteBtn" onclick="toggleEmoteMenu()" title="Emotes">😊</button>
-                <div id="chatEmoteMenu" class="chat-emote-menu" style="display:none"></div>
-              </div>
-              <input id="chatInput" type="text" class="form-input chat-input" placeholder="Message all players…" maxlength="200" autocomplete="off" />
+            <div id="chatLines" class="chat-lines"></div>
+            <div class="chat-compose-row" style="margin-top:6px">
+              <button class="btn btn-sm btn-secondary" id="chatAddLineBtn" onclick="addChatLine()" title="Add another line">+</button>
               <button class="btn btn-primary btn-sm" id="chatSendBtn" onclick="sendChatMessage()">Send</button>
             </div>
           </div>

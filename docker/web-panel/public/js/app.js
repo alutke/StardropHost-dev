@@ -1446,7 +1446,7 @@ function navigateTo(page) {
       _updateChatBadges();
       renderChatPlayerPills();
       initChatColorRow();
-      initChatEmoteMenu();
+      _resetChatLines();
       loadChatMessages();
       if (!_chatPollTimer) _chatPollTimer = setInterval(loadChatMessages, 3000);
       break;
@@ -2944,8 +2944,9 @@ function setChatTarget(name) {
   const label = document.getElementById('chatTargetLabel');
   label.textContent = `Private Chat — ${name}`;
   label.classList.add('dm-active');
-  document.getElementById('chatInput').placeholder = `Message ${name}…`;
-  document.getElementById('chatInput').focus();
+  _resetChatLines();
+  const firstInput = document.getElementById('chatLines')?.querySelector('input');
+  if (firstInput) { firstInput.placeholder = `Message ${name}…`; firstInput.focus(); }
   const feed = document.getElementById('chatFeed');
   if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">Loading…</div>';
   const colorRow = document.getElementById('chatColorRow');
@@ -2964,7 +2965,7 @@ function clearChatTarget() {
   const label = document.getElementById('chatTargetLabel');
   label.textContent = 'World Chat';
   label.classList.remove('dm-active');
-  document.getElementById('chatInput').placeholder = 'Message all players…';
+  _resetChatLines();
   const feed = document.getElementById('chatFeed');
   if (feed) feed.innerHTML = '<div class="empty-state" id="chatEmpty">Loading…</div>';
   const colorRow = document.getElementById('chatColorRow');
@@ -3102,49 +3103,91 @@ async function loadChatMessages() {
   }
 }
 
-async function sendChatMessage() {
-  const input = document.getElementById('chatInput');
-  let message = input.value.trim();
-  if (!message) return;
-
-  // Apply color prefix (skip if message is a /command)
-  if (_chatColor && !message.startsWith('/')) {
-    if (_chatColor === 'rainbow') {
-      message = `[${CHAT_RAINBOW_SEQ[_chatRainbowIdx % CHAT_RAINBOW_SEQ.length]}]${message}`;
-      _chatRainbowIdx++;
-    } else {
-      message = `[${_chatColor}]${message}`;
-    }
-  }
-
-  input.disabled = true;
-  const data = await API.post('/api/chat/send', { message, to: _chatTarget || 'all' }).catch(() => null);
-  input.disabled = false;
-
-  if (data?.success) {
-    input.value = '';
-    // Poll immediately to pick up the host's message from the log
-    setTimeout(loadChatMessages, 300);
-  } else {
-    showToast(data?.error || 'Failed to send message', 'error');
-  }
-  input.focus();
+function _makeLineInput(placeholder) {
+  const wrap  = document.createElement('div');
+  wrap.className = 'chat-line-wrap';
+  const input = document.createElement('input');
+  input.type = 'text'; input.className = 'form-input chat-input';
+  input.placeholder = placeholder; input.maxLength = 200; input.autocomplete = 'off';
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
+  wrap.appendChild(input);
+  return wrap;
 }
 
-// Allow Enter key to send
-document.addEventListener('DOMContentLoaded', () => {
-  const input = document.getElementById('chatInput');
-  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') sendChatMessage(); });
-});
+function _resetChatLines() {
+  const container = document.getElementById('chatLines');
+  if (!container) return;
+  container.innerHTML = '';
+  container.appendChild(_makeLineInput('Message all players…'));
+}
+
+function addChatLine() {
+  const container = document.getElementById('chatLines');
+  if (!container) return;
+  const wrap = _makeLineInput('Next line…');
+  container.appendChild(wrap);
+  wrap.querySelector('input').focus();
+}
+
+async function sendChatMessage() {
+  const container = document.getElementById('chatLines');
+  if (!container) return;
+  const inputs  = [...container.querySelectorAll('input')];
+  const messages = inputs.map(i => i.value.trim()).filter(Boolean);
+  if (!messages.length) return;
+
+  const sendBtn = document.getElementById('chatSendBtn');
+  const addBtn  = document.getElementById('chatAddLineBtn');
+  if (sendBtn) sendBtn.disabled = true;
+  if (addBtn)  addBtn.disabled  = true;
+
+  for (let i = 0; i < messages.length; i++) {
+    let message = messages[i];
+    // Apply color prefix (skip if /command)
+    if (_chatColor && !message.startsWith('/')) {
+      if (_chatColor === 'rainbow') {
+        message = `[${CHAT_RAINBOW_SEQ[_chatRainbowIdx % CHAT_RAINBOW_SEQ.length]}]${message}`;
+        _chatRainbowIdx++;
+      } else {
+        message = `[${_chatColor}]${message}`;
+      }
+    }
+    const data = await API.post('/api/chat/send', { message, to: _chatTarget || 'all' }).catch(() => null);
+    if (!data?.success) {
+      showToast(data?.error || 'Failed to send message', 'error');
+      break;
+    }
+    if (i < messages.length - 1) await new Promise(r => setTimeout(r, 600));
+  }
+
+  if (sendBtn) sendBtn.disabled = false;
+  if (addBtn)  addBtn.disabled  = false;
+  _resetChatLines();
+  setTimeout(loadChatMessages, 300);
+  container.querySelector('input')?.focus();
+}
 
 function _updateChatInputState() {
-  const input   = document.getElementById('chatInput');
+  const container = document.getElementById('chatLines');
   const sendBtn = document.getElementById('chatSendBtn');
+  const addBtn  = document.getElementById('chatAddLineBtn');
   const note    = document.getElementById('chatOfflineNote');
   const offline = _chatTarget && !_chatOnlinePlayers.includes(_chatTarget);
-  if (input)   { input.disabled = offline; if (offline) input.value = ''; }
+  if (container) {
+    const inputs = container.querySelectorAll('input');
+    inputs.forEach((i, idx) => {
+      i.disabled = offline;
+      if (offline) {
+        i.value = '';
+        if (idx === 0) i.placeholder = `${_chatTarget} is offline`;
+      } else {
+        if (idx === 0) i.placeholder = _chatTarget ? `Message ${_chatTarget}…` : 'Message all players…';
+      }
+    });
+  }
   if (sendBtn) sendBtn.disabled = offline;
-  if (note)    note.style.display = offline ? '' : 'none';
+  if (addBtn)  addBtn.disabled  = offline;
+  if (note)    note.style.display = 'none';
 }
 
 async function clearCurrentChat() {

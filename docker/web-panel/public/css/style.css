@@ -1428,6 +1428,9 @@ select.form-input {
   transition: background 0.1s, color 0.1s;
 }
 .chat-emote-item:hover { background: color-mix(in srgb, var(--accent) 20%, var(--bg-tertiary)); color: var(--text-primary); }
+.chat-lines { display: flex; flex-direction: column; gap: 6px; }
+.chat-line-wrap { display: flex; }
+.chat-line-wrap .chat-input { flex: 1; }
 .chat-compose-row {
   display: flex;
   gap: 8px;
