@@ -1432,12 +1432,18 @@ namespace StardropHostDependencies
         }
 
         /// <summary>
-        /// Returns the first cabin-designated tile position from the farm map's Paths layer
-        /// (tile indices 29/30 with an "Order" property), falling back to (50, 14).
-        /// This is where each player sees their cabin on their client.
+        /// Returns the first cabin-designated tile position from the farm map's Paths layer,
+        /// respecting the current cabin layout:
+        ///   tile 30 = separate (spread around farm, used when Game1.cabinsSeparate = true)
+        ///   tile 29 = nearby   (clustered near farmhouse, used when Game1.cabinsSeparate = false)
+        /// Falls back to the other tile type if none found, then to hardcoded (50, 14).
         /// </summary>
         private static Vector2 GetDefaultCabinVisiblePosition(Farm farm)
         {
+            // Tile 30 = separate spread positions; tile 29 = nearby grouped positions
+            int preferred = Game1.cabinsSeparate ? 30 : 29;
+            int fallback  = Game1.cabinsSeparate ? 29 : 30;
+
             try
             {
                 var layer = farm.map?.GetLayer("Paths");
@@ -1448,11 +1454,26 @@ namespace StardropHostDependencies
                     for (int y = 0; y < layer.LayerHeight; y++)
                     {
                         Tile tile = layer.Tiles[x, y];
-                        if (tile == null || (tile.TileIndex != 29 && tile.TileIndex != 30)) continue;
+                        if (tile == null || tile.TileIndex != preferred) continue;
                         if (tile.Properties.TryGetValue("Order", out var orderVal) &&
                             int.TryParse(orderVal?.ToString(), out int order))
                             positions.Add((order, new Vector2(x, y)));
                     }
+
+                    // Nothing for the preferred layout — try the other tile type
+                    if (positions.Count == 0)
+                    {
+                        for (int x = 0; x < layer.LayerWidth; x++)
+                        for (int y = 0; y < layer.LayerHeight; y++)
+                        {
+                            Tile tile = layer.Tiles[x, y];
+                            if (tile == null || tile.TileIndex != fallback) continue;
+                            if (tile.Properties.TryGetValue("Order", out var orderVal) &&
+                                int.TryParse(orderVal?.ToString(), out int order))
+                                positions.Add((order, new Vector2(x, y)));
+                        }
+                    }
+
                     if (positions.Count > 0)
                         return positions.OrderBy(p => p.order).First().pos;
                 }
