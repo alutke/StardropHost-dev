@@ -1693,6 +1693,7 @@ async function loadDashboard() {
 
 function updateDashboardUI(data) {
   lastStatusData = data;
+  populateUpgradeCabinDropdown();
   renderQuickActions();
 
   const gameRunning = !!data.gameRunning;
@@ -2027,6 +2028,33 @@ async function worldCmd(base, value, clearId) {
   const el = document.getElementById('worldCmdResult');
   if (!el) return;
   el.textContent    = data?.success ? `✓ Sent: ${command}` : `✗ ${data?.error || 'Failed — is the server running?'}`;
+  el.style.color    = data?.success ? 'var(--accent)' : '#ef4444';
+  el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
+  el.style.display  = '';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function populateUpgradeCabinDropdown() {
+  const sel = document.getElementById('upgradeCabinPlayer');
+  if (!sel) return;
+  const cabins = lastStatusData?.live?.cabins || [];
+  const named  = cabins.filter(c => c.ownerName && c.ownerName !== 'Farmhouse');
+  const prev   = sel.value;
+  sel.innerHTML = '<option value="">— Select player —</option>' +
+    named.map(c => `<option value="${c.ownerName}"${c.ownerName === prev ? ' selected' : ''}>${c.ownerName}</option>`).join('');
+}
+
+async function upgradeCabin() {
+  const ownerName = document.getElementById('upgradeCabinPlayer')?.value;
+  const level     = document.getElementById('upgradeCabinLevel')?.value;
+  const el        = document.getElementById('worldCmdResult');
+  if (!ownerName) {
+    if (el) { el.textContent = '✗ Select a player first.'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,0.08)'; el.style.display = ''; setTimeout(() => { el.style.display = 'none'; }, 3000); }
+    return;
+  }
+  const data = await API.post('/api/players/farmhands/upgrade', { ownerName, level: Number(level) }).catch(() => null);
+  if (!el) return;
+  el.textContent    = data?.success ? `✓ ${ownerName}'s cabin upgraded to level ${level}.` : `✗ ${data?.error || 'Failed — is the server running?'}`;
   el.style.color    = data?.success ? 'var(--accent)' : '#ef4444';
   el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
   el.style.display  = '';

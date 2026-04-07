@@ -107,7 +107,8 @@ app.post(  '/api/players/ip-locks',            auth.verifyMiddleware, playersAPI
 app.delete('/api/players/ip-locks/:name',      auth.verifyMiddleware, playersAPI.removeIpLock);
 app.post('/api/players/admin-command',         auth.verifyMiddleware, playersAPI.adminCommand);
 app.get( '/api/players/farmhands',        auth.verifyMiddleware, playersAPI.getFarmhands);
-app.post('/api/players/farmhands/delete', auth.verifyMiddleware, playersAPI.deleteFarmhand);
+app.post('/api/players/farmhands/delete',   auth.verifyMiddleware, playersAPI.deleteFarmhand);
+app.post('/api/players/farmhands/upgrade', auth.verifyMiddleware, playersAPI.upgradeCabin);
 
 // -- Saves --
 const savesAPI = require('./api/saves');

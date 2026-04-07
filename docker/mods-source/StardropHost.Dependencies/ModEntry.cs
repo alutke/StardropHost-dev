@@ -58,6 +58,17 @@ namespace StardropHostDependencies
         // Tracked from /moveBuildingPermission chat command: "off", "owned", "on"
         private static string           _buildingMovePermission = "on";
 
+        private static readonly Dictionary<string, string> CabinTypeAliases = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["stone"]    = "Stone Cabin",
+            ["plank"]    = "Plank Cabin",
+            ["log"]      = "Log Cabin",
+            ["neighbor"] = "Neighbor Cabin",
+            ["rustic"]   = "Rustic Cabin",
+            ["beach"]    = "Beach Cabin",
+            ["trailer"]  = "Trailer Cabin",
+        };
+
         private static readonly JsonSerializerOptions _chatJsonOpts = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -230,6 +241,7 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_give",        "Give item to a farmhand. Usage: stardrop_give <name> <itemId> <count>",       OnGiveItemCommand);
             helper.ConsoleCommands.Add("stardrop_emote",          "Play emote for a farmhand. Usage: stardrop_emote <name> <emoteId>",                  OnEmoteCommand);
             helper.ConsoleCommands.Add("stardrop_deletefarmhand", "Delete an offline farmhand and free their cabin. Usage: stardrop_deletefarmhand <name>", OnDeleteFarmhandCommand);
+            helper.ConsoleCommands.Add("stardrop_upgradecabin",   "Set a farmhand's cabin upgrade level (0-3). Usage: stardrop_upgradecabin <name> <level>", OnUpgradeCabinCommand);
             helper.ConsoleCommands.Add("stardrop_cropsaver",      "Toggle CropSaver on or off. Usage: stardrop_cropsaver <on|off>",                        OnCropSaverCommand);
 
             // Player limit — read once at startup from env, enforced every tick in OnUpdateTicked
@@ -1095,11 +1107,15 @@ namespace StardropHostDependencies
                 if (sourceFarmer != 0 && sourceFarmer == Game1.player?.UniqueMultiplayerID) return;
 
                 // Cabin position command — farmhands only (sourceFarmer != 0 and not host)
-                if (sourceFarmer != 0 && sourceFarmer != Game1.player?.UniqueMultiplayerID
-                    && message.Trim().Equals("move_cabin", StringComparison.OrdinalIgnoreCase))
+                if (sourceFarmer != 0 && sourceFarmer != Game1.player?.UniqueMultiplayerID)
                 {
-                    _instance?.HandleCabinCommand(sourceFarmer);
-                    return;
+                    var parts = message.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length > 0 && parts[0].Equals("move_cabin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string? typeArg = parts.Length > 1 ? parts[1].Trim() : null;
+                        _instance?.HandleCabinCommand(sourceFarmer, typeArg);
+                        return;
+                    }
                 }
 
                 // Detect join messages: "PlayerName (192.168.0.1) has joined."
@@ -1390,6 +1406,35 @@ namespace StardropHostDependencies
             }
         }
 
+        private void OnUpgradeCabinCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer)
+            {
+                Monitor.Log("[Admin] stardrop_upgradecabin requires an active hosted session.", LogLevel.Warn);
+                return;
+            }
+            if (args.Length < 2) { Monitor.Log("Usage: stardrop_upgradecabin <name> <level 0-3>", LogLevel.Info); return; }
+
+            if (!int.TryParse(args[args.Length - 1], out int level) || level < 0 || level > 3)
+            {
+                Monitor.Log("[Admin] Level must be 0, 1, 2, or 3.", LogLevel.Warn);
+                return;
+            }
+
+            var target = string.Join(" ", args.Take(args.Length - 1));
+            var farmer = Game1.getAllFarmhands()
+                .FirstOrDefault(f => f.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
+
+            if (farmer == null)
+            {
+                Monitor.Log($"[Admin] Farmhand '{target}' not found.", LogLevel.Warn);
+                return;
+            }
+
+            farmer.houseUpgradeLevel.Value = level;
+            Monitor.Log($"[Admin] Set '{farmer.Name}' cabin upgrade level to {level}.", LogLevel.Info);
+        }
+
         private void OnCropSaverCommand(string cmd, string[] args)
         {
             if (args.Length == 0) { Monitor.Log($"CropSaver is currently {(CropSaver.Enabled ? "ON" : "OFF")}. Usage: stardrop_cropsaver <on|off>", LogLevel.Info); return; }
@@ -1446,7 +1491,7 @@ namespace StardropHostDependencies
             catch { }
         }
 
-        private void HandleCabinCommand(long farmerId)
+        private void HandleCabinCommand(long farmerId, string? typeArg = null)
         {
             if (!_useCabinStack)
             {
@@ -1463,6 +1508,18 @@ namespace StardropHostDependencies
 
             var farmer = Game1.getFarmerMaybeOffline(farmerId);
             if (farmer == null) return;
+
+            // Validate cabin type if provided
+            string? fullCabinType = null;
+            if (typeArg != null)
+            {
+                if (!CabinTypeAliases.TryGetValue(typeArg, out fullCabinType))
+                {
+                    Game1.chatBox?.textBoxEnter(
+                        $"{farmer.Name}: Unknown cabin type '{typeArg}'. Valid types: stone, plank, log, neighbor, rustic, beach, trailer.");
+                    return;
+                }
+            }
 
             if (farmer.currentLocation is not Farm farm)
             {
@@ -1483,11 +1540,25 @@ namespace StardropHostDependencies
                 return;
             }
 
+            // Save new position
             _cabinPositions[farmerId.ToString()] = new Vector2(x, y);
             SaveCabinPositions();
 
+            // Apply cabin skin via skinId (SDV 1.6 — buildingType stays "Cabin", skin is separate)
+            if (fullCabinType != null)
+            {
+                var cabinBuilding = farm.buildings
+                    .FirstOrDefault(b => (b.GetIndoors() as Cabin)?.owner?.UniqueMultiplayerID == farmerId);
+                if (cabinBuilding != null)
+                {
+                    cabinBuilding.skinId.Value = fullCabinType;
+                    Monitor.Log($"[CabinStack] {farmer.Name} set cabin skin to '{fullCabinType}'.", LogLevel.Info);
+                }
+            }
+
+            string typeMsg = fullCabinType != null ? $" as a {fullCabinType}" : "";
             Game1.chatBox?.textBoxEnter(
-                $"{farmer.Name}: Cabin position set to ({x}, {y}). Rejoin the server to see your cabin in the new location.");
+                $"{farmer.Name}: Cabin set to ({x}, {y}){typeMsg}. Rejoin the server to see the changes.");
             Monitor.Log($"[CabinStack] {farmer.Name} set cabin position to ({x},{y}).", LogLevel.Info);
         }
 

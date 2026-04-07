@@ -611,10 +611,18 @@
                 </div>
 
                 <div class="admin-cmd-row" style="border-bottom:none">
-                  <span class="admin-cmd-label">Upgrade Cabins</span>
-                  <div>
-                    <button class="btn btn-sm" onclick="worldCmd('upgrade_cabins', '')">Open Upgrade Menu</button>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Opens an in-game dialogue — requires host to be actively playing.</div>
+                  <span class="admin-cmd-label">Upgrade Cabin</span>
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <select id="upgradeCabinPlayer" style="min-width:140px">
+                      <option value="">— Select player —</option>
+                    </select>
+                    <select id="upgradeCabinLevel">
+                      <option value="0">Level 0 — Basic</option>
+                      <option value="1">Level 1 — Kitchen</option>
+                      <option value="2">Level 2 — Kids Room</option>
+                      <option value="3">Level 3 — Full Upgrade</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="upgradeCabin()">Upgrade</button>
                   </div>
                 </div>
 

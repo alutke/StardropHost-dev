@@ -549,6 +549,7 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'stardrop_emote', 'stardrop_sethealth', 'stardrop_setmaxhealth',
   'stardrop_setstamina', 'stardrop_setmaxstamina', 'stardrop_setmoney', 'stardrop_give',
   'stardrop_deletefarmhand',
+  'stardrop_upgradecabin',
   'stardrop_cropsaver',
 ]);
 
@@ -619,6 +620,16 @@ function deleteFarmhand(req, res) {
   else res.status(500).json({ error: 'Failed to send command — is the server running?' });
 }
 
+function upgradeCabin(req, res) {
+  const { ownerName, level } = req.body || {};
+  if (!ownerName || typeof ownerName !== 'string') return res.status(400).json({ error: 'ownerName required' });
+  if (level === undefined || level === null || !Number.isInteger(Number(level)) || Number(level) < 0 || Number(level) > 3)
+    return res.status(400).json({ error: 'level must be 0, 1, 2, or 3' });
+  const success = sendConsoleCommand(`stardrop_upgradecabin ${ownerName} ${level}`);
+  if (success) res.json({ success: true });
+  else res.status(500).json({ error: 'Failed to send command — is the server running?' });
+}
+
 module.exports = {
   getPlayers,
   kickPlayer,
@@ -642,4 +653,5 @@ module.exports = {
   removeIpLock,
   getFarmhands,
   deleteFarmhand,
+  upgradeCabin,
 };
