@@ -193,7 +193,8 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_setmaxstamina","Set a farmhand's max stamina. Usage: stardrop_setmaxstamina <name> <amount>",OnSetMaxStaminaCommand);
             helper.ConsoleCommands.Add("stardrop_setmoney",    "Set a farmhand's money. Usage: stardrop_setmoney <name> <amount>",            OnSetMoneyCommand);
             helper.ConsoleCommands.Add("stardrop_give",        "Give item to a farmhand. Usage: stardrop_give <name> <itemId> <count>",       OnGiveItemCommand);
-            helper.ConsoleCommands.Add("stardrop_emote",       "Play emote for a farmhand. Usage: stardrop_emote <name> <emoteId>",          OnEmoteCommand);
+            helper.ConsoleCommands.Add("stardrop_emote",          "Play emote for a farmhand. Usage: stardrop_emote <name> <emoteId>",                  OnEmoteCommand);
+            helper.ConsoleCommands.Add("stardrop_deletefarmhand", "Delete an offline farmhand and free their cabin. Usage: stardrop_deletefarmhand <name>", OnDeleteFarmhandCommand);
 
             Monitor.Log("StardropHost.Dependencies loaded.", LogLevel.Info);
         }
@@ -206,9 +207,22 @@ namespace StardropHostDependencies
         {
             LoadBanMap();
 
-            // Remove built-in player cap so any number of farmhands can connect
-            try { Game1.netWorldState.Value.CurrentPlayerLimit = int.MaxValue; }
-            catch (Exception ex) { Monitor.Log($"Could not remove player limit: {ex.Message}", LogLevel.Warn); }
+            // Apply player limit — must set all three fields; only CurrentPlayerLimit was set before
+            // which left the actual connection gate (Multiplayer.playerLimit) untouched.
+            // Reads PLAYER_LIMIT env var (set by entrypoint.sh from wizard), defaults to 17 (16 farmhands + host).
+            int limit = 17;
+            var envLimit = Environment.GetEnvironmentVariable("PLAYER_LIMIT");
+            if (!string.IsNullOrEmpty(envLimit) && int.TryParse(envLimit, out int parsed) && parsed > 0)
+                limit = parsed;
+
+            try
+            {
+                Game1.Multiplayer.playerLimit              = limit;
+                Game1.netWorldState.Value.CurrentPlayerLimit = limit;
+                Game1.netWorldState.Value.HighestPlayerLimit = limit;
+                Monitor.Log($"[PlayerLimit] Set to {limit} ({limit - 1} farmhands + host).", LogLevel.Info);
+            }
+            catch (Exception ex) { Monitor.Log($"Could not set player limit: {ex.Message}", LogLevel.Warn); }
 
             // Apply move-build permission from farm config (new-farm.json)
             if (_cfg?.MoveBuildPermission is string perm && perm != "off")
@@ -1254,6 +1268,55 @@ namespace StardropHostDependencies
             if (!int.TryParse(args[1], out int emoteId)) { Monitor.Log("[Admin] emoteId must be an integer.", LogLevel.Warn); return; }
             farmer.doEmote(emoteId);
             Monitor.Log($"[Admin] Played emote {emoteId} for {farmer.Name}.", LogLevel.Info);
+        }
+
+        private void OnDeleteFarmhandCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer)
+            {
+                Monitor.Log("[Admin] stardrop_deletefarmhand requires an active hosted session.", LogLevel.Warn);
+                return;
+            }
+            if (args.Length == 0) { Monitor.Log("Usage: stardrop_deletefarmhand <name>", LogLevel.Info); return; }
+
+            var target = string.Join(" ", args);
+
+            // Search all farmhands including offline ones
+            var farmer = Game1.getAllFarmhands()
+                .FirstOrDefault(f => f.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
+
+            if (farmer == null)
+            {
+                Monitor.Log($"[Admin] Farmhand '{target}' not found.", LogLevel.Warn);
+                return;
+            }
+
+            // Refuse deletion if player is currently connected
+            if (Game1.getOnlineFarmers().Any(f => f.UniqueMultiplayerID == farmer.UniqueMultiplayerID))
+            {
+                Monitor.Log($"[Admin] Cannot delete '{target}' — they are currently online.", LogLevel.Warn);
+                return;
+            }
+
+            var farm = Game1.getFarm();
+            var farmerId = farmer.UniqueMultiplayerID;
+
+            // Find the cabin building whose indoor owner matches
+            var cabinBuilding = farm.buildings
+                .FirstOrDefault(b => b.indoors.Value is Cabin c && c.owner.UniqueMultiplayerID == farmerId);
+
+            if (cabinBuilding != null)
+            {
+                (cabinBuilding.indoors.Value as Cabin)!.DeleteFarmhand();
+                farm.buildings.Remove(cabinBuilding);
+                Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' and removed their cabin.", LogLevel.Info);
+            }
+            else
+            {
+                // Fallback: remove directly from farmhandData if cabin is missing
+                Game1.netWorldState.Value.farmhandData.Remove(farmerId);
+                Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' from farmhandData (no cabin found).", LogLevel.Warn);
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════

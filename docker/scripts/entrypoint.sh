@@ -105,6 +105,8 @@ apply_startup_preferences_tuning() {
     " "$config_file"
 
     # Re-apply playerLimit every start — the game resets it to -1 when it saves startup_preferences
+    # Default 17 = 16 farmhands + 1 host; the mod also enforces this at runtime via Game1.Multiplayer.playerLimit
+    PLAYER_LIMIT=${PLAYER_LIMIT:-17}
     if [ -n "${PLAYER_LIMIT:-}" ]; then
         if grep -q '<playerLimit>' "$config_file"; then
             perl -0pi -e "s#<playerLimit>.*?</playerLimit>#<playerLimit>${PLAYER_LIMIT}</playerLimit>#s" "$config_file"

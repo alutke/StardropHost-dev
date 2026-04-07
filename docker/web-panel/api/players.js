@@ -548,6 +548,7 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'upgrade_cabins', 'say',
   'stardrop_emote', 'stardrop_sethealth', 'stardrop_setmaxhealth',
   'stardrop_setstamina', 'stardrop_setmaxstamina', 'stardrop_setmoney', 'stardrop_give',
+  'stardrop_deletefarmhand',
 ]);
 
 function adminCommand(req, res) {
@@ -587,64 +588,34 @@ function removeIpLock(req, res) {
 
 // ─── Farmhands ───────────────────────────────────────────────────
 
-const PENDING_FARMHAND_FILE = path.join(config.DATA_DIR, 'pending-farmhand-removals.json');
-
 function getFarmhands(req, res) {
   try {
-    if (!fs.existsSync(config.LIVE_FILE)) return res.json({ cabins: [], pendingRemovals: [], serverState: null });
+    if (!fs.existsSync(config.LIVE_FILE)) return res.json({ cabins: [], serverState: null });
     const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
-    let pending = [];
-    try { pending = JSON.parse(fs.readFileSync(PENDING_FARMHAND_FILE, 'utf-8')); } catch {}
-
-    // Auto-cancel stale pending removals for any player who is currently online
-    // (they rejoined with the same name — the removal never completed or is no longer valid)
-    const onlineNames = new Set(
-      (live.cabins || []).filter(c => c.isOwnerOnline && c.ownerName).map(c => c.ownerName)
-    );
-    if (onlineNames.size && pending.some(p => onlineNames.has(p.ownerName))) {
-      pending = pending.filter(p => !onlineNames.has(p.ownerName));
-      if (pending.length) fs.writeFileSync(PENDING_FARMHAND_FILE, JSON.stringify(pending, null, 2));
-      else try { fs.unlinkSync(PENDING_FARMHAND_FILE); } catch {}
-    }
-
-    res.json({ cabins: live.cabins || [], pendingRemovals: pending, serverState: live.serverState || null });
+    res.json({ cabins: live.cabins || [], serverState: live.serverState || null });
   } catch {
-    res.json({ cabins: [], pendingRemovals: [], serverState: null });
+    res.json({ cabins: [], serverState: null });
   }
 }
 
-function removeFarmhand(req, res) {
+function deleteFarmhand(req, res) {
   const { ownerName } = req.body || {};
-  if (!ownerName) return res.status(400).json({ error: 'ownerName required' });
-  try {
-    let pending = [];
-    try { pending = JSON.parse(fs.readFileSync(PENDING_FARMHAND_FILE, 'utf-8')); } catch {}
-    if (!pending.some(p => p.ownerName === ownerName)) {
-      pending.push({ ownerName });
-      fs.writeFileSync(PENDING_FARMHAND_FILE, JSON.stringify(pending, null, 2));
-    }
-    res.json({ success: true, pendingRestart: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-}
+  if (!ownerName || typeof ownerName !== 'string') return res.status(400).json({ error: 'ownerName required' });
 
-function cancelFarmhandRemoval(req, res) {
-  const { ownerName } = req.body || {};
-  if (!ownerName) return res.status(400).json({ error: 'ownerName required' });
+  // Refuse if player is currently online (live-status check)
   try {
-    let pending = [];
-    try { pending = JSON.parse(fs.readFileSync(PENDING_FARMHAND_FILE, 'utf-8')); } catch {}
-    pending = pending.filter(p => p.ownerName !== ownerName);
-    if (pending.length) {
-      fs.writeFileSync(PENDING_FARMHAND_FILE, JSON.stringify(pending, null, 2));
-    } else {
-      try { fs.unlinkSync(PENDING_FARMHAND_FILE); } catch {}
+    if (fs.existsSync(config.LIVE_FILE)) {
+      const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+      const isOnline = (live.cabins || []).some(
+        c => c.ownerName === ownerName && (c.isOwnerOnline ?? false)
+      );
+      if (isOnline) return res.status(400).json({ error: `Cannot delete '${ownerName}' — they are currently online.` });
     }
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch {}
+
+  const success = sendConsoleCommand(`stardrop_deletefarmhand ${ownerName}`);
+  if (success) res.json({ success: true });
+  else res.status(500).json({ error: 'Failed to send command — is the server running?' });
 }
 
 module.exports = {
@@ -669,6 +640,5 @@ module.exports = {
   addIpLock,
   removeIpLock,
   getFarmhands,
-  removeFarmhand,
-  cancelFarmhandRemoval,
+  deleteFarmhand,
 };
