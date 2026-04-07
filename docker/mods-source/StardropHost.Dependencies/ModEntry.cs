@@ -25,12 +25,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
+using Netcode;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.Buildings;
 using StardewValley.Locations;
 using StardewValley.Menus;
+using StardewValley.Network;
 using StardewValley.Objects;
+using xTile.Tiles;
 
 namespace StardropHostDependencies
 {
@@ -42,6 +46,11 @@ namespace StardropHostDependencies
         private const int    AutoSleepTime       = 2600;  // 2:00 AM in-game clock
         private const int    GuardWindowSeconds  = 60;
         private const int    SkipCooldownSeconds = 5;
+
+        // ── Cabin Stack ──────────────────────────────────────────────────────
+        private static readonly Point   HiddenCabinLocation    = new Point(-20, -20);
+        private static readonly Vector2 FallbackCabinVisiblePos = new Vector2(50, 14);
+        private const string            CabinCountPath          = "/home/steam/web-panel/data/cabin-count.json";
 
         private static readonly JsonSerializerOptions _chatJsonOpts = new()
         {
@@ -170,6 +179,24 @@ namespace StardropHostDependencies
             }
             catch (Exception ex) { Monitor.Log($"[ChatBridge] receiveChatMessage patch failed: {ex.Message}", LogLevel.Warn); }
 
+            // Cabin Stack — disable vanilla cabin placement; we build cabins ourselves
+            try
+            {
+                harmony.Patch(
+                    AccessTools.Method(typeof(GameLocation), nameof(GameLocation.BuildStartingCabins)),
+                    prefix: new HarmonyMethod(typeof(ModEntry), nameof(Disable_Prefix)));
+            }
+            catch (Exception ex) { Monitor.Log($"[CabinStack] BuildStartingCabins patch failed: {ex.Message}", LogLevel.Warn); }
+
+            // Cabin Stack — intercept LocationIntroduction to relocate cabin client-side
+            try
+            {
+                harmony.Patch(
+                    AccessTools.Method(typeof(GameServer), "sendMessage", new[] { typeof(long), typeof(OutgoingMessage) }),
+                    prefix: new HarmonyMethod(typeof(ModEntry), nameof(SendMessage_Prefix)));
+            }
+            catch (Exception ex) { Monitor.Log($"[CabinStack] sendMessage patch failed: {ex.Message}", LogLevel.Warn); }
+
             helper.Events.GameLoop.SaveLoaded       += OnSaveLoaded;
             helper.Events.GameLoop.DayStarted       += OnDayStarted;
             helper.Events.GameLoop.UpdateTicked     += OnUpdateTicked;
@@ -234,6 +261,11 @@ namespace StardropHostDependencies
                 _hasTriggeredSleep = false;
                 _isSleepInProgress = false;
                 _handledReadyCheck = false;
+
+                // Cabin Stack — ensure the correct number of hidden cabins exist
+                int target = ReadCabinCountFromFile();
+                if (target > 0)
+                    EnsureCabinCount(target);
             }
 
             Monitor.Log("[StardropHost.Dependencies] Server ready for connections.", LogLevel.Info);
@@ -822,6 +854,9 @@ namespace StardropHostDependencies
             Game1.multiplayerMode = 2;
             menu.createdNewCharacter(true);
 
+            // Persist cabin count so EnsureCabinCount can restore it after restart
+            try { File.WriteAllText(CabinCountPath, cfg.CabinCount.ToString()); } catch { }
+
             File.Delete(NewFarmConfigPath);
             Monitor.Log("[GameLoader] Farm creation initiated. new-farm.json removed.", LogLevel.Info);
             return true;
@@ -1316,8 +1351,7 @@ namespace StardropHostDependencies
             if (cabinBuilding != null)
             {
                 (cabinBuilding.indoors.Value as Cabin)!.DeleteFarmhand();
-                farm.buildings.Remove(cabinBuilding);
-                Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' and removed their cabin.", LogLevel.Info);
+                Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' — cabin slot kept as unclaimed.", LogLevel.Info);
             }
             else
             {
@@ -1333,6 +1367,169 @@ namespace StardropHostDependencies
             bool enable = args[0].Equals("on", StringComparison.OrdinalIgnoreCase);
             CropSaver.Enabled = enable;
             Monitor.Log($"[CropSaver] {(enable ? "Enabled" : "Disabled")} at runtime.", LogLevel.Info);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // CABIN STACK
+        // ════════════════════════════════════════════════════════════════════
+
+        private int ReadCabinCountFromFile()
+        {
+            try
+            {
+                if (File.Exists(CabinCountPath) &&
+                    int.TryParse(File.ReadAllText(CabinCountPath).Trim(), out int n) && n > 0)
+                    return n;
+            }
+            catch { }
+            return 0;
+        }
+
+        /// <summary>
+        /// Builds one cabin at the hidden off-screen location (-20, -20).
+        /// The cabin is invisible on the farm map server-side; each player sees their own
+        /// cabin relocated client-side via the LocationIntroduction message intercept.
+        /// </summary>
+        private bool BuildHiddenCabin(Farm farm)
+        {
+            var pos = new Vector2(HiddenCabinLocation.X, HiddenCabinLocation.Y);
+            var cabin = new Building("Cabin", pos);
+            cabin.skinId.Value = "Log Cabin";
+            cabin.magical.Value = true;
+            cabin.daysOfConstructionLeft.Value = 0;
+            cabin.load();
+
+            if (farm.buildStructure(cabin, pos, Game1.player, true))
+            {
+                var indoors = cabin.GetIndoors() as Cabin;
+                if (indoors != null && !indoors.HasOwner)
+                    indoors.CreateFarmhand();
+                return true;
+            }
+
+            Monitor.Log("[CabinStack] Failed to build hidden cabin.", LogLevel.Warn);
+            return false;
+        }
+
+        /// <summary>
+        /// Ensures the farm has at least <paramref name="target"/> cabin buildings.
+        /// Called on SaveLoaded to set up or restore the configured cabin count.
+        /// </summary>
+        private void EnsureCabinCount(int target)
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+            var farm = Game1.getFarm();
+            int existing = farm.buildings.Count(b => b.isCabin);
+            int toAdd = target - existing;
+            if (toAdd <= 0)
+            {
+                Monitor.Log($"[CabinStack] {existing} cabin(s) present, target {target} — nothing to add.", LogLevel.Debug);
+                return;
+            }
+            Monitor.Log($"[CabinStack] Building {toAdd} cabin(s) to reach target of {target}.", LogLevel.Info);
+            for (int i = 0; i < toAdd; i++)
+                BuildHiddenCabin(farm);
+        }
+
+        /// <summary>
+        /// Returns the first cabin-designated tile position from the farm map's Paths layer
+        /// (tile indices 29/30 with an "Order" property), falling back to (50, 14).
+        /// This is where each player sees their cabin on their client.
+        /// </summary>
+        private static Vector2 GetDefaultCabinVisiblePosition(Farm farm)
+        {
+            try
+            {
+                var layer = farm.map?.GetLayer("Paths");
+                if (layer != null)
+                {
+                    var positions = new List<(int order, Vector2 pos)>();
+                    for (int x = 0; x < layer.LayerWidth; x++)
+                    for (int y = 0; y < layer.LayerHeight; y++)
+                    {
+                        Tile tile = layer.Tiles[x, y];
+                        if (tile == null || (tile.TileIndex != 29 && tile.TileIndex != 30)) continue;
+                        if (tile.Properties.TryGetValue("Order", out var orderVal) &&
+                            int.TryParse(orderVal?.ToString(), out int order))
+                            positions.Add((order, new Vector2(x, y)));
+                    }
+                    if (positions.Count > 0)
+                        return positions.OrderBy(p => p.order).First().pos;
+                }
+            }
+            catch { }
+            return FallbackCabinVisiblePos;
+        }
+
+        /// <summary>
+        /// Harmony prefix on GameServer.sendMessage.
+        /// Intercepts LocationIntroduction messages destined for a specific peer and
+        /// relocates that peer's cabin client-side so they see it at a real farm position.
+        /// The server always stores cabins at (-20, -20) — only the outgoing message is modified.
+        /// </summary>
+        public static void SendMessage_Prefix(long peerId, ref OutgoingMessage message)
+        {
+            if (message.MessageType != Multiplayer.locationIntroduction) return;
+            _instance?.InterceptLocationIntroduction(peerId, ref message);
+        }
+
+        private void InterceptLocationIntroduction(long peerId, ref OutgoingMessage message)
+        {
+            try
+            {
+                // Deserialise the outgoing message into an IncomingMessage so we can read its payload
+                var incMsg = new IncomingMessage();
+                using (var ms = new MemoryStream())
+                using (var bw = new BinaryWriter(ms))
+                {
+                    message.Write(bw);
+                    ms.Position = 0;
+                    using var br = new BinaryReader(ms);
+                    incMsg.Read(br);
+                }
+
+                var forceCurrentLocation = incMsg.Reader.ReadBoolean();
+                var netRootLocation      = NetRoot<GameLocation>.Connect(incMsg.Reader);
+                if (netRootLocation.Value is not Farm farm) return;
+
+                // Find this peer's cabin sitting at the hidden stack location
+                var cabinBuilding = farm.buildings.FirstOrDefault(b =>
+                    b.isCabin &&
+                    b.tileX.Value == HiddenCabinLocation.X &&
+                    b.tileY.Value == HiddenCabinLocation.Y &&
+                    (b.GetIndoors() as Cabin)?.owner?.UniqueMultiplayerID == peerId);
+
+                if (cabinBuilding == null) return;
+
+                // Move cabin to visible position in this client's copy of the message only
+                var visiblePos = GetDefaultCabinVisiblePosition(farm);
+                cabinBuilding.tileX.Value = (int)visiblePos.X;
+                cabinBuilding.tileY.Value = (int)visiblePos.Y;
+
+                // Fix cabin exit warp so leaving the cabin door sends the player to the right spot
+                if (cabinBuilding.GetIndoors() is Cabin indoors)
+                {
+                    var doorPos = cabinBuilding.getPointForHumanDoor();
+                    foreach (var warp in indoors.warps.Where(w => w.TargetName == "Farm"))
+                    {
+                        warp.TargetX = doorPos.X;
+                        warp.TargetY = doorPos.Y;
+                    }
+                }
+
+                // Rebuild the outgoing message with the modified farm location state
+                message = new OutgoingMessage(
+                    Multiplayer.locationIntroduction,
+                    Game1.serverHost.Value,
+                    forceCurrentLocation,
+                    Game1.Multiplayer.writeObjectFullBytes(netRootLocation, peerId));
+
+                Monitor.Log($"[CabinStack] Cabin for peer {peerId} shown at ({visiblePos.X},{visiblePos.Y}) client-side.", LogLevel.Debug);
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"[CabinStack] LocationIntroduction intercept failed for peer {peerId}: {ex.Message}", LogLevel.Warn);
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════
