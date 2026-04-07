@@ -61,6 +61,10 @@ const CONFIG_SCHEMA = {
     { key: 'ENABLE_LOG_MONITOR',  label: 'Log Monitor',   type: 'boolean', default: 'true' },
     { key: 'METRICS_PORT',        label: 'Metrics Port',  type: 'number',  default: '9090' },
   ],
+  'Gameplay': [
+    { key: 'CROP_SAVER_ENABLED', label: 'Crop Saver', type: 'boolean', default: 'false',
+      description: 'Preserves farmhand crops when the owner is offline. Each day the owner is absent and their plot is unwatered, the crop earns an extra day of life.' },
+  ],
   'Server': [],
   'Updates': [
     { key: 'PANEL_UPDATE_CHECK_HOURS', label: 'Update check interval', type: 'number', default: '24',

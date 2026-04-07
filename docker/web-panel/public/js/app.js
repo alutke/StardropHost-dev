@@ -976,6 +976,7 @@ async function wizCreateNewFarm() {
   const petName      = val('wiz-pet-name').trim() || 'Stella';
   const cave         = val('wiz-cave')        || 'mushrooms';
   const joja         = val('wiz-joja')        || 'false';
+  const cropSaver    = document.getElementById('wiz-crop-saver')?.checked ?? false;
 
   statusEl.style.color = 'var(--text-secondary)';
   statusEl.textContent = 'Saving farm configuration…';
@@ -992,6 +993,7 @@ async function wizCreateNewFarm() {
       petSpecies, petBreed: parseInt(petBreed, 10) || 0, petName,
       mushroomsOrBats: cave,
       purchaseJojaMembership: joja === 'true',
+      cropSaverEnabled: cropSaver,
     });
     statusEl.style.color = 'var(--accent)';
     statusEl.textContent = '✅ Farm config saved';
@@ -1447,6 +1449,7 @@ function navigateTo(page) {
     case 'dashboard': loadDashboard(); loadRemoteStatus(); renderQuickActions(); break;
     case 'farm':
       loadFarm();
+      initCropSaverState();
       if (!farmInterval) farmInterval = setInterval(loadFarm, 5000);
       break;
     case 'players':
@@ -2049,6 +2052,40 @@ async function toggleWorldFreeze() {
   el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
   el.style.display = '';
   setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+let _cropSaverEnabled = false;
+
+async function initCropSaverState() {
+  const cfg = await API.get('/api/config').catch(() => null);
+  const gameplay = cfg?.groups?.find(g => g.name === 'Gameplay');
+  _cropSaverEnabled = gameplay?.items?.find(i => i.key === 'CROP_SAVER_ENABLED')?.value === 'true';
+  _updateCropSaverBtn();
+}
+
+function _updateCropSaverBtn() {
+  const btn     = document.getElementById('worldCropSaverBtn');
+  const stateEl = document.getElementById('worldCropSaverState');
+  if (btn) btn.textContent = _cropSaverEnabled ? 'Disable' : 'Enable';
+  if (stateEl) stateEl.textContent = _cropSaverEnabled ? '🌱 Active' : '○ Off';
+}
+
+async function toggleCropSaver() {
+  const btn = document.getElementById('worldCropSaverBtn');
+  if (btn) btn.disabled = true;
+  const newVal = !_cropSaverEnabled;
+  const cmd    = newVal ? 'stardrop_cropsaver on' : 'stardrop_cropsaver off';
+  const [cfgRes, cmdRes] = await Promise.all([
+    API.put('/api/config', { CROP_SAVER_ENABLED: String(newVal) }).catch(() => null),
+    API.post('/api/players/admin-command', { command: cmd }).catch(() => null),
+  ]);
+  if (cfgRes?.success !== false) {
+    _cropSaverEnabled = newVal;
+    _updateCropSaverBtn();
+  } else {
+    showToast('Failed to update Crop Saver setting', 'error');
+  }
+  if (btn) btn.disabled = false;
 }
 
 function formatGameTime(t) {

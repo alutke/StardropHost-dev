@@ -433,7 +433,8 @@ function submitNewFarm(req, res) {
   // Write playerLimit to startup_preferences (immediate effect) and to env (survives game resetting it on each run)
   // playerLimit = cabins + 1 (host counts as one slot)
   const playerLimit = cc + 1;
-  writeEnvValues({ PLAYER_LIMIT: String(playerLimit) });
+  const cropSaverEnabled = body.cropSaverEnabled === true || body.cropSaverEnabled === 'true';
+  writeEnvValues({ PLAYER_LIMIT: String(playerLimit), CROP_SAVER_ENABLED: String(cropSaverEnabled) });
   try {
     const prefsPath = path.join(config.CONFIG_DIR, 'startup_preferences');
     if (fs.existsSync(prefsPath)) {

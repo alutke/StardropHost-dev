@@ -549,6 +549,7 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'stardrop_emote', 'stardrop_sethealth', 'stardrop_setmaxhealth',
   'stardrop_setstamina', 'stardrop_setmaxstamina', 'stardrop_setmoney', 'stardrop_give',
   'stardrop_deletefarmhand',
+  'stardrop_cropsaver',
 ]);
 
 function adminCommand(req, res) {

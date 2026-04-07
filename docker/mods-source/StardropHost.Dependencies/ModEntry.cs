@@ -82,6 +82,7 @@ namespace StardropHostDependencies
         private const string BanMapPath = "/home/steam/.local/share/stardrop/ban-map.json";
         // bansByName["Tom"] = ["Tom", "192.168.0.140"]
         private Dictionary<string, List<string>> _bansByName = new();
+        private CropSaver? _cropSaver = null;
         // idToName["1314339377246380246"] = "Tom"
         private Dictionary<string, string> _idToName = new();
 
@@ -195,6 +196,12 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_give",        "Give item to a farmhand. Usage: stardrop_give <name> <itemId> <count>",       OnGiveItemCommand);
             helper.ConsoleCommands.Add("stardrop_emote",          "Play emote for a farmhand. Usage: stardrop_emote <name> <emoteId>",                  OnEmoteCommand);
             helper.ConsoleCommands.Add("stardrop_deletefarmhand", "Delete an offline farmhand and free their cabin. Usage: stardrop_deletefarmhand <name>", OnDeleteFarmhandCommand);
+            helper.ConsoleCommands.Add("stardrop_cropsaver",      "Toggle CropSaver on or off. Usage: stardrop_cropsaver <on|off>",                        OnCropSaverCommand);
+
+            // CropSaver — reads CROP_SAVER_ENABLED env var (default: false)
+            var cropSaverEnabled = (Environment.GetEnvironmentVariable("CROP_SAVER_ENABLED") ?? "false")
+                                       .Equals("true", StringComparison.OrdinalIgnoreCase);
+            _cropSaver = new CropSaver(Monitor, helper, harmony, cropSaverEnabled);
 
             Monitor.Log("StardropHost.Dependencies loaded.", LogLevel.Info);
         }
@@ -1317,6 +1324,14 @@ namespace StardropHostDependencies
                 Game1.netWorldState.Value.farmhandData.Remove(farmerId);
                 Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' from farmhandData (no cabin found).", LogLevel.Warn);
             }
+        }
+
+        private void OnCropSaverCommand(string cmd, string[] args)
+        {
+            if (args.Length == 0) { Monitor.Log($"CropSaver is currently {(CropSaver.Enabled ? "ON" : "OFF")}. Usage: stardrop_cropsaver <on|off>", LogLevel.Info); return; }
+            bool enable = args[0].Equals("on", StringComparison.OrdinalIgnoreCase);
+            CropSaver.Enabled = enable;
+            Monitor.Log($"[CropSaver] {(enable ? "Enabled" : "Disabled")} at runtime.", LogLevel.Info);
         }
 
         // ════════════════════════════════════════════════════════════════════
