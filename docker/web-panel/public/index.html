@@ -550,6 +550,12 @@
                 </div>
 
                 <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Crop Saver</span>
+                  <button class="btn btn-sm" id="worldCropSaverBtn" onclick="toggleCropSaver()">--</button>
+                  <span id="worldCropSaverState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
+                </div>
+
+                <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Pause the Game</span>
                   <button class="btn btn-sm" id="worldPauseBtn" onclick="toggleWorldPause()">Pause</button>
                   <span id="worldPauseState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
@@ -566,12 +572,6 @@
                     <button id="worldFreezeMsgColorBtn" class="freeze-color-dot" onclick="toggleFreezeMsgColors(event)" title="Chat color"></button>
                     <div id="worldFreezeMsgColorPicker" class="freeze-color-picker" style="display:none"></div>
                   </div>
-                </div>
-
-                <div class="admin-cmd-row">
-                  <span class="admin-cmd-label">Crop Saver</span>
-                  <button class="btn btn-sm" id="worldCropSaverBtn" onclick="toggleCropSaver()">--</button>
-                  <span id="worldCropSaverState" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
                 </div>
 
                 <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
@@ -600,21 +600,39 @@
                   <button class="btn btn-sm btn-primary" onclick="worldCmd('world_clear ' + document.getElementById('worldClearLocation').value, document.getElementById('worldClearType').value)">Clear</button>
                 </div>
 
-                <div class="admin-cmd-row">
-                  <span class="admin-cmd-label">Build Permissions</span>
-                  <select id="worldBuildPermission" class="form-input" style="width:170px">
-                    <option value="off">Host Only (off)</option>
-                    <option value="owned">Own Buildings (owned)</option>
-                    <option value="on">Everyone (on)</option>
-                  </select>
-                  <button class="btn btn-sm btn-primary" onclick="worldCmd('say', '/movebuildingpermission ' + document.getElementById('worldBuildPermission').value)">Set</button>
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span class="admin-cmd-label" style="margin:0">Build Permissions</span>
+                    <select id="worldBuildPermission" class="form-input" style="width:170px">
+                      <option value="off">Host Only (off)</option>
+                      <option value="owned">Own Buildings (owned)</option>
+                      <option value="on">Everyone (on)</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="worldCmd('say', '/movebuildingpermission ' + document.getElementById('worldBuildPermission').value)">Set</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <span>Set to <em>owned</em> or <em>on</em> to allow players to use <code>move_cabin</code></span>
+                    <select id="worldCabinTypeRef" class="form-input" style="width:130px;font-size:11px;padding:2px 6px;height:auto">
+                      <option value="">cabin types…</option>
+                      <option value="stone">stone — Stone Cabin</option>
+                      <option value="plank">plank — Plank Cabin</option>
+                      <option value="log">log — Log Cabin</option>
+                      <option value="neighbor">neighbor — Neighbor Cabin</option>
+                      <option value="rustic">rustic — Rustic Cabin</option>
+                      <option value="beach">beach — Beach Cabin</option>
+                      <option value="trailer">trailer — Trailer Cabin</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div class="admin-cmd-row" style="border-bottom:none">
                   <span class="admin-cmd-label">Upgrade Cabin</span>
                   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                    <select id="upgradeCabinPlayer" style="min-width:200px" onchange="onUpgradeCabinSelect()">
+                    <select id="upgradeCabinPlayer" style="min-width:180px" onchange="onUpgradeCabinSelect()">
                       <option value="">— Select player —</option>
+                    </select>
+                    <select id="upgradeCabinLevel" disabled>
+                      <option value="">— level —</option>
                     </select>
                     <button id="upgradeCabinBtn" class="btn btn-sm btn-primary" onclick="upgradeCabin()" disabled>Upgrade</button>
                   </div>

@@ -52,6 +52,7 @@ namespace StardropHostDependencies
         private static readonly Vector2 FallbackCabinVisiblePos = new Vector2(50, 14);
         private const string            CabinCountPath          = "/home/steam/web-panel/data/cabin-count.json";
         private const string            CabinPositionsPath      = "/home/steam/web-panel/data/cabin-positions.json";
+        private const string            CabinLevelsPath         = "/home/steam/web-panel/data/cabin-upgrade-levels.json";
         private static bool             _useCabinStack          = false;
         // playerId (string) → visible tile position chosen by that farmhand
         private Dictionary<string, Vector2> _cabinPositions = new();
@@ -289,6 +290,7 @@ namespace StardropHostDependencies
                 if (cabinTarget > 0 && _useCabinStack)
                     EnsureCabinCount(cabinTarget);
                 LoadCabinPositions();
+                WriteCabinLevels();
             }
 
             Monitor.Log("[StardropHost.Dependencies] Server ready for connections.", LogLevel.Info);
@@ -1430,15 +1432,21 @@ namespace StardropHostDependencies
                 Monitor.Log("[Admin] stardrop_upgradecabin requires an active hosted session.", LogLevel.Warn);
                 return;
             }
-            if (args.Length == 0) { Monitor.Log("Usage: stardrop_upgradecabin <name>", LogLevel.Info); return; }
+            if (args.Length < 2) { Monitor.Log("Usage: stardrop_upgradecabin <name> <targetLevel 1-3>", LogLevel.Info); return; }
 
-            var target = string.Join(" ", args);
+            if (!int.TryParse(args[args.Length - 1], out int targetLevel) || targetLevel < 1 || targetLevel > 3)
+            {
+                Monitor.Log("[Admin] Target level must be 1, 2, or 3.", LogLevel.Warn);
+                return;
+            }
+
+            var targetName = string.Join(" ", args.Take(args.Length - 1));
             var farmer = Game1.getAllFarmhands()
-                .FirstOrDefault(f => f.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(f => f.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
 
             if (farmer == null)
             {
-                Monitor.Log($"[Admin] Farmhand '{target}' not found.", LogLevel.Warn);
+                Monitor.Log($"[Admin] Farmhand '{targetName}' not found.", LogLevel.Warn);
                 return;
             }
 
@@ -1448,16 +1456,40 @@ namespace StardropHostDependencies
                 Monitor.Log($"[Admin] '{farmer.Name}' cabin is already at max upgrade level (3).", LogLevel.Warn);
                 return;
             }
+            if (targetLevel <= current)
+            {
+                Monitor.Log($"[Admin] Target level {targetLevel} is not higher than current level {current}.", LogLevel.Warn);
+                return;
+            }
 
-            int next = current + 1;
-            farmer.houseUpgradeLevel.Value = next;
-            Monitor.Log($"[Admin] Upgraded '{farmer.Name}' cabin from level {current} to {next}.", LogLevel.Info);
+            // Block if player is currently inside their cabin
+            var farm = Game1.getFarm();
+            var cabinBuilding = farm.buildings
+                .FirstOrDefault(b => (b.GetIndoors() as Cabin)?.owner?.UniqueMultiplayerID == farmer.UniqueMultiplayerID);
+            if (cabinBuilding != null)
+            {
+                var cabinInterior = cabinBuilding.GetIndoors();
+                if (cabinInterior != null &&
+                    farmer.currentLocation?.NameOrUniqueName == cabinInterior.NameOrUniqueName)
+                {
+                    Monitor.Log($"[Admin] Cannot upgrade '{farmer.Name}' — they are currently inside their cabin.", LogLevel.Warn);
+                    Game1.chatBox?.textBoxEnter(
+                        $"/message {farmer.Name} Cabin upgrade requested, but you must leave your cabin before it can be upgraded. Please step outside and ask the host to try again.");
+                    return;
+                }
+            }
 
-            // Notify player and kick after 5 seconds so they reconnect outside the cabin
+            // Apply upgrades sequentially from current+1 up to targetLevel
+            for (int l = current + 1; l <= targetLevel; l++)
+                farmer.houseUpgradeLevel.Value = l;
+
+            WriteCabinLevels();
+            Monitor.Log($"[Admin] Upgraded '{farmer.Name}' cabin from level {current} to {targetLevel}.", LogLevel.Info);
+
             var levelNames = new[] { "Basic", "Kitchen", "Kids Room", "Full Upgrade" };
             SchedulePrivateMessageAndKick(farmer.UniqueMultiplayerID, farmer.Name,
-                $"Your cabin has been upgraded to level {next} ({levelNames[next]}). " +
-                $"You will be disconnected in 5 seconds — please make sure you are outside your cabin before logging back in to see changes.");
+                $"Your cabin has been upgraded to level {targetLevel} ({levelNames[targetLevel]}). " +
+                $"You will be disconnected in 10 seconds — please make sure you are outside your cabin before logging back in to see the changes.");
         }
 
         private void OnCropSaverCommand(string cmd, string[] args)
@@ -1589,12 +1621,25 @@ namespace StardropHostDependencies
                 $"You will be disconnected in 5 seconds — log back in to see your cabin in the new location.");
         }
 
+        private void WriteCabinLevels()
+        {
+            try
+            {
+                var levels = new Dictionary<string, int>();
+                foreach (var f in Game1.getAllFarmhands())
+                    levels[f.Name] = f.houseUpgradeLevel.Value;
+                Directory.CreateDirectory(Path.GetDirectoryName(CabinLevelsPath)!);
+                File.WriteAllText(CabinLevelsPath, JsonSerializer.Serialize(levels));
+            }
+            catch { }
+        }
+
         private void SchedulePrivateMessageAndKick(long peerId, string playerName, string message)
         {
             // Send private message via /message chat command
             Game1.chatBox?.textBoxEnter($"/message {playerName} {message}");
-            // Kick after ~5 seconds
-            _pendingKicks.Add((peerId, Environment.TickCount64 + 5000));
+            // Kick after ~10 seconds
+            _pendingKicks.Add((peerId, Environment.TickCount64 + 10000));
         }
 
         private (int count, bool stack) ReadCabinConfigFromFile()

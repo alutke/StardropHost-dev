@@ -591,7 +591,16 @@ function removeIpLock(req, res) {
 // ─── Farmhands ───────────────────────────────────────────────────
 
 function readCabinUpgradeLevels() {
-  // Returns { [name]: upgradeLevel } by reading houseUpgradeLevel from the active save file
+  // Primary: mod-written file (DATA_DIR/cabin-upgrade-levels.json) — updated immediately on upgrade
+  try {
+    const modFile = path.join(config.DATA_DIR, 'cabin-upgrade-levels.json');
+    if (fs.existsSync(modFile)) {
+      const data = JSON.parse(fs.readFileSync(modFile, 'utf-8'));
+      if (data && typeof data === 'object') return data;
+    }
+  } catch {}
+
+  // Fallback: save file XML (only accurate after game saves at end of day)
   try {
     const STARTUP_PREFS = path.join(config.CONFIG_DIR, 'startup_preferences');
     const SELECTED_SAVE = path.join(config.SAVES_DIR, '.selected_save');
@@ -604,19 +613,14 @@ function readCabinUpgradeLevels() {
       saveName = fs.readFileSync(SELECTED_SAVE, 'utf-8').trim();
     if (!saveName) return {};
 
-    const saveFile = path.join(config.SAVES_DIR, saveName, saveName.replace(/_\d+$/, '') + '_' + saveName.split('_').pop());
-    // saveName is like FarmName_123456, save file is FarmName_123456/FarmName_123456
     const actualSaveFile = path.join(config.SAVES_DIR, saveName, saveName);
-    const filePath = fs.existsSync(actualSaveFile) ? actualSaveFile : saveFile;
-    if (!fs.existsSync(filePath)) return {};
+    if (!fs.existsSync(actualSaveFile)) return {};
 
-    const xml = fs.readFileSync(filePath, 'utf-8');
+    const xml = fs.readFileSync(actualSaveFile, 'utf-8');
     const levels = {};
-    // Match each <Farmer> block inside <farmhands> and extract name + houseUpgradeLevel
     const farmhandSection = xml.match(/<farmhands>([\s\S]*?)<\/farmhands>/);
     if (!farmhandSection) return {};
-    const farmerBlocks = farmhandSection[1].matchAll(/<Farmer>([\s\S]*?)<\/Farmer>/g);
-    for (const block of farmerBlocks) {
+    for (const block of farmhandSection[1].matchAll(/<Farmer>([\s\S]*?)<\/Farmer>/g)) {
       const nameMatch  = block[1].match(/<name>([^<]+)<\/name>/);
       const levelMatch = block[1].match(/<houseUpgradeLevel>(\d+)<\/houseUpgradeLevel>/);
       if (nameMatch) levels[nameMatch[1].trim()] = levelMatch ? parseInt(levelMatch[1]) : 0;
@@ -661,9 +665,11 @@ function deleteFarmhand(req, res) {
 }
 
 function upgradeCabin(req, res) {
-  const { ownerName } = req.body || {};
+  const { ownerName, targetLevel } = req.body || {};
   if (!ownerName || typeof ownerName !== 'string') return res.status(400).json({ error: 'ownerName required' });
-  const success = sendConsoleCommand(`stardrop_upgradecabin ${ownerName}`);
+  const lvl = Number(targetLevel);
+  if (!Number.isInteger(lvl) || lvl < 1 || lvl > 3) return res.status(400).json({ error: 'targetLevel must be 1, 2, or 3' });
+  const success = sendConsoleCommand(`stardrop_upgradecabin ${ownerName} ${lvl}`);
   if (success) res.json({ success: true });
   else res.status(500).json({ error: 'Failed to send command — is the server running?' });
 }
