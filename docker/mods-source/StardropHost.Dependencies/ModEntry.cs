@@ -1433,7 +1433,7 @@ namespace StardropHostDependencies
             }
 
             // 0 = HostOnly — cabin moving is restricted to the host
-            if ((int)Game1.options.moveBuildingPermissions == 0)
+            if ((int)Options.moveBuildingPermissions == 0)
             {
                 Game1.chatBox?.textBoxEnter("The host has disabled cabin moving. Ask them to change Build Permissions in the world settings.");
                 return;
