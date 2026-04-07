@@ -1489,7 +1489,7 @@ namespace StardropHostDependencies
             var levelNames = new[] { "Basic", "Kitchen", "Kids Room", "Full Upgrade" };
             SchedulePrivateMessageAndKick(farmer.UniqueMultiplayerID, farmer.Name,
                 $"Your cabin has been upgraded to level {targetLevel} ({levelNames[targetLevel]}). " +
-                $"You will be disconnected in 10 seconds — please make sure you are outside your cabin before logging back in to see the changes.");
+                $"You will be disconnected in 10 seconds — log back in to see the changes.");
         }
 
         private void OnCropSaverCommand(string cmd, string[] args)

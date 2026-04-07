@@ -2073,12 +2073,14 @@ function onUpgradeCabinSelect() {
   const pending = opt?.dataset?.pending === 'true' || _cabinUpgradePending.has(sel.value);
   const blocked = !sel.value || maxed || pending;
 
+  const prevLvl = parseInt(lvlSel.value) || 0;
   lvlSel.innerHTML = '';
   if (sel.value && !maxed && !pending) {
     for (let l = curLvl + 1; l <= 3; l++) {
       const o = document.createElement('option');
       o.value       = l;
       o.textContent = `Level ${l} — ${CABIN_LEVEL_NAMES[l]}`;
+      if (l === prevLvl) o.selected = true;
       lvlSel.appendChild(o);
     }
   } else {
