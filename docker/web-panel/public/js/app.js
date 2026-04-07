@@ -2485,7 +2485,12 @@ async function deleteFarmhand(btn, ownerName) {
   const data = await API.post('/api/players/farmhands/delete', { ownerName }).catch(() => null);
   if (data?.success) {
     showToast(`${ownerName} deleted.`, 'success');
-    loadFarmhands();
+    const slot = btn.closest('.farmhand-slot');
+    if (slot) {
+      slot.querySelector('.farmhand-slot-name').textContent = 'Unclaimed';
+      slot.querySelector('.farmhand-slot-actions').innerHTML = '';
+      slot.classList.add('farmhand-slot-empty');
+    }
   } else {
     showToast(data?.error || 'Failed to delete farmhand', 'error');
     btn.disabled = false;
@@ -4515,8 +4520,8 @@ async function confirmFactoryReset() {
   const data = await API.post('/api/wizard/factory-reset');
   if (data?.success) {
     closeFactoryResetModal();
-    showToast('Reset complete — restarting game and reloading wizard…', 'success');
-    setTimeout(() => window.location.reload(), 2500);
+    showToast('Reset complete — restarting setup wizard…', 'success');
+    setTimeout(() => navigateTo('dashboard'), 1500);
   } else {
     showToast(data?.error || 'Reset failed', 'error');
     btn.disabled = false;
