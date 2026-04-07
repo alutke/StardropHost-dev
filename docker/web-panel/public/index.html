@@ -613,16 +613,10 @@
                 <div class="admin-cmd-row" style="border-bottom:none">
                   <span class="admin-cmd-label">Upgrade Cabin</span>
                   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                    <select id="upgradeCabinPlayer" style="min-width:140px">
+                    <select id="upgradeCabinPlayer" style="min-width:200px" onchange="onUpgradeCabinSelect()">
                       <option value="">— Select player —</option>
                     </select>
-                    <select id="upgradeCabinLevel">
-                      <option value="0">Level 0 — Basic</option>
-                      <option value="1">Level 1 — Kitchen</option>
-                      <option value="2">Level 2 — Kids Room</option>
-                      <option value="3">Level 3 — Full Upgrade</option>
-                    </select>
-                    <button class="btn btn-sm btn-primary" onclick="upgradeCabin()">Upgrade</button>
+                    <button id="upgradeCabinBtn" class="btn btn-sm btn-primary" onclick="upgradeCabin()" disabled>Upgrade</button>
                   </div>
                 </div>
 

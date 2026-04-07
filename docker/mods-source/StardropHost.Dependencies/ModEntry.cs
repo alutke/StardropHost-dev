@@ -144,6 +144,9 @@ namespace StardropHostDependencies
         private static bool _shouldDrawFrame = false;
         private static ModEntry _instance;
 
+        // ── Pending delayed kicks ────────────────────────────────────────────
+        private readonly List<(long peerId, long kickAtMs)> _pendingKicks = new();
+
         // ── DesyncKicker ─────────────────────────────────────────────────────
         private System.Threading.CancellationTokenSource? _desyncBarrierCts;
         private System.Threading.CancellationTokenSource? _desyncSaveCts;
@@ -360,6 +363,20 @@ namespace StardropHostDependencies
             }
 
             if (!Context.IsMainPlayer) return;
+
+            // Delayed kicks (upgrade / cabin move notifications)
+            if (_pendingKicks.Count > 0 && Context.IsWorldReady)
+            {
+                var now = Environment.TickCount64;
+                for (int i = _pendingKicks.Count - 1; i >= 0; i--)
+                {
+                    if (now >= _pendingKicks[i].kickAtMs)
+                    {
+                        Game1.server?.kick(_pendingKicks[i].peerId);
+                        _pendingKicks.RemoveAt(i);
+                    }
+                }
+            }
 
             // Delayed re-hide after peer connect
             if (_needRehide && _rehideTicks > 0 && --_rehideTicks == 0)
@@ -1413,15 +1430,9 @@ namespace StardropHostDependencies
                 Monitor.Log("[Admin] stardrop_upgradecabin requires an active hosted session.", LogLevel.Warn);
                 return;
             }
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_upgradecabin <name> <level 0-3>", LogLevel.Info); return; }
+            if (args.Length == 0) { Monitor.Log("Usage: stardrop_upgradecabin <name>", LogLevel.Info); return; }
 
-            if (!int.TryParse(args[args.Length - 1], out int level) || level < 0 || level > 3)
-            {
-                Monitor.Log("[Admin] Level must be 0, 1, 2, or 3.", LogLevel.Warn);
-                return;
-            }
-
-            var target = string.Join(" ", args.Take(args.Length - 1));
+            var target = string.Join(" ", args);
             var farmer = Game1.getAllFarmhands()
                 .FirstOrDefault(f => f.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
 
@@ -1431,8 +1442,22 @@ namespace StardropHostDependencies
                 return;
             }
 
-            farmer.houseUpgradeLevel.Value = level;
-            Monitor.Log($"[Admin] Set '{farmer.Name}' cabin upgrade level to {level}.", LogLevel.Info);
+            int current = farmer.houseUpgradeLevel.Value;
+            if (current >= 3)
+            {
+                Monitor.Log($"[Admin] '{farmer.Name}' cabin is already at max upgrade level (3).", LogLevel.Warn);
+                return;
+            }
+
+            int next = current + 1;
+            farmer.houseUpgradeLevel.Value = next;
+            Monitor.Log($"[Admin] Upgraded '{farmer.Name}' cabin from level {current} to {next}.", LogLevel.Info);
+
+            // Notify player and kick after 5 seconds so they reconnect outside the cabin
+            var levelNames = new[] { "Basic", "Kitchen", "Kids Room", "Full Upgrade" };
+            SchedulePrivateMessageAndKick(farmer.UniqueMultiplayerID, farmer.Name,
+                $"Your cabin has been upgraded to level {next} ({levelNames[next]}). " +
+                $"You will be disconnected in 5 seconds — please make sure you are outside your cabin before logging back in to see changes.");
         }
 
         private void OnCropSaverCommand(string cmd, string[] args)
@@ -1557,9 +1582,19 @@ namespace StardropHostDependencies
             }
 
             string typeMsg = fullCabinType != null ? $" as a {fullCabinType}" : "";
-            Game1.chatBox?.textBoxEnter(
-                $"{farmer.Name}: Cabin set to ({x}, {y}){typeMsg}. Rejoin the server to see the changes.");
-            Monitor.Log($"[CabinStack] {farmer.Name} set cabin position to ({x},{y}).", LogLevel.Info);
+            Monitor.Log($"[CabinStack] {farmer.Name} set cabin position to ({x},{y}){typeMsg}.", LogLevel.Info);
+
+            SchedulePrivateMessageAndKick(farmerId, farmer.Name,
+                $"Your cabin has been moved to ({x}, {y}){typeMsg}. " +
+                $"You will be disconnected in 5 seconds — log back in to see your cabin in the new location.");
+        }
+
+        private void SchedulePrivateMessageAndKick(long peerId, string playerName, string message)
+        {
+            // Send private message via /message chat command
+            Game1.chatBox?.textBoxEnter($"/message {playerName} {message}");
+            // Kick after ~5 seconds
+            _pendingKicks.Add((peerId, Environment.TickCount64 + 5000));
         }
 
         private (int count, bool stack) ReadCabinConfigFromFile()

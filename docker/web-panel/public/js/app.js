@@ -2034,6 +2034,8 @@ async function worldCmd(base, value, clearId) {
   setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
+const CABIN_LEVEL_NAMES = ['Basic', 'Kitchen', 'Kids Room', 'Full Upgrade'];
+
 function populateUpgradeCabinDropdown() {
   const sel = document.getElementById('upgradeCabinPlayer');
   if (!sel) return;
@@ -2041,24 +2043,48 @@ function populateUpgradeCabinDropdown() {
   const named  = cabins.filter(c => c.ownerName && c.ownerName !== 'Farmhouse');
   const prev   = sel.value;
   sel.innerHTML = '<option value="">— Select player —</option>' +
-    named.map(c => `<option value="${c.ownerName}"${c.ownerName === prev ? ' selected' : ''}>${c.ownerName}</option>`).join('');
+    named.map(c => {
+      const lvl     = c.upgradeLevel ?? 0;
+      const lvlName = CABIN_LEVEL_NAMES[lvl] ?? `Level ${lvl}`;
+      const maxed   = lvl >= 3;
+      return `<option value="${c.ownerName}" data-level="${lvl}"${c.ownerName === prev ? ' selected' : ''}${maxed ? ' data-maxed="true"' : ''}>${c.ownerName} — Lv${lvl} ${lvlName}${maxed ? ' (Max)' : ''}</option>`;
+    }).join('');
+  onUpgradeCabinSelect();
+}
+
+function onUpgradeCabinSelect() {
+  const sel = document.getElementById('upgradeCabinPlayer');
+  const btn = document.getElementById('upgradeCabinBtn');
+  if (!sel || !btn) return;
+  const opt    = sel.options[sel.selectedIndex];
+  const maxed  = opt?.dataset?.maxed === 'true';
+  btn.disabled = !sel.value || maxed;
+  btn.title    = !sel.value ? 'Select a player first' : maxed ? 'Already at max level' : '';
 }
 
 async function upgradeCabin() {
   const ownerName = document.getElementById('upgradeCabinPlayer')?.value;
-  const level     = document.getElementById('upgradeCabinLevel')?.value;
-  const el        = document.getElementById('worldCmdResult');
-  if (!ownerName) {
-    if (el) { el.textContent = '✗ Select a player first.'; el.style.color = '#ef4444'; el.style.background = 'rgba(239,68,68,0.08)'; el.style.display = ''; setTimeout(() => { el.style.display = 'none'; }, 3000); }
-    return;
+  if (!ownerName) return;
+  const data = await API.post('/api/players/farmhands/upgrade', { ownerName }).catch(() => null);
+  if (data?.success) {
+    const sel = document.getElementById('upgradeCabinPlayer');
+    const opt = sel?.options[sel.selectedIndex];
+    if (opt) {
+      const newLvl  = Math.min((parseInt(opt.dataset.level) || 0) + 1, 3);
+      const lvlName = CABIN_LEVEL_NAMES[newLvl] ?? `Level ${newLvl}`;
+      opt.dataset.level   = newLvl;
+      opt.textContent     = `${ownerName} — Lv${newLvl} ${lvlName}${newLvl >= 3 ? ' (Max)' : ''}`;
+      if (newLvl >= 3) opt.dataset.maxed = 'true';
+      onUpgradeCabinSelect();
+    }
   }
-  const data = await API.post('/api/players/farmhands/upgrade', { ownerName, level: Number(level) }).catch(() => null);
+  const el = document.getElementById('worldCmdResult');
   if (!el) return;
-  el.textContent    = data?.success ? `✓ ${ownerName}'s cabin upgraded to level ${level}.` : `✗ ${data?.error || 'Failed — is the server running?'}`;
-  el.style.color    = data?.success ? 'var(--accent)' : '#ef4444';
+  el.textContent      = data?.success ? `✓ ${ownerName}'s cabin upgraded. They will be disconnected shortly.` : `✗ ${data?.error || 'Failed — is the server running?'}`;
+  el.style.color      = data?.success ? 'var(--accent)' : '#ef4444';
   el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
-  el.style.display  = '';
-  setTimeout(() => { el.style.display = 'none'; }, 4000);
+  el.style.display    = '';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
 
 async function toggleWorldPause() {

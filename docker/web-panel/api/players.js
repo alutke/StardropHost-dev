@@ -590,11 +590,51 @@ function removeIpLock(req, res) {
 
 // ─── Farmhands ───────────────────────────────────────────────────
 
+function readCabinUpgradeLevels() {
+  // Returns { [name]: upgradeLevel } by reading houseUpgradeLevel from the active save file
+  try {
+    const STARTUP_PREFS = path.join(config.CONFIG_DIR, 'startup_preferences');
+    const SELECTED_SAVE = path.join(config.SAVES_DIR, '.selected_save');
+    let saveName = '';
+    if (fs.existsSync(STARTUP_PREFS)) {
+      const m = fs.readFileSync(STARTUP_PREFS, 'utf-8').match(/<saveFolderName>([^<]+)<\/saveFolderName>/);
+      if (m) saveName = m[1].trim();
+    }
+    if (!saveName && fs.existsSync(SELECTED_SAVE))
+      saveName = fs.readFileSync(SELECTED_SAVE, 'utf-8').trim();
+    if (!saveName) return {};
+
+    const saveFile = path.join(config.SAVES_DIR, saveName, saveName.replace(/_\d+$/, '') + '_' + saveName.split('_').pop());
+    // saveName is like FarmName_123456, save file is FarmName_123456/FarmName_123456
+    const actualSaveFile = path.join(config.SAVES_DIR, saveName, saveName);
+    const filePath = fs.existsSync(actualSaveFile) ? actualSaveFile : saveFile;
+    if (!fs.existsSync(filePath)) return {};
+
+    const xml = fs.readFileSync(filePath, 'utf-8');
+    const levels = {};
+    // Match each <Farmer> block inside <farmhands> and extract name + houseUpgradeLevel
+    const farmhandSection = xml.match(/<farmhands>([\s\S]*?)<\/farmhands>/);
+    if (!farmhandSection) return {};
+    const farmerBlocks = farmhandSection[1].matchAll(/<Farmer>([\s\S]*?)<\/Farmer>/g);
+    for (const block of farmerBlocks) {
+      const nameMatch  = block[1].match(/<name>([^<]+)<\/name>/);
+      const levelMatch = block[1].match(/<houseUpgradeLevel>(\d+)<\/houseUpgradeLevel>/);
+      if (nameMatch) levels[nameMatch[1].trim()] = levelMatch ? parseInt(levelMatch[1]) : 0;
+    }
+    return levels;
+  } catch { return {}; }
+}
+
 function getFarmhands(req, res) {
   try {
     if (!fs.existsSync(config.LIVE_FILE)) return res.json({ cabins: [], serverState: null });
-    const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
-    res.json({ cabins: live.cabins || [], serverState: live.serverState || null });
+    const live   = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+    const levels = readCabinUpgradeLevels();
+    const cabins = (live.cabins || []).map(c => ({
+      ...c,
+      upgradeLevel: levels[c.ownerName] ?? 0,
+    }));
+    res.json({ cabins, serverState: live.serverState || null });
   } catch {
     res.json({ cabins: [], serverState: null });
   }
@@ -621,11 +661,9 @@ function deleteFarmhand(req, res) {
 }
 
 function upgradeCabin(req, res) {
-  const { ownerName, level } = req.body || {};
+  const { ownerName } = req.body || {};
   if (!ownerName || typeof ownerName !== 'string') return res.status(400).json({ error: 'ownerName required' });
-  if (level === undefined || level === null || !Number.isInteger(Number(level)) || Number(level) < 0 || Number(level) > 3)
-    return res.status(400).json({ error: 'level must be 0, 1, 2, or 3' });
-  const success = sendConsoleCommand(`stardrop_upgradecabin ${ownerName} ${level}`);
+  const success = sendConsoleCommand(`stardrop_upgradecabin ${ownerName}`);
   if (success) res.json({ success: true });
   else res.status(500).json({ error: 'Failed to send command — is the server running?' });
 }
@@ -654,4 +692,5 @@ module.exports = {
   getFarmhands,
   deleteFarmhand,
   upgradeCabin,
+  readCabinUpgradeLevels,
 };

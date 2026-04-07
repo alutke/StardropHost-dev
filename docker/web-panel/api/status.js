@@ -8,8 +8,9 @@ const path = require('path');
 const { execSync, spawnSync } = require('child_process');
 const http  = require('http');
 const https = require('https');
-const config    = require('../server');
-const savesAPI  = require('./saves');
+const config      = require('../server');
+const savesAPI    = require('./saves');
+const playersAPI  = require('./players');
 
 // -- Panel start time (used to compute container uptime, not host uptime) --
 const PANEL_START_TIME = Date.now();
@@ -199,6 +200,11 @@ function collectStatus(req = null) {
   try {
     if (fs.existsSync(config.LIVE_FILE)) {
       const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+      // Enrich cabin data with upgrade levels from save file
+      if (live.cabins?.length > 0) {
+        const levels = playersAPI.readCabinUpgradeLevels();
+        live.cabins = live.cabins.map(c => ({ ...c, upgradeLevel: levels[c.ownerName] ?? 0 }));
+      }
       status.live = live;
 
       // Use live data to fill gaps or override stale status.json data
