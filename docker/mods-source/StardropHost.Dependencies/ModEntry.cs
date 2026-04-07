@@ -55,6 +55,8 @@ namespace StardropHostDependencies
         private static bool             _useCabinStack          = false;
         // playerId (string) → visible tile position chosen by that farmhand
         private Dictionary<string, Vector2> _cabinPositions = new();
+        // Tracked from /moveBuildingPermission chat command: "off", "owned", "on"
+        private static string           _buildingMovePermission = "on";
 
         private static readonly JsonSerializerOptions _chatJsonOpts = new()
         {
@@ -1085,6 +1087,10 @@ namespace StardropHostDependencies
         {
             try
             {
+                // Track /moveBuildingPermission changes — host only
+                if (sourceFarmer == Game1.player?.UniqueMultiplayerID)
+                    TryUpdateBuildingMovePermission(message);
+
                 // Skip host's own messages — already logged by OnSayCommand / OnTellCommand.
                 if (sourceFarmer != 0 && sourceFarmer == Game1.player?.UniqueMultiplayerID) return;
 
@@ -1227,6 +1233,7 @@ namespace StardropHostDependencies
             if (Game1.chatBox == null) { Monitor.Log("[ChatBridge] chatBox not ready.", LogLevel.Warn); return; }
 
             string message = string.Join(" ", args);
+            TryUpdateBuildingMovePermission(message);
             Game1.chatBox.textBoxEnter(message);
             AppendChatLog(Game1.player.Name, message, true);
         }
@@ -1391,6 +1398,21 @@ namespace StardropHostDependencies
             Monitor.Log($"[CropSaver] {(enable ? "Enabled" : "Disabled")} at runtime.", LogLevel.Info);
         }
 
+        /// <summary>
+        /// Parses /moveBuildingPermission (and aliases mbp, movePermission) and updates
+        /// _buildingMovePermission so HandleCabinCommand can gate move_cabin correctly.
+        /// </summary>
+        private static void TryUpdateBuildingMovePermission(string message)
+        {
+            var trimmed = message.Trim();
+            // Match: /moveBuildingPermission off|owned|on  (and aliases mbp, movePermission)
+            var match = Regex.Match(trimmed,
+                @"^/(?:moveBuildingPermission|mbp|movePermission)\s+(off|owned|on)\b",
+                RegexOptions.IgnoreCase);
+            if (!match.Success) return;
+            _buildingMovePermission = match.Groups[1].Value.ToLower();
+        }
+
         // ════════════════════════════════════════════════════════════════════
         // CABIN STACK
         // ════════════════════════════════════════════════════════════════════
@@ -1432,12 +1454,8 @@ namespace StardropHostDependencies
                 return;
             }
 
-            // Block when building moving is restricted to host only.
-            // Log the value so we can confirm the correct integer mapping.
-            int buildPerm = (int)Options.moveBuildingPermissions;
-            Monitor.Log($"[CabinStack] moveBuildingPermissions = {buildPerm}", LogLevel.Debug);
-            // Off/HostOnly = 2, OwnedBuildings = 1, On = 0 (confirmed from SDV source)
-            if (buildPerm == 2)
+            // Block when /moveBuildingPermission is set to off (host only)
+            if (_buildingMovePermission == "off")
             {
                 Game1.chatBox?.textBoxEnter("The host has disabled cabin moving. Ask them to change Build Permissions in the world settings.");
                 return;
