@@ -1412,15 +1412,18 @@ namespace StardropHostDependencies
             var cabinBuilding = farm.buildings
                 .FirstOrDefault(b => b.indoors.Value is Cabin c && c.owner.UniqueMultiplayerID == farmerId);
 
+            // Remove farmhand data — do NOT call cabin.DeleteFarmhand() as it removes the building.
+            // Instead: clear the owner on the cabin so the slot becomes unclaimed, and remove from farmhandData.
+            Game1.netWorldState.Value.farmhandData.Remove(farmerId);
+
             if (cabinBuilding != null)
             {
-                (cabinBuilding.indoors.Value as Cabin)!.DeleteFarmhand();
+                var cabin = (Cabin)cabinBuilding.indoors.Value!;
+                cabin.owner.Value = new Farmer();
                 Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' — cabin slot kept as unclaimed.", LogLevel.Info);
             }
             else
             {
-                // Fallback: remove directly from farmhandData if cabin is missing
-                Game1.netWorldState.Value.farmhandData.Remove(farmerId);
                 Monitor.Log($"[Admin] Deleted farmhand '{farmer.Name}' from farmhandData (no cabin found).", LogLevel.Warn);
             }
         }
