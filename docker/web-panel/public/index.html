@@ -584,10 +584,13 @@
                     </select>
                     <button class="btn btn-sm btn-primary" onclick="worldCmd('say', '/movebuildingpermission ' + document.getElementById('worldBuildPermission').value)">Set</button>
                   </div>
-                  <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                    <span>Set to <em>owned</em> or <em>on</em> to allow players to use <code>move_cabin</code></span>
-                    <select id="worldCabinTypeRef" class="form-input" style="width:130px;font-size:11px;padding:2px 6px;height:auto">
-                      <option value="">cabin types…</option>
+                  <div style="font-size:11px;color:var(--text-muted)">
+                    Set to <em>owned</em> or <em>on</em> to allow players to use <code>move_cabin [types]</code>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+                    <span>types =</span>
+                    <select id="worldCabinTypeRef" class="form-input" style="width:160px;font-size:11px;padding:2px 6px;height:auto">
+                      <option value="">— select type —</option>
                       <option value="stone">stone — Stone Cabin</option>
                       <option value="plank">plank — Plank Cabin</option>
                       <option value="log">log — Log Cabin</option>
@@ -614,26 +617,30 @@
 
                 <div class="admin-cmd-row" style="border-bottom:none">
                   <span class="admin-cmd-label">Clear</span>
-                  <select id="worldClearLocation" class="form-input" style="flex:1;min-width:100px">
-                    <option value="Farm">Farm</option>
-                    <option value="FarmHouse">Farm House</option>
-                    <option value="Greenhouse">Greenhouse</option>
-                    <option value="Town">Town</option>
-                    <option value="Beach">Beach</option>
-                    <option value="Forest">Forest</option>
-                    <option value="Desert">Desert</option>
-                  </select>
-                  <select id="worldClearType" class="form-input" style="flex:1;min-width:100px">
-                    <option value="debris">Debris</option>
-                    <option value="crops">Crops</option>
-                    <option value="grass">Grass</option>
-                    <option value="trees">Trees</option>
-                    <option value="fruit-trees">Fruit Trees</option>
-                    <option value="furniture">Furniture</option>
-                    <option value="removable">Removable</option>
-                    <option value="everything">Everything</option>
-                  </select>
-                  <button class="btn btn-sm btn-primary" onclick="worldCmd('world_clear ' + document.getElementById('worldClearLocation').value, document.getElementById('worldClearType').value)">Clear</button>
+                  <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+                    <select id="worldClearLocation" class="form-input">
+                      <option value="Farm">Farm</option>
+                      <option value="FarmHouse">Farm House</option>
+                      <option value="Greenhouse">Greenhouse</option>
+                      <option value="Town">Town</option>
+                      <option value="Beach">Beach</option>
+                      <option value="Forest">Forest</option>
+                      <option value="Desert">Desert</option>
+                    </select>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <select id="worldClearType" class="form-input" style="flex:1">
+                        <option value="debris">Debris</option>
+                        <option value="crops">Crops</option>
+                        <option value="grass">Grass</option>
+                        <option value="trees">Trees</option>
+                        <option value="fruit-trees">Fruit Trees</option>
+                        <option value="furniture">Furniture</option>
+                        <option value="removable">Removable</option>
+                        <option value="everything">Everything</option>
+                      </select>
+                      <button class="btn btn-sm btn-primary" onclick="worldCmd('world_clear ' + document.getElementById('worldClearLocation').value, document.getElementById('worldClearType').value)">Clear</button>
+                    </div>
+                  </div>
                 </div>
 
               </div>
