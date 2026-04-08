@@ -116,9 +116,8 @@ function getNetworkInfo(requestHost = '') {
   } catch {}
 
   const hostFromRequest = normalizeJoinHost(requestHost);
-  // Only use the request host if it looks like a private LAN IP — not a domain/tunnel address
-  const isPrivateIp = (h) => /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h);
-  const derivedJoinIp = hostFromRequest && isPrivateIp(hostFromRequest) ? hostFromRequest : '';
+  const derivedJoinIp = hostFromRequest && hostFromRequest !== 'localhost' && hostFromRequest !== '127.0.0.1'
+    ? hostFromRequest : '';
 
   return {
     joinIp: configuredPublicIp || derivedJoinIp || localIps[0] || '',

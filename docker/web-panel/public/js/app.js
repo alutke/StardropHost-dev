@@ -5231,6 +5231,15 @@ async function saveRemoteAddress(type) {
   }
 }
 
+async function clearRemoteAddr(type) {
+  const isGame = type === 'game';
+  const input  = document.getElementById(isGame ? 'remote-playit-game' : 'remote-playit-dash');
+  if (input) input.value = '';
+  await API.post('/api/remote/addresses', { [isGame ? 'game' : 'dashboard']: '' });
+  _remoteAddressCache[isGame ? 'game' : 'dashboard'] = '';
+  _populateConnectionAddresses();
+}
+
 function copyRemoteAddr(elId) {
   const el  = document.getElementById(elId);
   const val = el?.value ?? el?.textContent ?? '';

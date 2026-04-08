@@ -815,8 +815,11 @@
             <div class="chat-color-row" id="chatColorRow"></div>
             <!-- Compose -->
             <div id="chatLines" class="chat-lines"></div>
-            <div class="chat-compose-row" style="margin-top:6px">
+            <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
               <button class="btn btn-sm btn-secondary" id="chatAddLineBtn" onclick="addChatLine()" title="Add another line">+</button>
+              <span style="font-size:11px;color:var(--text-muted)">add extra line...</span>
+            </div>
+            <div class="chat-compose-row" style="margin-top:6px">
               <button class="btn btn-primary btn-sm" id="chatSendBtn" onclick="sendChatMessage()">Send</button>
             </div>
           </div>
@@ -1076,7 +1079,8 @@
               <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">Co-Op Game</div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <input id="remote-playit-game" class="input" type="text" placeholder="e.g. 12.34.56.78:12345"
-                  style="flex:1;min-width:160px;font-size:13px" oninput="_remoteAddrDirty('game')">
+                  style="width:280px;font-size:13px" oninput="_remoteAddrDirty('game')">
+                <button class="btn btn-sm btn-icon" onclick="clearRemoteAddr('game')" title="Clear">×</button>
                 <button class="btn btn-sm btn-secondary" id="remote-save-game-btn" onclick="saveRemoteAddress('game')" style="display:none">Save</button>
                 <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('remote-playit-game')" title="Copy">
                   <svg class="icon"><use href="#icon-copy"></use></svg>
@@ -1087,7 +1091,8 @@
               <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Dashboard</div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <input id="remote-playit-dash" class="input" type="text" placeholder="e.g. yourname.playit.plus:54321"
-                  style="flex:1;min-width:160px;font-size:13px" oninput="_remoteAddrDirty('dashboard')">
+                  style="width:280px;font-size:13px" oninput="_remoteAddrDirty('dashboard')">
+                <button class="btn btn-sm btn-icon" onclick="clearRemoteAddr('dashboard')" title="Clear">×</button>
                 <button class="btn btn-sm btn-secondary" id="remote-save-dash-btn" onclick="saveRemoteAddress('dashboard')" style="display:none">Save</button>
                 <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('remote-playit-dash')" title="Copy">
                   <svg class="icon"><use href="#icon-copy"></use></svg>
