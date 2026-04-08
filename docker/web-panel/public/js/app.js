@@ -2625,17 +2625,18 @@ async function loadFarmhands() {
 }
 
 async function deleteFarmhand(btn, ownerName) {
-  if (!confirm(`Permanently delete "${ownerName}"?\n\nThis removes their character data and cabin slot immediately. This cannot be undone.`)) return;
+  if (!confirm(`Permanently delete "${ownerName}"?\n\nThis removes their character data. A server restart is required for the change to take effect.\n\nThis cannot be undone.`)) return;
   btn.disabled = true;
   const data = await API.post('/api/players/farmhands/delete', { ownerName }).catch(() => null);
   if (data?.success) {
-    showToast(`${ownerName} deleted.`, 'success');
+    showToast(`${ownerName} deleted. Restart required.`, 'success');
     const slot = btn.closest('.farmhand-slot');
     if (slot) {
       slot.querySelector('.farmhand-slot-name').textContent = 'Unclaimed';
       slot.querySelector('.farmhand-slot-actions').innerHTML = '';
       slot.classList.add('farmhand-slot-empty');
     }
+    showRestartModal(`Farmhand "${ownerName}" deleted. Restart the server to apply the change.`);
   } else {
     showToast(data?.error || 'Failed to delete farmhand', 'error');
     btn.disabled = false;
