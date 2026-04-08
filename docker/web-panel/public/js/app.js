@@ -4717,20 +4717,9 @@ function showUpdateScreen(startedAt) {
   _updateLogLines      = [];
   _addUpdateLog('Update started');
 
-  _startUpdateElapsedTimer(ts);
   _startUpdateStatusPoll();
 }
 
-function _startUpdateElapsedTimer(startedAt) {
-  if (_updateElapsedTimer) clearInterval(_updateElapsedTimer);
-  _updateElapsedTimer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-    const m = Math.floor(elapsed / 60);
-    const s = elapsed % 60;
-    const el = document.getElementById('updateElapsed');
-    if (el) el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-  }, 1000);
-}
 
 function _startUpdateStatusPoll() {
   if (_updateStatusPoll) clearInterval(_updateStatusPoll);
@@ -4777,8 +4766,7 @@ function _addUpdateLog(msg) {
   if (_updateLogLines.length > 30) _updateLogLines.shift();
   const el = document.getElementById('updateLog');
   if (!el) return;
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  el.innerHTML = _updateLogLines.map(l => `<div>${escapeHtml(time)} ${escapeHtml(l)}</div>`).join('');
+  el.innerHTML = _updateLogLines.map(l => `<div>${escapeHtml(l)}</div>`).join('');
   el.scrollTop = el.scrollHeight;
 }
 
