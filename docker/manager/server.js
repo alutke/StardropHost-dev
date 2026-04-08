@@ -123,8 +123,12 @@ function stopService(service) {
   child.unref();
 }
 
+// Services that require a compose profile to start (excluded from plain `up -d`)
+const PROFILE_SERVICES = { 'stardrop-steam-auth': 'steam-auth' };
+
 function startService(service) {
-  const command = `docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} up -d --no-deps ${service}`;
+  const profile = PROFILE_SERVICES[service] ? `--profile ${PROFILE_SERVICES[service]} ` : '';
+  const command = `docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} ${profile}up -d --no-deps ${service}`;
 
   const child = spawn('sh', ['-lc', command], {
     cwd: PROJECT_DIR, env: buildComposeEnv(), detached: true, stdio: 'ignore',

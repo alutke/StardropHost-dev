@@ -134,7 +134,24 @@ let lastLogParse = 0;
 
 // -- Recent players tracking --
 const playerSnapshots = new Map(); // id → rich player data from live-status.json
-const recentPlayers   = new Map(); // id → { ...playerData, lastSeen } — persists until manually deleted
+
+const RECENT_PLAYERS_FILE = path.join(config.DATA_DIR, 'recent-players.json');
+
+function loadRecentPlayers() {
+  try {
+    if (fs.existsSync(RECENT_PLAYERS_FILE))
+      return new Map(Object.entries(JSON.parse(fs.readFileSync(RECENT_PLAYERS_FILE, 'utf-8'))));
+  } catch {}
+  return new Map();
+}
+
+function saveRecentPlayers() {
+  try {
+    fs.writeFileSync(RECENT_PLAYERS_FILE, JSON.stringify(Object.fromEntries(recentPlayers)), 'utf-8');
+  } catch {}
+}
+
+const recentPlayers = loadRecentPlayers();
 
 // -- Security check cache — only check new arrivals, not every poll --
 const securityCheckedIds = new Set(); // IDs that have already passed the security check
@@ -284,13 +301,16 @@ function getPlayers(req, res) {
   const online      = getOnlineCount();
 
   const onlineIds = new Set(players.map(p => p.id));
+  let recentChanged = false;
   for (const [id, snapshot] of playerSnapshots) {
     if (!onlineIds.has(id)) {
       recentPlayers.set(id, { ...snapshot, lastSeen: Date.now() });
       playerSnapshots.delete(id);
       securityCheckedIds.delete(id); // allow re-check if they rejoin
+      recentChanged = true;
     }
   }
+  if (recentChanged) saveRecentPlayers();
 
   const bans       = loadBans();
   const bannedIds   = new Set(bans.map(b => b.id).filter(Boolean));
@@ -406,6 +426,7 @@ function deleteRecentPlayer(req, res) {
   const { id } = req.body || {};
   if (!id) return res.status(400).json({ error: 'id is required' });
   recentPlayers.delete(String(id));
+  saveRecentPlayers();
   res.json({ success: true });
 }
 
