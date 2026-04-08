@@ -4196,12 +4196,10 @@ async function loadConfig() {
         </div>
         <button class="btn btn-primary" type="button" onclick="changePassword()">Update Credentials</button>
       </div>`;
-    advInner.appendChild(adminCard);
-
     // VNC card — loadVnc() fills #vncPanel after we append to DOM
     const vncCard = document.createElement('div');
     vncCard.className = 'card';
-    vncCard.innerHTML = '<h3>VNC &amp; Display Settings</h3><div id="vncPanel"><div class="empty-state">Loading VNC status...</div></div>';
+    vncCard.innerHTML = '<div class="config-group-title">VNC Settings</div><div id="vncPanel"><div class="empty-state">Loading VNC status...</div></div>';
     advInner.appendChild(vncCard);
 
     // Stability and Monitoring cards
@@ -4213,6 +4211,9 @@ async function loadConfig() {
       for (const item of group.items) card.appendChild(_buildConfigRow(item));
       advInner.appendChild(card);
     }
+
+    // Admin credentials card — at the bottom
+    advInner.appendChild(adminCard);
 
     details.appendChild(advInner);
     advHolder.appendChild(details);
