@@ -605,20 +605,20 @@
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
                   <span class="admin-cmd-label" style="margin:0">Upgrade Cabin</span>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-                    <select id="upgradeCabinPlayer" style="flex:1;min-width:150px" onchange="onUpgradeCabinSelect()">
+                    <select id="upgradeCabinPlayer" class="form-input" style="flex:1;min-width:150px" onchange="onUpgradeCabinSelect()">
                       <option value="">— Select player —</option>
                     </select>
-                    <select id="upgradeCabinLevel" style="flex:1;min-width:130px" disabled>
+                    <select id="upgradeCabinLevel" class="form-input" style="flex:1;min-width:130px" disabled>
                       <option value="">— level —</option>
                     </select>
                     <button id="upgradeCabinBtn" class="btn btn-sm btn-primary" onclick="upgradeCabin()" disabled>Upgrade</button>
                   </div>
                 </div>
 
-                <div class="admin-cmd-row" style="border-bottom:none">
-                  <span class="admin-cmd-label">Clear</span>
-                  <div style="display:flex;flex-direction:column;gap:4px;flex:1">
-                    <select id="worldClearLocation" class="form-input">
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px;border-bottom:none">
+                  <span class="admin-cmd-label" style="margin:0">Clear</span>
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <select id="worldClearLocation" class="form-input" style="width:auto">
                       <option value="Farm">Farm</option>
                       <option value="FarmHouse">Farm House</option>
                       <option value="Greenhouse">Greenhouse</option>
@@ -627,19 +627,17 @@
                       <option value="Forest">Forest</option>
                       <option value="Desert">Desert</option>
                     </select>
-                    <div style="display:flex;gap:6px;align-items:center">
-                      <select id="worldClearType" class="form-input" style="flex:1">
-                        <option value="debris">Debris</option>
-                        <option value="crops">Crops</option>
-                        <option value="grass">Grass</option>
-                        <option value="trees">Trees</option>
-                        <option value="fruit-trees">Fruit Trees</option>
-                        <option value="furniture">Furniture</option>
-                        <option value="removable">Removable</option>
-                        <option value="everything">Everything</option>
-                      </select>
-                      <button class="btn btn-sm btn-primary" onclick="worldCmd('world_clear ' + document.getElementById('worldClearLocation').value, document.getElementById('worldClearType').value)">Clear</button>
-                    </div>
+                    <select id="worldClearType" class="form-input" style="width:auto">
+                      <option value="debris">Debris</option>
+                      <option value="crops">Crops</option>
+                      <option value="grass">Grass</option>
+                      <option value="trees">Trees</option>
+                      <option value="fruit-trees">Fruit Trees</option>
+                      <option value="furniture">Furniture</option>
+                      <option value="removable">Removable</option>
+                      <option value="everything">Everything</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="worldCmd('world_clear ' + document.getElementById('worldClearLocation').value, document.getElementById('worldClearType').value)">Clear</button>
                   </div>
                 </div>
 
