@@ -7,10 +7,11 @@
 
 networks:
   stardrop-net:
+    name: ${CONTAINER_PREFIX:-stardrop}-net
     driver: bridge
     ipam:
       config:
-        - subnet: 172.30.0.0/24
+        - subnet: ${NETWORK_SUBNET:-172.30.0.0/24}
 
 services:
 
@@ -69,7 +70,7 @@ services:
     restart: unless-stopped
     networks:
       stardrop-net:
-        ipv4_address: 172.30.0.10
+        ipv4_address: ${SERVER_IP:-172.30.0.10}
     dns:
       - 8.8.8.8
       - 8.8.4.4

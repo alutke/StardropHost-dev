@@ -490,6 +490,12 @@ setup_instance() {
     # Append instance-specific port and prefix settings to .env.
     # Docker Compose reads these at startup to name containers and
     # bind the right host ports.
+    # Each instance gets its own /24 subnet so container IPs never conflict.
+    # Instance 1 → 172.30.0.0/24 (server 172.30.0.10)
+    # Instance 2 → 172.30.1.0/24 (server 172.30.1.10)  etc.
+    NETWORK_SUBNET="172.30.$((INSTANCE_NUM - 1)).0/24"
+    SERVER_CONTAINER_IP="172.30.$((INSTANCE_NUM - 1)).10"
+
     cat >> .env <<EOF
 
 # --- Instance $INSTANCE_NUM settings (written by quick-start.sh) ---
@@ -498,6 +504,8 @@ GAME_PORT=${GAME_PORT}
 PANEL_PORT=${PANEL_PORT}
 VNC_PORT=${VNC_PORT}
 METRICS_PORT=${METRICS_PORT}
+NETWORK_SUBNET=${NETWORK_SUBNET}
+SERVER_IP=${SERVER_CONTAINER_IP}
 EOF
 
     print_info "Container prefix: ${CONTAINER_PREFIX}"
@@ -662,7 +670,7 @@ show_next_steps() {
     if [ -z "$LOCAL_IP" ] && command -v ip &>/dev/null; then
         LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1);exit}}')
     fi
-    SERVER_IP="${LOCAL_IP:-your-server-ip}"
+    DISPLAY_IP="${LOCAL_IP:-your-server-ip}"
 
     echo ""
     echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -675,7 +683,7 @@ show_next_steps() {
     echo ""
     echo -e "  Open the web panel from any device on your network:"
     echo ""
-    echo -e "    ${CYAN}${BOLD}http://${SERVER_IP}:${PANEL_PORT}${NC}"
+    echo -e "    ${CYAN}${BOLD}http://${DISPLAY_IP}:${PANEL_PORT}${NC}"
     echo ""
     echo -e "  The setup wizard will walk you through:"
     echo -e "    1. Installing your Stardew Valley game files"
@@ -688,9 +696,9 @@ show_next_steps() {
 
     if [ "$INSTANCE_NUM" -gt 1 ]; then
         echo -e "  Instance $INSTANCE_NUM port summary:"
-        echo -e "    Web panel:  ${CYAN}http://${SERVER_IP}:${PANEL_PORT}${NC}"
-        echo -e "    Game UDP:   ${SERVER_IP}:${GAME_PORT}"
-        echo -e "    VNC:        ${SERVER_IP}:${VNC_PORT}  (remote desktop)"
+        echo -e "    Web panel:  ${CYAN}http://${DISPLAY_IP}:${PANEL_PORT}${NC}"
+        echo -e "    Game UDP:   ${DISPLAY_IP}:${GAME_PORT}"
+        echo -e "    VNC:        ${DISPLAY_IP}:${VNC_PORT}  (remote desktop)"
         echo ""
     fi
 
