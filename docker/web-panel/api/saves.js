@@ -809,6 +809,17 @@ function deleteSave(req, res) {
   }
 }
 
+// Returns the farm name from the currently selected save file, or null.
+// Used by status.js to populate farmName before the game has loaded.
+function getSelectedFarmName() {
+  try {
+    const saveName = getSelectedSaveName();
+    if (!saveName) return null;
+    const meta = parseSaveGameInfo(path.join(config.SAVES_DIR, saveName));
+    return meta.farmName || null;
+  } catch { return null; }
+}
+
 module.exports = {
   getSaves,
   getBackups,
@@ -822,4 +833,5 @@ module.exports = {
   deleteBackup,
   deleteSave,
   triggerTaggedBackup,
+  getSelectedFarmName,
 };

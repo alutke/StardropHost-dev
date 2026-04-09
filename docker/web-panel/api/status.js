@@ -282,6 +282,9 @@ function collectStatus(req = null) {
     }
   } catch {}
 
+  // -- Farm name: live mod data first, fall back to selected save file --
+  status.farmName = status.live?.farmName || savesAPI.getSelectedFarmName() || null;
+
   // -- Live process metrics (pgrep is authoritative for gameRunning) --
   // Use spawnSync (not execSync) to avoid sh -c wrapper — execSync spawns
   // "sh -c 'pgrep -f StardewModdingAPI'" whose cmdline matches the pattern,
