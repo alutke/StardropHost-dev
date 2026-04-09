@@ -31,6 +31,13 @@ function savePeers(peers) {
   fs.writeFileSync(PEERS_FILE, JSON.stringify(peers, null, 2), 'utf-8');
 }
 
+function getFarmName() {
+  try {
+    const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+    return live.farmName || '';
+  } catch { return ''; }
+}
+
 function getSelfHost() {
   try {
     const ips = execSync('hostname -I 2>/dev/null', { encoding: 'utf-8' })
@@ -59,6 +66,7 @@ function getInstances(req, res) {
     self: {
       host: getSelfHost(),
       port: config.PORT,
+      name: getFarmName(),
     },
     peers:           loadPeers().filter(p => p.port !== config.PORT),
     multiInstance:   detectMultiInstance(),
