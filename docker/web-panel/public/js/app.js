@@ -1466,15 +1466,15 @@ const PAGE_TITLES = {
 };
 
 function setupNavigation() {
-  // If servers feature was previously enabled, restore data-page so hash nav works
-  if (_serversEnabled) {
-    const si = document.getElementById('nav-servers-item');
-    if (si) si.dataset.page = 'servers';
-  }
+  _updateServersNav();
   document.querySelectorAll('.nav-item, .mob-nav-item').forEach(item => {
-    if (item.id === 'nav-servers-item') return; // handled by _onServersNavClick
     item.onclick = () => navigateTo(item.dataset.page);
   });
+}
+
+function _updateServersNav() {
+  const item = document.getElementById('nav-servers-item');
+  if (item) item.style.display = _serversEnabled ? '' : 'none';
 }
 
 function navigateTo(page) {
@@ -4177,6 +4177,22 @@ async function loadConfig() {
       card.insertBefore(remoteRow, card.firstChild.nextSibling);
       card.insertBefore(statusRow, card.firstChild.nextSibling);
 
+      // Multi-Instance toggle row
+      const multiRow = document.createElement('div');
+      multiRow.className = 'config-item';
+      multiRow.innerHTML =
+        `<div>
+           <div class="config-label">Multi-Instance</div>
+           <div class="config-description">Show the Servers tab to manage and switch between multiple StardropHost instances on this machine.</div>
+         </div>
+         <div class="config-value">
+           <label class="toggle">
+             <input type="checkbox" ${_serversEnabled ? 'checked' : ''} onchange="_setMultiInstanceEnabled(this.checked)">
+             <span class="toggle-slider"></span>
+           </label>
+         </div>`;
+      card.appendChild(multiRow);
+
     }
 
     // Updates card — inject dot into summary, notifs + Check Now into rowTarget
@@ -5113,13 +5129,8 @@ function _checkIncomingPeers() {
         API.post('/api/instances/peer', { name: p.name || p.host, host: p.host, port: p.port })
           .catch(() => null);
       });
-      // Enable servers tab automatically
-      if (!_serversEnabled) {
-        _serversEnabled = true;
-        localStorage.setItem('stardrop_servers_enabled', '1');
-        const si = document.getElementById('nav-servers-item');
-        if (si) si.dataset.page = 'servers';
-      }
+      // Enable servers tab automatically when peers arrive
+      if (!_serversEnabled) _setMultiInstanceEnabled(true);
     }
   } catch {}
   // Clean URL
@@ -5128,15 +5139,17 @@ function _checkIncomingPeers() {
   history.replaceState(null, '', url.pathname + url.hash);
 }
 
-function _onServersNavClick() {
-  if (!_serversEnabled) {
-    if (!confirm('Enable multi-instance server switching?\n\nThis adds a Servers tab to manage and switch between multiple StardropHost instances.')) return;
-    _serversEnabled = true;
+function _setMultiInstanceEnabled(enabled) {
+  _serversEnabled = enabled;
+  if (enabled) {
     localStorage.setItem('stardrop_servers_enabled', '1');
-    const item = document.getElementById('nav-servers-item');
-    if (item) item.dataset.page = 'servers';
+  } else {
+    localStorage.removeItem('stardrop_servers_enabled');
+    if (currentPage === 'servers') navigateTo('config');
   }
-  navigateTo('servers');
+  _updateServersNav();
+  // Re-render the config Server card to reflect the toggle state
+  if (currentPage === 'config') loadConfig();
 }
 
 async function loadServersPage() {
