@@ -153,11 +153,24 @@ setup_game_files() {
     log_warn "❌ No game files found — waiting for setup wizard to provide them."
     log_warn "   Open the web panel and complete the Game Files step."
 
-    # Wait loop: re-reads env every 30s and retries Steam download when
-    # credentials appear (wizard may have written them while we loop).
+    # Wait loop: re-reads env every 30s and retries when credentials or a
+    # GAME_PATH appear (wizard may have written them while we loop).
     while [ ! -f "/home/steam/stardewvalley/StardewValley" ]; do
         sleep 30
         load_panel_env_overrides
+
+        # Case 2 (deferred): wizard selected an existing install via GAME_PATH
+        if [ -n "${GAME_PATH:-}" ] && [ -d "$GAME_PATH" ]; then
+            log_info "GAME_PATH detected — copying from: $GAME_PATH"
+            cp -r "$GAME_PATH/." /home/steam/stardewvalley/
+            if [ -f "/home/steam/stardewvalley/StardewValley" ]; then
+                log_info "✅ Game files copied successfully"
+                break
+            else
+                log_warn "Copy failed — StardewValley binary not found; clearing GAME_PATH"
+                unset GAME_PATH
+            fi
+        fi
 
         if [ "$STEAM_DOWNLOAD" = "true" ] && [ -n "${STEAM_USERNAME:-}" ]; then
             log_info "Steam credentials detected — attempting download..."

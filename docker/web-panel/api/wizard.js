@@ -98,6 +98,21 @@ function writeEnvValues(envData) {
   fs.writeFileSync(envPath, newLines.join('\n'), 'utf-8');
 }
 
+// Read a single key from the runtime env file (used for status checks)
+function readEnvKey(key) {
+  try {
+    const content = fs.readFileSync(findEnvFile(), 'utf-8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx < 1) continue;
+      if (trimmed.slice(0, eqIdx).trim() === key) return trimmed.slice(eqIdx + 1).trim();
+    }
+  } catch {}
+  return '';
+}
+
 // -- Game file detection --
 
 // Recursively find the directory containing the StardewValley binary (depth-limited).
@@ -504,8 +519,10 @@ function getGameReadyStatus(req, res) {
   const smapiInstalled = fs.existsSync('/home/steam/stardewvalley/StardewModdingAPI');
 
   // Determine stage
+  const pendingGamePath = !gameFilesExist ? readEnvKey('GAME_PATH') : '';
   let stage = 'waiting';
   if      (steamRunning)                             stage = 'downloading';
+  else if (!gameFilesExist && pendingGamePath)       stage = 'copying';
   else if (!gameFilesExist)                          stage = 'no_game_files';
   else if (!smapiInstalled)                          stage = 'installing';
   else if (!gameRunning)                             stage = 'starting';

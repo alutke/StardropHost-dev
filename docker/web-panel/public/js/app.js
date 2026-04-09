@@ -528,10 +528,11 @@ async function wizTriggerSteamDownload() {
 }
 
 // Step 3 — poll game-ready + stream setup.log while download/install is running
-const _DL_STAGE_PCT = { waiting: 5, no_game_files: 5, downloading: 30, installing: 65, starting: 90, loading: 95, running: 97, hosting: 99, ready: 100 };
+const _DL_STAGE_PCT = { waiting: 5, no_game_files: 5, copying: 15, downloading: 30, installing: 65, starting: 90, loading: 95, running: 97, hosting: 99, ready: 100 };
 const _DL_STAGE_TXT = {
   waiting:       'Connecting to Steam…',
   no_game_files: 'Waiting for download to begin…',
+  copying:       'Copying game files from existing install…',
   downloading:   'Downloading Stardew Valley via Steam… (may take 5–15 min)',
   installing:    'Installing SMAPI and building mods… (first run only)',
   starting:      'Game installed — starting server…',
@@ -1156,10 +1157,11 @@ async function wizPollSmapiLog() {
   }
 }
 
-const _STAGE_PCT = { waiting: 5, no_game_files: 8, downloading: 20, installing: 45, starting: 60, loading: 70, running: 80, hosting: 92, ready: 100 };
+const _STAGE_PCT = { waiting: 5, no_game_files: 8, copying: 15, downloading: 20, installing: 45, starting: 60, loading: 70, running: 80, hosting: 92, ready: 100 };
 const _STAGE_TXT = {
   waiting:       'Waiting for server to start…',
   no_game_files: '⚠️ Game files not found — go back to step 2 to provide them',
+  copying:       'Copying game files from existing install… (this may take a minute)',
   downloading:   'Downloading game files via Steam… (may take 5–15 min)',
   installing:    'Installing SMAPI and building mods… (first run only, may take a few minutes)',
   starting:      'Starting game server…',
