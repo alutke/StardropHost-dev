@@ -4002,36 +4002,6 @@ function stopBackupStatusPolling() {
   if (backupStatusPoll) { clearInterval(backupStatusPoll); backupStatusPoll = null; }
 }
 
-// ─── Server Mode Card ────────────────────────────────────────────
-async function loadServerModeCard() {
-  const card = document.getElementById('serverModeCard');
-  if (!card) return;
-
-  // Load current LAN_IP value from config
-  let lanIpVal = '';
-  try {
-    const cfg = await API.get('/api/config');
-    lanIpVal = cfg?.env?.LAN_IP || '';
-  } catch {}
-
-  card.innerHTML = `
-    <div style="margin-bottom:14px">
-      <div style="font-weight:600;font-size:15px;margin-bottom:4px">Server Mode</div>
-      <div style="font-size:13px;color:var(--text-secondary)">LAN — players join via the server IP on a local network or VPN tunnel (e.g. Tailscale, ZeroTier).</div>
-    </div>
-    <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">LAN IP</div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <input id="lanIpInput" class="input" type="text" placeholder="e.g. 192.168.0.100"
-        style="width:280px;font-size:13px" value="${escapeHtml(lanIpVal)}" oninput="_lanIpDirty()">
-      <button class="btn btn-sm btn-icon" onclick="_clearLanIp()" title="Clear">×</button>
-      <button class="btn btn-sm btn-secondary" id="lanIpSaveBtn" onclick="saveLanIp()" style="display:none">Save</button>
-      <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('lanIpInput')" title="Copy">
-        <svg class="icon"><use href="#icon-copy"></use></svg>
-      </button>
-    </div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Shown on the dashboard join instructions. Leave blank to auto-detect from request.</div>
-  `;
-}
 
 function _lanIpDirty() {
   const btn = document.getElementById('lanIpSaveBtn');
@@ -4214,6 +4184,23 @@ async function loadConfig() {
 
       card.insertBefore(remoteRow, card.firstChild.nextSibling);
       card.insertBefore(statusRow, card.firstChild.nextSibling);
+
+      // LAN IP row — appended after config items
+      const lanIpRow = document.createElement('div');
+      lanIpRow.className = 'config-item';
+      lanIpRow.id = 'lanIpRow';
+      lanIpRow.innerHTML =
+        `<div><div class="config-label">LAN IP</div></div>
+         <div class="config-value" style="gap:8px;flex-wrap:wrap">
+           <input id="lanIpInput" class="input" type="text" placeholder="e.g. 192.168.0.100"
+             style="width:280px;font-size:13px" value="${escapeHtml(data.lanIp || '')}" oninput="_lanIpDirty()">
+           <button class="btn btn-sm btn-icon" onclick="_clearLanIp()" title="Clear">×</button>
+           <button class="btn btn-sm btn-secondary" id="lanIpSaveBtn" onclick="saveLanIp()" style="display:none">Save</button>
+           <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('lanIpInput')" title="Copy">
+             <svg class="icon"><use href="#icon-copy"></use></svg>
+           </button>
+         </div>`;
+      card.appendChild(lanIpRow);
 
     }
 

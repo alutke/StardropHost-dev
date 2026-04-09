@@ -236,7 +236,8 @@ function getConfig(req, res) {
 
   const serverMode = (env.SERVER_MODE || process.env.SERVER_MODE || 'lan')
     .replace(/['"]/g, '').trim() || 'lan';
-  res.json({ groups, serverMode });
+  const lanIp = (env.LAN_IP || process.env.LAN_IP || '').trim();
+  res.json({ groups, serverMode, lanIp });
 }
 
 function updateConfig(req, res) {
