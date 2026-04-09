@@ -1789,6 +1789,15 @@ function _populateRamOptions(totalMB) {
 
 function updateDashboardUI(data) {
   lastStatusData = data;
+
+  // Farm name in sidebar
+  const farmNameEl = document.getElementById('sidebarFarmName');
+  if (farmNameEl) {
+    const name = data.live?.farmName || data.farmName || '';
+    if (name) { farmNameEl.textContent = name; farmNameEl.style.display = ''; }
+    else       { farmNameEl.style.display = 'none'; }
+  }
+
   populateUpgradeCabinDropdown();
   renderQuickActions();
   if (data.sysCores)              _populateCpuOptions(data.sysCores);
