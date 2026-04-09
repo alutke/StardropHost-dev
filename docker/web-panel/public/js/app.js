@@ -4760,19 +4760,28 @@ function _startUpdateStatusPoll() {
 
     if (panelUp) {
       if (_updatePanelWentDown) {
-        // Panel came back up — update complete
+        // Panel came back up after going down — update complete
         clearInterval(_updateStatusPoll);
         clearInterval(_updateElapsedTimer);
         localStorage.removeItem('stardrop_updating');
         window.location.reload();
         return;
       }
-      // Panel still up — fetch step status
+      // Panel still up — check if update is still active
       try {
-        const r  = await fetch('/api/server/update-status', {
+        const r = await fetch('/api/server/update-status', {
           headers: { 'Authorization': 'Bearer ' + (API.token || '') }, cache: 'no-store' });
-        const d  = await r.json();
-        if (d.active && d.message) _setUpdateStatus(d.message);
+        const d = await r.json();
+        if (d.active && d.message) {
+          _setUpdateStatus(d.message);
+        } else if (!d.active) {
+          // Update finished (or never started) and panel is up — exit screen
+          clearInterval(_updateStatusPoll);
+          clearInterval(_updateElapsedTimer);
+          localStorage.removeItem('stardrop_updating');
+          window.location.reload();
+          return;
+        }
       } catch {}
     } else {
       if (!_updatePanelWentDown) {
