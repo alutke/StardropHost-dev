@@ -4,23 +4,21 @@
 
 <div align="center">
 
-languagelanguage# StardropHost
+languagelanguagelanguage# StardropHost
 
 ### Self-hosted Stardew Valley dedicated server — managed entirely from your browser
 
 *Run a 24/7 Stardew Valley farm your friends can join any time, even when you're offline.*
 
-
-
 ---
 
 **No Steam account required to run the server**
 
-`<sub>`Steam is optional — only needed if you don't already have the game files`</sub>`
+`<sub>`Steam is optional — only needed if you don't already have the game files `</sub>`
 
 </div>
 
-language---
+languagelanguage---
 
 ## What is StardropHost?
 
@@ -77,7 +75,7 @@ Set it up once on a Linux machine or VM. Everything after that — players, save
 └──────────┴──────────────────────────────────┘
 ```
 
-text---
+texttext---
 
 ## Architecture
 
@@ -92,7 +90,7 @@ StardropHost runs as four Docker containers:
 └─────────────────────────────────────────────────┘
 ```
 
-text| Port      | Purpose                               |
+texttext| Port      | Purpose                               |
 | --------- | ------------------------------------- |
 | `18642` | Web management panel                  |
 | `24642` | Game server (UDP — open in firewall) |
@@ -100,7 +98,7 @@ text| Port      | Purpose                               |
 
 ---
 
-## Requirements
+## Requirements 
 
 - Linux (VM or hardware — Proxmox, bare metal, etc.)
 - Docker
@@ -117,7 +115,7 @@ text| Port      | Purpose                               |
 curl -fsSL https://raw.githubusercontent.com/Tomomoto10/StardropHost-dev/main/quick-start.sh | bash
 ```
 
-bashThen open `http://your-server-ip:18642` and follow the setup wizard.
+bashbashThen open `http://your-server-ip:18642` and follow the setup wizard.
 
 ---
 
@@ -136,17 +134,17 @@ cd StardropHost
 docker compose down
 ```
 
-bashThen delete the `StardropHost/` directory. Game saves are stored in `StardropHost/data/saves/` — back these up before deleting if you want to keep them.
+bashbashThen delete the `StardropHost/` directory. Game saves are stored in `StardropHost/data/saves/` — back these up before deleting if you want to keep them.
 
 ---
 
 <div align="center">
 
-languageBuilt on [puppy-stardew-server](https://github.com/truman-world/puppy-stardew-server) and [JunimoServer](https://github.com/stardew-valley-dedicated-server/server) · Powered by [Nexus Mods](https://www.nexusmods.com/) and [SMAPI](https://smapi.io/) · Runs on [Docker](https://www.docker.com/)
+languagelanguageBuilt on [puppy-stardew-server](https://github.com/truman-world/puppy-stardew-server) and [JunimoServer](https://github.com/stardew-valley-dedicated-server/server) · Powered by [Nexus Mods](https://www.nexusmods.com/) and [SMAPI](https://smapi.io/) · Runs on [Docker](https://www.docker.com/)
 
 </div>
 
-language---
+languagelanguage---
 
 ## License
 
