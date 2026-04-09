@@ -458,9 +458,9 @@ function triggerTaggedBackup(tag) {
     ], {
       cwd: path.dirname(config.CONFIG_DIR),
       stdio: 'ignore',
-      detached: true,
+      detached: false,
     });
-    child.unref();
+    child.on('close', code => { if (code === 0) cleanupOldBackups(); });
   } catch {}
 }
 

@@ -125,17 +125,17 @@ do_backup() {
     size=$(du -h "$backup_file" 2>/dev/null | cut -f1)
     log "✅ Backup complete: $backup_file ($size)"
 
-    # Cleanup old backups (match any *-auto-backup-*.zip pattern)
+    # Cleanup old backups (all .zip/.tar.gz in backup dir, oldest first)
     local backup_count
-    backup_count=$(ls -1t "$BACKUP_DIR"/*-auto-backup-*.zip 2>/dev/null | wc -l)
+    backup_count=$(ls -1t "$BACKUP_DIR"/*.zip "$BACKUP_DIR"/*.tar.gz 2>/dev/null | wc -l)
     if [ "$backup_count" -gt "$MAX_BACKUPS" ]; then
         local to_delete=$((backup_count - MAX_BACKUPS))
         log "  Removing $to_delete old backup(s)..."
-        ls -1t "$BACKUP_DIR"/*-auto-backup-*.zip | tail -n "$to_delete" | xargs rm -f
+        ls -1t "$BACKUP_DIR"/*.zip "$BACKUP_DIR"/*.tar.gz 2>/dev/null | tail -n "$to_delete" | xargs rm -f
         log "  ✅ Old backups removed"
     fi
 
-    log "  Backups: $(ls -1 "$BACKUP_DIR"/*-auto-backup-*.zip 2>/dev/null | wc -l) / $MAX_BACKUPS"
+    log "  Backups: $backup_count / $MAX_BACKUPS"
 
     LAST_BACKUP_TIME=$(date +%s)
     echo "$LAST_BACKUP_TIME" > "$LAST_BACKUP_STAMP"

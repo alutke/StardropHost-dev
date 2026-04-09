@@ -4715,7 +4715,25 @@ function showUpdateScreen(startedAt) {
 
   _updatePanelWentDown = false;
   _updateLogLines      = [];
-  _addUpdateLog('Update started');
+
+  // Start elapsed timer
+  if (_updateElapsedTimer) clearInterval(_updateElapsedTimer);
+  const _elapsedEl = document.getElementById('updateElapsed');
+  if (_elapsedEl) {
+    _elapsedEl.textContent = '0:00';
+    _updateElapsedTimer = setInterval(() => {
+      const secs = Math.floor((Date.now() - ts) / 1000);
+      const m = Math.floor(secs / 60), s = secs % 60;
+      _elapsedEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+      // Auto-exit after 5 minutes — successful update takes under 2 min; longer means error
+      if (secs >= 300) {
+        clearInterval(_updateElapsedTimer);
+        clearInterval(_updateStatusPoll);
+        localStorage.removeItem('stardrop_updating');
+        window.location.reload();
+      }
+    }, 1000);
+  }
 
   _startUpdateStatusPoll();
 }
@@ -4790,12 +4808,9 @@ async function reloadUpdateScreen() {
 
 async function killUpdate() {
   if (!confirm(
-    'This will attempt to cancel the update and restore the current containers.\n\n' +
-    'The dashboard will go offline briefly then reload. Continue?'
+    'Exit the update screen and return to dashboard?\n\n' +
+    'If an update is still in progress it will continue in the background.'
   )) return;
-
-  _setUpdateStatus('Cancelling update...');
-  _addUpdateLog('Cancel requested by user');
 
   try {
     await fetch('/api/server/cancel-update', {
@@ -4803,11 +4818,12 @@ async function killUpdate() {
       headers: { 'Authorization': 'Bearer ' + (API.token || ''), 'Content-Type': 'application/json' },
       cache: 'no-store',
     });
-    _addUpdateLog('Cancel signal sent — waiting for containers to restore...');
-  } catch {
-    _addUpdateLog('Could not reach panel — update may already be in stop/start phase');
-    _addUpdateLog('If stuck: SSH in and run: docker compose up -d');
-  }
+  } catch {}
+
+  clearInterval(_updateElapsedTimer);
+  clearInterval(_updateStatusPoll);
+  localStorage.removeItem('stardrop_updating');
+  window.location.reload();
 }
 
 // Legacy alias — kept so any remaining callers don't break
