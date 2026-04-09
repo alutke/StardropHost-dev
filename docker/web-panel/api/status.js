@@ -15,6 +15,48 @@ const playersAPI  = require('./players');
 // -- Panel start time (used to compute container uptime, not host uptime) --
 const PANEL_START_TIME = Date.now();
 
+// -- System CPU background sampler (1s sample every 5s, cached) --
+const HOST_PROC = fs.existsSync('/host-proc/stat') ? '/host-proc' : '/proc';
+let _sysCpuCache = 0;
+(function _startSysCpuSampler() {
+  function sample() {
+    try {
+      const read = () => {
+        const line = fs.readFileSync(`${HOST_PROC}/stat`, 'utf-8').split('\n')[0].trim().split(/\s+/);
+        const vals = line.slice(1).map(Number);
+        const idle  = vals[3];
+        const total = vals.reduce((a, b) => a + b, 0);
+        return { idle, total };
+      };
+      const s1 = read();
+      setTimeout(() => {
+        try {
+          const s2 = read();
+          const dt = s2.total - s1.total;
+          const di = s2.idle  - s1.idle;
+          _sysCpuCache = dt > 0 ? Math.round((dt - di) / dt * 1000) / 10 : 0;
+        } catch {}
+        setTimeout(sample, 4000);
+      }, 1000);
+    } catch { setTimeout(sample, 5000); }
+  }
+  sample();
+})();
+
+// -- System memory instant read --
+function getSysMemory() {
+  try {
+    const lines = fs.readFileSync(`${HOST_PROC}/meminfo`, 'utf-8').split('\n');
+    let total = 0, available = 0;
+    for (const l of lines) {
+      if (l.startsWith('MemTotal:'))     total     = parseInt(l.split(/\s+/)[1], 10);
+      if (l.startsWith('MemAvailable:')) available = parseInt(l.split(/\s+/)[1], 10);
+    }
+    if (total > 0) return { used: Math.round((total - available) / 1024), total: Math.round(total / 1024) };
+  } catch {}
+  return { used: 0, total: 0 };
+}
+
 // -- Status history (last 1 hour at 15s intervals = 240 entries) --
 const statusHistory = [];
 const MAX_HISTORY = 240;
@@ -106,6 +148,7 @@ function normalizeJoinHost(host) {
 
 function getNetworkInfo(requestHost = '') {
   const configuredPublicIp = process.env.PUBLIC_IP || '';
+  const configuredLanIp    = process.env.LAN_IP    || '';
   let localIps = [];
 
   try {
@@ -120,7 +163,7 @@ function getNetworkInfo(requestHost = '') {
     ? hostFromRequest : '';
 
   return {
-    joinIp: configuredPublicIp || derivedJoinIp || localIps[0] || '',
+    joinIp: configuredPublicIp || configuredLanIp || derivedJoinIp || localIps[0] || '',
     localIps,
     joinPort: 24642,
     panelPort: parseInt(process.env.PANEL_PORT || '18642', 10),
@@ -158,6 +201,8 @@ function collectStatus(req = null) {
     memory: { used: 0, limit: 2048 },
     sysCpu: 0,
     sysMemory: { used: 0, total: 0 },
+    containerCores: getCoreCount(),
+    sysCores: (() => { try { return parseInt(execSync('nproc --all', { encoding: 'utf-8' }).trim(), 10) || 1; } catch { return 1; } })(),
     day: null,
     season: null,
     backupCount: 0,
@@ -186,9 +231,15 @@ function collectStatus(req = null) {
       if (data.resources) {
         status.cpu = parseFloat(data.resources.cpu_percent) || 0;
         status.memory.used = data.resources.memory_mb || 0;
-        status.sysCpu = parseFloat(data.resources.sys_cpu_percent) || 0;
+        status.sysCpu = parseFloat(data.resources.sys_cpu_percent) || _sysCpuCache;
         status.sysMemory.used  = data.resources.sys_memory_mb || 0;
         status.sysMemory.total = data.resources.sys_memory_total_mb || 0;
+        // Fallback to instant read if shell script hasn't written yet
+        if (status.sysMemory.total === 0) {
+          const m = getSysMemory();
+          status.sysMemory.used  = m.used;
+          status.sysMemory.total = m.total;
+        }
       }
       if (data.events) {
         status.events.passout = data.events.passout || 0;
@@ -200,6 +251,10 @@ function collectStatus(req = null) {
       }
     }
   } catch {}
+
+  // -- System metrics fallback (used before status-reporter.sh writes its first file) --
+  if (status.sysCpu === 0)          status.sysCpu = _sysCpuCache;
+  if (status.sysMemory.total === 0) { const m = getSysMemory(); status.sysMemory = m; }
 
   // -- Read live-status.json from StardropDashboard mod --
   try {

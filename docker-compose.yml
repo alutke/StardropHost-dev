@@ -95,6 +95,7 @@ services:
       - STEAM_AUTH_URL=http://stardrop-steam-auth:18700
       - CPU_LIMIT=${CPU_LIMIT:-}
       - MEMORY_LIMIT=${MEMORY_LIMIT:-}
+      - LAN_IP=${LAN_IP:-}
     ports:
       - "${GAME_PORT:-24642}:24642/udp"
       - "${VNC_PORT:-5900}:5900"

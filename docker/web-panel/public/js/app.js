@@ -1722,10 +1722,52 @@ async function loadDashboard() {
   if (data) updateDashboardUI(data);
 }
 
+let _lastSysCores = 0;
+function _populateCpuOptions(sysCores) {
+  if (!sysCores || sysCores === _lastSysCores) return;
+  _lastSysCores = sysCores;
+  const opts = [{ value: '', label: 'No limit' }];
+  const steps = [1, 2, 4, 6, 8, 10, 12, 16, 20, 24, 32];
+  for (const n of steps) {
+    if (n <= sysCores) opts.push({ value: String(n), label: n === 1 ? '1 core' : `${n} cores` });
+  }
+  const sels = [
+    document.getElementById('wiz-cpu'),
+    document.querySelector('select[data-key="CPU_LIMIT"]'),
+  ];
+  for (const sel of sels) {
+    if (!sel) continue;
+    const cur = sel.value;
+    sel.innerHTML = opts.map(o => `<option value="${o.value}"${o.value === cur ? ' selected' : ''}>${o.label}</option>`).join('');
+  }
+}
+
+let _lastSysRamTotal = 0;
+function _populateRamOptions(totalMB) {
+  if (!totalMB || totalMB === _lastSysRamTotal) return;
+  _lastSysRamTotal = totalMB;
+  const totalGB = totalMB / 1024;
+  const opts = [{ value: '', label: 'No limit' }];
+  for (const n of [1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64]) {
+    if (n <= totalGB) opts.push({ value: `${n}g`, label: `${n} GB` });
+  }
+  const sels = [
+    document.getElementById('wiz-mem'),
+    document.querySelector('select[data-key="MEMORY_LIMIT"]'),
+  ];
+  for (const sel of sels) {
+    if (!sel) continue;
+    const cur = sel.value;
+    sel.innerHTML = opts.map(o => `<option value="${o.value}"${o.value === cur ? ' selected' : ''}>${o.label}</option>`).join('');
+  }
+}
+
 function updateDashboardUI(data) {
   lastStatusData = data;
   populateUpgradeCabinDropdown();
   renderQuickActions();
+  if (data.sysCores)              _populateCpuOptions(data.sysCores);
+  if (data.sysMemory?.total > 0)  _populateRamOptions(data.sysMemory.total);
 
   const gameRunning = !!data.gameRunning;
   const liveRunning = data.live?.serverState === 'running';
@@ -1781,10 +1823,14 @@ function updateDashboardUI(data) {
   setText('stat-mods',    data.modCount    ?? 0);
 
   // CPU
-  const cpu    = Math.round(data.cpu    || 0);
-  const sysCpu = Math.round(data.sysCpu || 0);
+  const cpu            = Math.round(data.cpu    || 0);
+  const sysCpu         = Math.round(data.sysCpu || 0);
+  const containerCores = data.containerCores || '';
+  const sysCores       = data.sysCores       || '';
   const cpuEl = document.getElementById('cpu-value');
-  if (cpuEl) cpuEl.innerHTML = cpu + '%' + (sysCpu > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysCpu}% sys</span>` : '');
+  const coreLabel    = containerCores ? ` / ${containerCores} cores` : '';
+  const sysCoreLabel = sysCores       ? ` / ${sysCores} cores`       : '';
+  if (cpuEl) cpuEl.innerHTML = `${cpu}%${coreLabel}` + (sysCpu > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysCpu}%${sysCoreLabel} sys</span>` : '');
   const cpuBar    = document.getElementById('cpu-bar');
   const cpuBarSys = document.getElementById('cpu-bar-sys');
   cpuBar.style.width    = Math.min(cpu, 100) + '%';
@@ -1799,7 +1845,7 @@ function updateDashboardUI(data) {
   const sysMemTotal = Math.round(data.sysMemory?.total || 0);
   const sysMemPct   = sysMemTotal > 0 ? Math.round((sysMemUsed / sysMemTotal) * 100) : 0;
   const ramEl = document.getElementById('ram-value');
-  if (ramEl) ramEl.innerHTML = `${memUsedMB} / ${memLimitMB} MB` + (sysMemTotal > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysMemUsed} / ${sysMemTotal} MB sys</span>` : '');
+  if (ramEl) ramEl.innerHTML = `${memUsedMB} / ${memLimitMB} MB` + (sysMemTotal > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysMemTotal} MB sys</span>` : '');
   const ramBar    = document.getElementById('ram-bar');
   const ramBarSys = document.getElementById('ram-bar-sys');
   ramBar.style.width    = Math.min(memPct, 100) + '%';
