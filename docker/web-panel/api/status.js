@@ -233,11 +233,22 @@ function collectStatus(req = null) {
   if (_pgrep.status === 0 && pidStr) {
     status.gameRunning = true;
 
-    // Sum ALL processes for CPU (not just SMAPI) — matches what the host/hypervisor sees
+    // Container-wide CPU via cgroup (sampled over 200ms via shell)
     try {
-      const cpuAll = execSync(`ps -e -o %cpu= 2>/dev/null | awk '{s+=$1} END {print s}'`, { encoding: 'utf-8' }).trim();
-      const cores = getCoreCount();
-      status.cpu = Math.round((parseFloat(cpuAll) / cores) * 10) / 10;
+      const raw = execSync(
+        `u1=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}'); ` +
+        `sleep 0.2; ` +
+        `u2=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}'); ` +
+        `echo "$((u2 - u1))"`,
+        { encoding: 'utf-8', shell: '/bin/bash' }
+      ).trim();
+      let cores = getCoreCount();
+      try {
+        const [quota, period] = fs.readFileSync('/sys/fs/cgroup/cpu.max', 'utf-8').trim().split(' ');
+        if (quota !== 'max') cores = Math.max(1, Math.floor(parseInt(quota) / parseInt(period)));
+      } catch {}
+      const deltaUsec = parseInt(raw, 10);
+      if (!isNaN(deltaUsec)) status.cpu = Math.round((deltaUsec / 200000) / cores * 100 * 10) / 10;
     } catch {}
 
     if (status.uptime === 0) {

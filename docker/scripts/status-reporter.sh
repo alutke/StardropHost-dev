@@ -116,29 +116,62 @@ get_game_paused() {
     fi
 }
 
-# -- Memory --
+# -- Memory (container-wide via cgroup) --
 get_memory_usage_mb() {
-    local pid=$(pgrep -f StardewModdingAPI 2>/dev/null | head -1)
-    if [ -n "$pid" ] && [ -f "/proc/$pid/status" ]; then
-        local rss=$(grep "VmRSS" "/proc/$pid/status" 2>/dev/null | awk '{print $2}')
-        if [ -n "$rss" ]; then
-            echo "$((rss / 1024))"
+    # cgroups v2
+    if [ -f "/sys/fs/cgroup/memory.current" ]; then
+        local mem
+        mem=$(cat /sys/fs/cgroup/memory.current 2>/dev/null)
+        if [ -n "$mem" ] && [ "$mem" -gt 0 ] 2>/dev/null; then
+            echo "$((mem / 1024 / 1024))"
+            return
+        fi
+    fi
+    # cgroups v1
+    if [ -f "/sys/fs/cgroup/memory/memory.usage_in_bytes" ]; then
+        local mem
+        mem=$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null)
+        if [ -n "$mem" ] && [ "$mem" -gt 0 ] 2>/dev/null; then
+            echo "$((mem / 1024 / 1024))"
             return
         fi
     fi
     echo "0"
 }
 
-# -- CPU --
-# BUG FIX: ps reports CPU per-core so on a multi-core system it can
-# exceed 100%. Divide by nproc to get true % of total CPU capacity.
+# -- CPU (container-wide via cgroup, sampled over 1s) --
 get_cpu_usage() {
-    local pid=$(pgrep -f StardewModdingAPI 2>/dev/null | head -1)
-    if [ -n "$pid" ]; then
-        local cpu_raw=$(ps -p "$pid" -o %cpu= 2>/dev/null | tr -d ' ')
-        local cores=$(nproc 2>/dev/null || echo "1")
-        if [ -n "$cpu_raw" ] && [ "$cores" -gt 0 ]; then
-            echo "$cpu_raw $cores" | awk '{printf "%.1f", $1 / $2}'
+    # Determine allocated cores: use cpu.max quota if a Docker CPU limit is set
+    local cores
+    cores=$(nproc 2>/dev/null || echo "1")
+    if [ -f "/sys/fs/cgroup/cpu.max" ]; then
+        local quota period
+        quota=$(awk '{print $1}' /sys/fs/cgroup/cpu.max 2>/dev/null)
+        period=$(awk '{print $2}' /sys/fs/cgroup/cpu.max 2>/dev/null)
+        if [ -n "$quota" ] && [ "$quota" != "max" ] && [ -n "$period" ] && [ "$period" -gt 0 ]; then
+            cores=$(echo "$quota $period" | awk '{c=int($1/$2); print (c<1)?1:c}')
+        fi
+    fi
+
+    # cgroups v2: usage_usec in cpu.stat
+    if [ -f "/sys/fs/cgroup/cpu.stat" ]; then
+        local u1 u2
+        u1=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}')
+        sleep 1
+        u2=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}')
+        if [ -n "$u1" ] && [ -n "$u2" ]; then
+            echo "$((u2 - u1)) $cores" | awk '{printf "%.1f", ($1 / 1000000) / $2 * 100}'
+            return
+        fi
+    fi
+    # cgroups v1: cpuacct.usage in nanoseconds
+    if [ -f "/sys/fs/cgroup/cpu/cpuacct.usage" ]; then
+        local u1 u2
+        u1=$(cat /sys/fs/cgroup/cpu/cpuacct.usage 2>/dev/null)
+        sleep 1
+        u2=$(cat /sys/fs/cgroup/cpu/cpuacct.usage 2>/dev/null)
+        if [ -n "$u1" ] && [ -n "$u2" ]; then
+            echo "$((u2 - u1)) $cores" | awk '{printf "%.1f", ($1 / 1000000000) / $2 * 100}'
             return
         fi
     fi
