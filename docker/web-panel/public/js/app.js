@@ -4006,12 +4006,58 @@ function stopBackupStatusPolling() {
 async function loadServerModeCard() {
   const card = document.getElementById('serverModeCard');
   if (!card) return;
+
+  // Load current LAN_IP value from config
+  let lanIpVal = '';
+  try {
+    const cfg = await API.get('/api/config');
+    lanIpVal = cfg?.env?.LAN_IP || '';
+  } catch {}
+
   card.innerHTML = `
-    <div>
+    <div style="margin-bottom:14px">
       <div style="font-weight:600;font-size:15px;margin-bottom:4px">Server Mode</div>
       <div style="font-size:13px;color:var(--text-secondary)">LAN — players join via the server IP on a local network or VPN tunnel (e.g. Tailscale, ZeroTier).</div>
     </div>
+    <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">LAN IP</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input id="lanIpInput" class="input" type="text" placeholder="e.g. 192.168.0.100"
+        style="width:280px;font-size:13px" value="${escapeHtml(lanIpVal)}" oninput="_lanIpDirty()">
+      <button class="btn btn-sm btn-icon" onclick="_clearLanIp()" title="Clear">×</button>
+      <button class="btn btn-sm btn-secondary" id="lanIpSaveBtn" onclick="saveLanIp()" style="display:none">Save</button>
+      <button class="btn btn-sm btn-icon" onclick="copyRemoteAddr('lanIpInput')" title="Copy">
+        <svg class="icon"><use href="#icon-copy"></use></svg>
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Shown on the dashboard join instructions. Leave blank to auto-detect from request.</div>
   `;
+}
+
+function _lanIpDirty() {
+  const btn = document.getElementById('lanIpSaveBtn');
+  if (btn) btn.style.display = '';
+}
+
+async function _clearLanIp() {
+  const input = document.getElementById('lanIpInput');
+  if (input) input.value = '';
+  await saveLanIp();
+}
+
+async function saveLanIp() {
+  const input = document.getElementById('lanIpInput');
+  const btn   = document.getElementById('lanIpSaveBtn');
+  const val   = input?.value?.trim() || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await API.put('/api/config', { LAN_IP: val });
+    if (btn) btn.style.display = 'none';
+    showToast('LAN IP saved — restart to apply', 'success');
+  } catch {
+    showToast('Failed to save LAN IP', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+  }
 }
 
 // ─── Config ──────────────────────────────────────────────────────

@@ -64,11 +64,9 @@ const CONFIG_SCHEMA = {
   'Gameplay': [
     { key: 'CROP_SAVER_ENABLED', label: 'Crop Saver', type: 'boolean', default: 'false', hidden: true },
   ],
-  'Network': [
-    { key: 'LAN_IP', label: 'LAN IP', type: 'text', default: '',
-      description: 'Your server\'s local network IP (e.g. 192.168.0.100). Shown on the dashboard and used for LAN join instructions. Leave blank to auto-detect.' },
+  'Server': [
+    { key: 'LAN_IP', label: 'LAN IP', type: 'text', default: '', hidden: true },
   ],
-  'Server': [],
   'Updates': [
     { key: 'PANEL_UPDATE_CHECK_HOURS', label: 'Update check interval', type: 'number', default: '24',
       description: 'How often to check for panel and game updates (hours). Leave empty to disable.' },
