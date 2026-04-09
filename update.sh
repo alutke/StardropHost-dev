@@ -104,7 +104,7 @@ print_info "Directory:  $SCRIPT_DIR"
 print_info "Container:  ${CONTAINER_PREFIX}-server"
 echo ""
 
-write_status "started" "Starting update..."
+write_status "started" "Pulling latest code from GitHub..."
 
 # -- Step 1: Pull latest code from GitHub --
 print_step "Step 1: Pulling latest code from GitHub..."
@@ -160,7 +160,7 @@ else
 fi
 
 # -- Step 2: Rebuild image (incremental) --
-write_status "build" "Building Docker image — dashboard stays online during this step..."
+write_status "build" "Building Docker image — dashboard stays online..."
 # Build FIRST while the panel is still running — this is the slow step.
 # The panel stays accessible during the entire build phase.
 print_step "Step 2: Rebuilding Docker image..."
@@ -187,7 +187,7 @@ print_success "Image rebuilt successfully"
 check_cancel   # Last chance to cancel before containers go down
 
 # -- Step 3: Stop containers --
-write_status "stopping" "Stopping containers..."
+write_status "stopping" "Stopping containers — dashboard going offline..."
 print_step "Step 3: Stopping containers..."
 
 # Remember whether the server was explicitly stopped via the web panel.
@@ -225,7 +225,7 @@ if [ "$_SMAPI_NEEDS_UPDATE" = "true" ]; then
 fi
 
 # -- Step 4: Start containers --
-write_status "starting" "Starting containers..."
+write_status "starting" "Starting updated containers..."
 print_step "Step 4: Starting containers..."
 print_info "Bringing the server and web panel back online..."
 

@@ -4153,7 +4153,7 @@ async function loadConfig() {
              <span class="status-dot ${statusCls}"></span>${escapeHtml(statusText)}
            </span>
            <button id="serverToggleBtn" class="btn btn-sm ${running ? 'btn-danger' : 'btn-success'}" type="button"
-             onclick="${running ? 'stopServer()' : 'startServer()'}"${_dis}>${running ? 'Stop' : 'Start'}</button>
+             onclick="${running ? 'stopServer()' : 'startServer()'}"${_dis}>${running ? 'Stop Server' : 'Start Server'}</button>
            <button class="btn btn-sm btn-warning" type="button" onclick="restartServer()"${_dis}>Restart</button>
          </div>`;
 
@@ -4183,7 +4183,7 @@ async function loadConfig() {
       multiRow.innerHTML =
         `<div>
            <div class="config-label">Multi-Instance</div>
-           <div class="config-description">Show the Servers tab to manage and switch between multiple StardropHost instances on this machine.</div>
+           <div class="config-help">Show the Servers tab to manage and switch between multiple StardropHost instances on this machine.</div>
          </div>
          <div class="config-value">
            <label class="toggle">
@@ -4782,6 +4782,7 @@ let _updateElapsedTimer  = null;
 let _updateStatusPoll    = null;
 let _updatePanelWentDown = false;
 let _updateLogLines      = [];
+let _updateSteps         = [];  // accumulated step messages
 
 function showUpdateScreen(startedAt) {
   const ts = startedAt || Date.now();
@@ -4795,6 +4796,8 @@ function showUpdateScreen(startedAt) {
 
   _updatePanelWentDown = false;
   _updateLogLines      = [];
+  _updateSteps         = [];
+  _setUpdateStatus('Starting update...');
 
   // Start elapsed timer
   if (_updateElapsedTimer) clearInterval(_updateElapsedTimer);
@@ -4857,8 +4860,22 @@ function _startUpdateStatusPoll() {
 }
 
 function _setUpdateStatus(msg) {
-  const el = document.getElementById('updateStatusMsg');
-  if (el) el.textContent = msg;
+  if (!msg) return;
+  // Deduplicate consecutive identical messages
+  if (_updateSteps.length && _updateSteps[_updateSteps.length - 1] === msg) return;
+  _updateSteps.push(msg);
+
+  const el = document.getElementById('updateStepList');
+  if (!el) return;
+
+  el.innerHTML = _updateSteps.map((step, i) => {
+    const isCurrent = i === _updateSteps.length - 1;
+    const icon = isCurrent
+      ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #a78bfa;border-top-color:transparent;border-radius:50%;animation:icon-spin 0.8s linear infinite;flex-shrink:0"></span>`
+      : `<span style="color:#22c55e;flex-shrink:0;font-size:13px">✓</span>`;
+    const color = isCurrent ? '#e5e3f0' : '#6b6490';
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:${color};font-weight:${isCurrent ? 500 : 400}">${icon}${escapeHtml(step)}</div>`;
+  }).join('');
 }
 
 function _addUpdateLog(msg) {
