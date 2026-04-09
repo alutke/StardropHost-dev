@@ -60,7 +60,7 @@ function getInstances(req, res) {
       host: getSelfHost(),
       port: config.PORT,
     },
-    peers:           loadPeers(),
+    peers:           loadPeers().filter(p => p.port !== config.PORT),
     multiInstance:   detectMultiInstance(),
   });
 }

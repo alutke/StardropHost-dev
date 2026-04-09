@@ -5336,10 +5336,10 @@ async function _scanForInstances(selfHost, selfPort, knownPeers) {
         if (!res.ok) return;
         const d = await res.json();
         if (!d?.self) return; // not a StardropHost instance
-        // Register it as a peer
+        // Register it as a peer — prefer the instance's own container IP over the scan host
         await API.post('/api/instances/peer', {
           name: `Instance (port ${port})`,
-          host: selfHost,
+          host: d.self.host || selfHost,
           port,
         });
         found = true;
