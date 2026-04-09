@@ -156,6 +156,8 @@ function collectStatus(req = null) {
     players: { online: 0, max: 8 },
     cpu: 0,
     memory: { used: 0, limit: 2048 },
+    sysCpu: 0,
+    sysMemory: { used: 0, total: 0 },
     day: null,
     season: null,
     backupCount: 0,
@@ -184,6 +186,9 @@ function collectStatus(req = null) {
       if (data.resources) {
         status.cpu = parseFloat(data.resources.cpu_percent) || 0;
         status.memory.used = data.resources.memory_mb || 0;
+        status.sysCpu = parseFloat(data.resources.sys_cpu_percent) || 0;
+        status.sysMemory.used  = data.resources.sys_memory_mb || 0;
+        status.sysMemory.total = data.resources.sys_memory_total_mb || 0;
       }
       if (data.events) {
         status.events.passout = data.events.passout || 0;

@@ -1781,20 +1781,30 @@ function updateDashboardUI(data) {
   setText('stat-mods',    data.modCount    ?? 0);
 
   // CPU
-  const cpu = Math.round(data.cpu || 0);
-  setText('cpu-value', `${cpu}%`);
-  const cpuBar = document.getElementById('cpu-bar');
-  cpuBar.style.width  = Math.min(cpu, 100) + '%';
-  cpuBar.className    = 'progress-fill' + (cpu > 80 ? ' danger' : cpu > 60 ? ' warn' : '');
+  const cpu    = Math.round(data.cpu    || 0);
+  const sysCpu = Math.round(data.sysCpu || 0);
+  setText('cpu-value',     `${cpu}%`);
+  setText('cpu-sys-value', sysCpu > 0 ? `${sysCpu}% sys` : '');
+  const cpuBar    = document.getElementById('cpu-bar');
+  const cpuBarSys = document.getElementById('cpu-bar-sys');
+  cpuBar.style.width    = Math.min(cpu, 100) + '%';
+  cpuBar.className      = 'progress-fill' + (cpu > 80 ? ' danger' : cpu > 60 ? ' warn' : '');
+  cpuBarSys.style.width = Math.min(sysCpu, 100) + '%';
 
   // RAM
   const memUsedMB  = Math.round(data.memory?.used  || 0);
   const memLimitMB = data.memory?.limit || 2048;
   const memPct     = Math.round((memUsedMB / memLimitMB) * 100);
-  setText('ram-value', `${memUsedMB} / ${memLimitMB} MB`);
-  const ramBar   = document.getElementById('ram-bar');
-  ramBar.style.width = Math.min(memPct, 100) + '%';
-  ramBar.className   = 'progress-fill' + (memPct > 80 ? ' danger' : memPct > 60 ? ' warn' : '');
+  const sysMemUsed  = Math.round(data.sysMemory?.used  || 0);
+  const sysMemTotal = Math.round(data.sysMemory?.total || 0);
+  const sysMemPct   = sysMemTotal > 0 ? Math.round((sysMemUsed / sysMemTotal) * 100) : 0;
+  setText('ram-value',     `${memUsedMB} / ${memLimitMB} MB`);
+  setText('ram-sys-value', sysMemTotal > 0 ? `${sysMemUsed} / ${sysMemTotal} MB sys` : '');
+  const ramBar    = document.getElementById('ram-bar');
+  const ramBarSys = document.getElementById('ram-bar-sys');
+  ramBar.style.width    = Math.min(memPct, 100) + '%';
+  ramBar.className      = 'progress-fill' + (memPct > 80 ? ' danger' : memPct > 60 ? ' warn' : '');
+  ramBarSys.style.width = Math.min(sysMemPct, 100) + '%';
 
   // Details
   const net = data.network || {};
@@ -4808,8 +4818,8 @@ async function reloadUpdateScreen() {
 
 async function killUpdate() {
   if (!confirm(
-    'Exit the update screen and return to dashboard?\n\n' +
-    'If an update is still in progress it will continue in the background.'
+    'Return to dashboard?\n\n' +
+    'If an update is still in progress, a cancel signal will be sent to stop it.'
   )) return;
 
   try {

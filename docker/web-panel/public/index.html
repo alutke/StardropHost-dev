@@ -413,15 +413,29 @@
             <h3>System Resources</h3>
             <div class="resource-bar">
               <div class="resource-header">
-                <span>CPU</span><span id="cpu-value">--%</span>
+                <span>CPU</span>
+                <span style="display:flex;align-items:center;gap:10px">
+                  <span id="cpu-sys-value" style="font-size:11px;color:var(--text-muted)">-- sys</span>
+                  <span id="cpu-value">--%</span>
+                </span>
               </div>
-              <div class="progress-bar"><div class="progress-fill" id="cpu-bar" style="width:0%"></div></div>
+              <div class="progress-bar" style="position:relative">
+                <div id="cpu-bar-sys" style="position:absolute;inset:0;width:0%;border-radius:inherit;background:var(--text-muted);opacity:0.25;pointer-events:none"></div>
+                <div class="progress-fill" id="cpu-bar" style="width:0%;position:relative;z-index:1"></div>
+              </div>
             </div>
             <div class="resource-bar">
               <div class="resource-header">
-                <span>RAM</span><span id="ram-value">-- / -- MB</span>
+                <span>RAM</span>
+                <span style="display:flex;align-items:center;gap:10px">
+                  <span id="ram-sys-value" style="font-size:11px;color:var(--text-muted)">-- / -- sys</span>
+                  <span id="ram-value">-- / -- MB</span>
+                </span>
               </div>
-              <div class="progress-bar"><div class="progress-fill" id="ram-bar" style="width:0%"></div></div>
+              <div class="progress-bar" style="position:relative">
+                <div id="ram-bar-sys" style="position:absolute;inset:0;width:0%;border-radius:inherit;background:var(--text-muted);opacity:0.25;pointer-events:none"></div>
+                <div class="progress-fill" id="ram-bar" style="width:0%;position:relative;z-index:1"></div>
+              </div>
             </div>
           </div>
 

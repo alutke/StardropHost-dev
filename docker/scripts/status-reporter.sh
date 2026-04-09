@@ -116,34 +116,32 @@ get_game_paused() {
     fi
 }
 
-# -- Memory (container-wide via cgroup) --
-get_memory_usage_mb() {
-    # cgroups v2
+# -- Memory: container (cgroup) + system (/proc/meminfo) --
+# Outputs: "<container_mb> <sys_used_mb> <sys_total_mb>"
+get_memory_metrics() {
+    local container_mb=0
     if [ -f "/sys/fs/cgroup/memory.current" ]; then
-        local mem
-        mem=$(cat /sys/fs/cgroup/memory.current 2>/dev/null)
-        if [ -n "$mem" ] && [ "$mem" -gt 0 ] 2>/dev/null; then
-            echo "$((mem / 1024 / 1024))"
-            return
-        fi
+        local m; m=$(cat /sys/fs/cgroup/memory.current 2>/dev/null)
+        [ -n "$m" ] && [ "$m" -gt 0 ] 2>/dev/null && container_mb=$((m / 1024 / 1024))
     fi
-    # cgroups v1
-    if [ -f "/sys/fs/cgroup/memory/memory.usage_in_bytes" ]; then
-        local mem
-        mem=$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null)
-        if [ -n "$mem" ] && [ "$mem" -gt 0 ] 2>/dev/null; then
-            echo "$((mem / 1024 / 1024))"
-            return
-        fi
+    if [ "$container_mb" -eq 0 ] && [ -f "/sys/fs/cgroup/memory/memory.usage_in_bytes" ]; then
+        local m; m=$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null)
+        [ -n "$m" ] && [ "$m" -gt 0 ] 2>/dev/null && container_mb=$((m / 1024 / 1024))
     fi
-    echo "0"
+
+    local sys_result
+    sys_result=$(awk '/^MemTotal/{t=$2} /^MemAvailable/{a=$2} END{
+        printf "%d %d", int((t-a)/1024), int(t/1024)
+    }' /proc/meminfo 2>/dev/null || echo "0 0")
+
+    echo "$container_mb $sys_result"
 }
 
-# -- CPU (container-wide via cgroup, sampled over 1s) --
-get_cpu_usage() {
-    # Determine allocated cores: use cpu.max quota if a Docker CPU limit is set
-    local cores
-    cores=$(nproc 2>/dev/null || echo "1")
+# -- CPU: container (cgroup) + system (/proc/stat), sampled over 1s --
+# Outputs: "<container_pct> <sys_pct>"
+get_cpu_metrics() {
+    # Allocated cores for container %
+    local cores; cores=$(nproc 2>/dev/null || echo "1")
     if [ -f "/sys/fs/cgroup/cpu.max" ]; then
         local quota period
         quota=$(awk '{print $1}' /sys/fs/cgroup/cpu.max 2>/dev/null)
@@ -153,29 +151,47 @@ get_cpu_usage() {
         fi
     fi
 
-    # cgroups v2: usage_usec in cpu.stat
+    # First samples
+    local cg_u1=""; local cg_v1=false
     if [ -f "/sys/fs/cgroup/cpu.stat" ]; then
-        local u1 u2
-        u1=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}')
-        sleep 1
-        u2=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}')
-        if [ -n "$u1" ] && [ -n "$u2" ]; then
-            echo "$((u2 - u1)) $cores" | awk '{printf "%.1f", ($1 / 1000000) / $2 * 100}'
-            return
+        cg_u1=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}')
+        cg_v1=true
+    elif [ -f "/sys/fs/cgroup/cpu/cpuacct.usage" ]; then
+        cg_u1=$(cat /sys/fs/cgroup/cpu/cpuacct.usage 2>/dev/null)
+    fi
+    local sys_s1
+    sys_s1=$(awk '/^cpu /{idle=$5; t=0; for(i=2;i<=NF;i++) t+=$i; print t, idle}' /proc/stat 2>/dev/null)
+
+    sleep 1
+
+    # Second samples
+    local cg_u2=""
+    if $cg_v1 && [ -f "/sys/fs/cgroup/cpu.stat" ]; then
+        cg_u2=$(grep "^usage_usec" /sys/fs/cgroup/cpu.stat 2>/dev/null | awk '{print $2}')
+    elif [ -f "/sys/fs/cgroup/cpu/cpuacct.usage" ]; then
+        cg_u2=$(cat /sys/fs/cgroup/cpu/cpuacct.usage 2>/dev/null)
+    fi
+    local sys_s2
+    sys_s2=$(awk '/^cpu /{idle=$5; t=0; for(i=2;i<=NF;i++) t+=$i; print t, idle}' /proc/stat 2>/dev/null)
+
+    # Container CPU %
+    local container_cpu="0.0"
+    if [ -n "$cg_u1" ] && [ -n "$cg_u2" ]; then
+        local delta=$((cg_u2 - cg_u1))
+        if $cg_v1; then
+            container_cpu=$(echo "$delta $cores" | awk '{printf "%.1f", ($1/1000000)/$2*100}')
+        else
+            container_cpu=$(echo "$delta $cores" | awk '{printf "%.1f", ($1/1000000000)/$2*100}')
         fi
     fi
-    # cgroups v1: cpuacct.usage in nanoseconds
-    if [ -f "/sys/fs/cgroup/cpu/cpuacct.usage" ]; then
-        local u1 u2
-        u1=$(cat /sys/fs/cgroup/cpu/cpuacct.usage 2>/dev/null)
-        sleep 1
-        u2=$(cat /sys/fs/cgroup/cpu/cpuacct.usage 2>/dev/null)
-        if [ -n "$u1" ] && [ -n "$u2" ]; then
-            echo "$((u2 - u1)) $cores" | awk '{printf "%.1f", ($1 / 1000000000) / $2 * 100}'
-            return
-        fi
+
+    # System CPU %
+    local sys_cpu="0.0"
+    if [ -n "$sys_s1" ] && [ -n "$sys_s2" ]; then
+        sys_cpu=$(echo "$sys_s1 $sys_s2" | awk '{dt=$3-$1; di=$4-$2; if(dt>0) printf "%.1f",(dt-di)/dt*100; else print "0.0"}')
     fi
-    echo "0.0"
+
+    echo "$container_cpu $sys_cpu"
 }
 
 # -- Events --
@@ -206,8 +222,13 @@ update_metrics() {
     case "$players" in ''|*[!0-9]*) players=0 ;; esac
     local game_day=$(get_game_day)
     local game_paused=$(get_game_paused)
-    local memory=$(get_memory_usage_mb)
-    local cpu=$(get_cpu_usage)
+    local mem_metrics=($(get_memory_metrics))
+    local memory=${mem_metrics[0]:-0}
+    local sys_mem_used=${mem_metrics[1]:-0}
+    local sys_mem_total=${mem_metrics[2]:-0}
+    local cpu_metrics=($(get_cpu_metrics))
+    local cpu=${cpu_metrics[0]:-0.0}
+    local sys_cpu=${cpu_metrics[1]:-0.0}
     local events=($(get_event_counts))
     local passout=${events[0]:-0}
     local readycheck=${events[1]:-0}
@@ -273,7 +294,10 @@ EOPROM
   },
   "resources": {
     "memory_mb": $memory,
-    "cpu_percent": $cpu
+    "cpu_percent": $cpu,
+    "sys_cpu_percent": $sys_cpu,
+    "sys_memory_mb": $sys_mem_used,
+    "sys_memory_total_mb": $sys_mem_total
   },
   "events": {
     "passout": $passout,
