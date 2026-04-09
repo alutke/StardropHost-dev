@@ -4804,6 +4804,7 @@ let _updateElapsedTimer  = null;
 let _updateStatusPoll    = null;
 let _updatePanelWentDown = false;
 let _updateLogLines      = [];
+let _updateShownAt       = 0;
 
 function showUpdateScreen(startedAt) {
   const ts = startedAt || Date.now();
@@ -4817,6 +4818,7 @@ function showUpdateScreen(startedAt) {
 
   _updatePanelWentDown = false;
   _updateLogLines      = [];
+  _updateShownAt       = Date.now();
 
   // Start elapsed timer
   if (_updateElapsedTimer) clearInterval(_updateElapsedTimer);
@@ -4866,8 +4868,8 @@ function _startUpdateStatusPoll() {
         const d = await r.json();
         if (d.active && d.message) {
           _setUpdateStatus(d.message);
-        } else if (!d.active) {
-          // Update finished (or never started) and panel is up — exit screen
+        } else if (!d.active && (Date.now() - _updateShownAt) > 8000) {
+          // Only exit after grace period — update.sh needs a few seconds to write active status
           clearInterval(_updateStatusPoll);
           clearInterval(_updateElapsedTimer);
           localStorage.removeItem('stardrop_updating');
