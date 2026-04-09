@@ -4796,7 +4796,9 @@ let _updateElapsedTimer  = null;
 let _updateStatusPoll    = null;
 let _updatePanelWentDown = false;
 let _updateLogLines      = [];
-let _updateSteps         = [];  // accumulated step messages
+let _updateSteps         = [];  // accumulated step messages (trailing dots stripped)
+let _updateDotInterval   = null;
+let _updateDotCount      = 1;
 
 function showUpdateScreen(startedAt) {
   const ts = startedAt || Date.now();
@@ -4811,6 +4813,8 @@ function showUpdateScreen(startedAt) {
   _updatePanelWentDown = false;
   _updateLogLines      = [];
   _updateSteps         = [];
+  if (_updateDotInterval) { clearInterval(_updateDotInterval); _updateDotInterval = null; }
+  _updateDotCount = 1;
   _setUpdateStatus('Starting update...');
 
   // Start elapsed timer
@@ -4873,23 +4877,42 @@ function _startUpdateStatusPoll() {
   }, 2000);
 }
 
-function _setUpdateStatus(msg) {
-  if (!msg) return;
-  // Deduplicate consecutive identical messages
-  if (_updateSteps.length && _updateSteps[_updateSteps.length - 1] === msg) return;
-  _updateSteps.push(msg);
-
+function _renderUpdateSteps() {
   const el = document.getElementById('updateStepList');
   if (!el) return;
-
   el.innerHTML = _updateSteps.map((step, i) => {
     const isCurrent = i === _updateSteps.length - 1;
-    const icon = isCurrent
-      ? `<span style="display:inline-block;width:14px;height:14px;border:2px solid #a78bfa;border-top-color:transparent;border-radius:50%;animation:icon-spin 0.8s linear infinite;flex-shrink:0"></span>`
-      : `<span style="color:#22c55e;flex-shrink:0;font-size:13px">✓</span>`;
+    const icon  = isCurrent
+      ? ''
+      : `<span style="color:#22c55e;flex-shrink:0;font-size:13px;line-height:1">✓</span>`;
     const color = isCurrent ? '#e5e3f0' : '#6b6490';
-    return `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:${color};font-weight:${isCurrent ? 500 : 400}">${icon}${escapeHtml(step)}</div>`;
+    const dots  = isCurrent ? '.'.repeat(_updateDotCount) : '';
+    const id    = isCurrent ? 'id="update-step-current"' : '';
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:${color};font-weight:${isCurrent ? 500 : 400}">${icon}<span ${id}>${escapeHtml(step)}${dots}</span></div>`;
   }).join('');
+}
+
+function _setUpdateStatus(msg) {
+  if (!msg) return;
+  // Strip trailing dots — we animate them ourselves
+  const base = msg.replace(/\.+$/, '').trim();
+  if (!base) return;
+  // Deduplicate consecutive identical steps
+  if (_updateSteps.length && _updateSteps[_updateSteps.length - 1] === base) return;
+
+  // Clear previous dot animation
+  if (_updateDotInterval) { clearInterval(_updateDotInterval); _updateDotInterval = null; }
+
+  _updateSteps.push(base);
+  _updateDotCount = 1;
+  _renderUpdateSteps();
+
+  // Animate dots on the current step: cycles 1 → 2 → 3 → 4 → 5 → 1 …
+  _updateDotInterval = setInterval(() => {
+    _updateDotCount = _updateDotCount >= 5 ? 1 : _updateDotCount + 1;
+    const span = document.getElementById('update-step-current');
+    if (span) span.textContent = _updateSteps[_updateSteps.length - 1] + '.'.repeat(_updateDotCount);
+  }, 400);
 }
 
 function _addUpdateLog(msg) {
@@ -5194,7 +5217,9 @@ async function loadServersPage() {
   const peers = data.peers || [];
   _serversPeers = peers;
 
-  const selfHost = self.host || _cachedLanIp || window.location.hostname;
+  // Use the browser's hostname for scanning — the container IP from self.host is
+  // unreachable from the browser and would cause all port-scan fetches to fail.
+  const selfHost = _cachedLanIp || window.location.hostname;
   const selfPort = self.port || parseInt(window.location.port || '18642', 10);
 
   // Auto-scan sibling ports in background — registers any discovered instances silently
@@ -5318,15 +5343,15 @@ async function _connectToServer(idx) {
   if (!s) return;
   if (!confirm(`Switch to ${s.name || s.host}?\n\n${s.host}:${s.port}`)) return;
 
-  // Build peer list to pass to destination — includes self + all current peers
-  let selfData = { host: _cachedLanIp || window.location.hostname,
-                   port: parseInt(window.location.port || '18642', 10),
-                   name: lastStatusData?.live?.farmName || 'StardropHost' };
-  try {
-    const d = await API.get('/api/instances');
-    if (d?.self?.host) selfData = { ...selfData, ...d.self };
-  } catch {}
-  const allPeers = [selfData, ..._serversPeers.filter((p, i) => i !== idx)];
+  // Build peer list to pass to destination — includes self + all current peers.
+  // Use the browser's own hostname (what the user actually connects to), not the
+  // container-internal IP that hostname -I returns inside Docker.
+  const selfData = {
+    host: _cachedLanIp || window.location.hostname,
+    port: parseInt(window.location.port || '18642', 10),
+    name: lastStatusData?.live?.farmName || 'StardropHost',
+  };
+  const allPeers = [selfData, ..._serversPeers.filter((_, i) => i !== idx)];
   const encoded  = btoa(JSON.stringify(allPeers));
 
   window.location.href = `${window.location.protocol}//${s.host}:${s.port}/?peers=${encoded}`;

@@ -673,15 +673,36 @@ _announce_to_existing_instances() {
 
     for n in $(seq 1 $((INSTANCE_NUM - 1))); do
         local existing_port=$((18641 + n))
+
+        # Tell the existing instance about us
         if curl -sf --max-time 3 "http://localhost:${existing_port}/api/instances" >/dev/null 2>&1; then
             curl -sf --max-time 5 \
                 -X POST \
                 -H "Content-Type: application/json" \
                 -d "{\"name\":\"Instance ${INSTANCE_NUM}\",\"host\":\"${my_host}\",\"port\":${PANEL_PORT}}" \
                 "http://localhost:${existing_port}/api/instances/register" >/dev/null 2>&1 \
-                && print_success "Registered with instance $n (port ${existing_port})" \
-                || print_info "Instance $n panel not ready yet — will be discovered on next Servers tab load"
+                && print_success "Announced to instance $n (port ${existing_port})"
         fi
+
+        # Also tell each existing instance about every OTHER existing instance
+        # so that switching from the new instance reaches all of them instantly.
+        for m in $(seq 1 $((INSTANCE_NUM - 1))); do
+            [ "$m" -eq "$n" ] && continue
+            local peer_port=$((18641 + m))
+            curl -sf --max-time 5 \
+                -X POST \
+                -H "Content-Type: application/json" \
+                -d "{\"name\":\"Instance ${m}\",\"host\":\"${my_host}\",\"port\":${peer_port}}" \
+                "http://localhost:${existing_port}/api/instances/register" >/dev/null 2>&1 || true
+        done
+
+        # Register this existing instance with OUR new panel so we know about it immediately
+        curl -sf --max-time 5 \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"Instance ${n}\",\"host\":\"${my_host}\",\"port\":${existing_port}}" \
+            "http://localhost:${PANEL_PORT}/api/instances/register" >/dev/null 2>&1 \
+            && print_success "Registered instance $n into this panel"
     done
 }
 
