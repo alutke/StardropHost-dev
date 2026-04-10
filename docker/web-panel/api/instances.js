@@ -13,6 +13,7 @@ const http = require('http');
 const path = require('path');
 const { execSync } = require('child_process');
 const config = require('../server');
+const { readRemoteActive } = require('./remote');
 
 function callManager(method, urlPath, body = null) {
   return new Promise((resolve, reject) => {
@@ -85,9 +86,10 @@ function getInstances(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.json({
     self: {
-      host: getSelfHost(),
-      port: config.PORT,
-      name: getFarmName(),
+      host:         getSelfHost(),
+      port:         config.PORT,
+      name:         getFarmName(),
+      remoteActive: readRemoteActive(),
     },
     peers:           loadPeers().filter(p => p.port !== config.PORT),
     multiInstance:   detectMultiInstance(),

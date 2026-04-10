@@ -8,58 +8,26 @@
 const fs   = require('fs');
 const path = require('path');
 const http = require('http');
-const { execSync } = require('child_process');
 
-const config       = require('../server');
-const ADDR_FILE    = path.join(config.DATA_DIR, 'remote-addresses.json');
-const PEERS_FILE   = path.join(config.DATA_DIR, 'instances.json');
+const config    = require('../server');
+const ADDR_FILE = path.join(config.DATA_DIR, 'remote-addresses.json');
+const ACTIVE_FILE = path.join(config.DATA_DIR, 'remote-active.json');
 
-function loadPeers() {
+function writeRemoteActive(active) {
   try {
-    if (!fs.existsSync(PEERS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(PEERS_FILE, 'utf-8'));
-  } catch { return []; }
+    fs.mkdirSync(path.dirname(ACTIVE_FILE), { recursive: true });
+    fs.writeFileSync(ACTIVE_FILE, JSON.stringify({ active: !!active }));
+  } catch {}
 }
 
-function getSelfHost() {
+function readRemoteActive() {
   try {
-    const ips = execSync('hostname -I 2>/dev/null', { encoding: 'utf-8' })
-      .trim().split(/\s+/).filter(ip => ip && ip !== '127.0.0.1');
-    return ips[0] || '';
-  } catch { return ''; }
+    return JSON.parse(fs.readFileSync(ACTIVE_FILE, 'utf-8')).active === true;
+  } catch { return false; }
 }
 
-// Broadcast this instance's remote-active status to all known peers.
-// Fire-and-forget — errors are silently ignored.
-function broadcastRemoteStatus(active) {
-  const peers = loadPeers();
-  if (!peers.length) return;
-
-  const payload = JSON.stringify({
-    host:         getSelfHost(),
-    port:         config.PORT,
-    name:         '', // peers already have the name; blank preserves existing
-    remoteActive: active,
-  });
-
-  for (const peer of peers) {
-    try {
-      const options = {
-        hostname: peer.host,
-        port:     peer.port,
-        path:     '/api/instances/register',
-        method:   'POST',
-        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-        timeout:  5000,
-      };
-      const req = http.request(options);
-      req.on('error', () => {});
-      req.on('timeout', () => req.destroy());
-      req.write(payload);
-      req.end();
-    } catch {}
-  }
-}
+// Exported for instances.js to include in self object
+module.exports.readRemoteActive = readRemoteActive;
 
 function readAddresses() {
   try {
@@ -143,7 +111,7 @@ async function applyCompose(req, res) {
   }
   try {
     const { status, body } = await callManager('POST', '/remote/apply', { yaml: yaml.trim() });
-    if (status < 300) broadcastRemoteStatus(true);
+    if (status < 300) writeRemoteActive(true);
     res.status(status).json(body);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -153,7 +121,7 @@ async function applyCompose(req, res) {
 async function startService(req, res) {
   try {
     const { status, body } = await callManager('POST', '/remote/start');
-    if (status < 300) broadcastRemoteStatus(true);
+    if (status < 300) writeRemoteActive(true);
     res.status(status).json(body);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -172,35 +140,14 @@ async function stopService(req, res) {
 async function removeService(req, res) {
   try {
     const { status, body } = await callManager('POST', '/remote/remove');
-    if (status < 300) broadcastRemoteStatus(false);
+    if (status < 300) writeRemoteActive(false);
     res.status(status).json(body);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 }
 
-// Called once on panel init — broadcasts current remote state to peers so
-// instances that were already configured before this feature existed are detected.
-async function syncPeers(req, res) {
-  try {
-    const { body } = await callManager('GET', '/remote/status');
-    broadcastRemoteStatus(!!(body.configured));
-    res.json({ ok: true });
-  } catch {
-    res.json({ ok: false });
-  }
-}
-
-// Reads local instances.json — no HTTP probing needed.
-// Peers announce their remoteActive status via /api/instances/register.
-function getPeerStatus(req, res) {
-  const peers = loadPeers();
-  const active = peers.find(p => p.remoteActive === true);
-  if (active) {
-    res.json({ running: true, peerName: active.name || active.host });
-  } else {
-    res.json({ running: false });
-  }
-}
-
-module.exports = { getStatus, applyCompose, startService, stopService, removeService, getAddresses, saveAddresses, syncPeers, getPeerStatus };
+module.exports = Object.assign(module.exports, {
+  getStatus, applyCompose, startService, stopService, removeService,
+  getAddresses, saveAddresses,
+});

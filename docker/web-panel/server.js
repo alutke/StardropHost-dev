@@ -185,8 +185,6 @@ app.post('/api/remote/stop',        auth.verifyMiddleware, remoteAPI.stopService
 app.post('/api/remote/remove',      auth.verifyMiddleware, remoteAPI.removeService);
 app.get( '/api/remote/addresses',   auth.verifyMiddleware, remoteAPI.getAddresses);
 app.post('/api/remote/addresses',   auth.verifyMiddleware, remoteAPI.saveAddresses);
-app.post('/api/remote/sync-peers',  auth.verifyMiddleware, remoteAPI.syncPeers);
-app.get( '/api/remote/peer-status', auth.verifyMiddleware, remoteAPI.getPeerStatus);
 
 // -- Steam (auth via steam-auth container for game download only) --
 const steamAPI = require('./api/steam');

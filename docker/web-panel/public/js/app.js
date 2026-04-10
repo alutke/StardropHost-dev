@@ -1388,7 +1388,6 @@ function init() {
   setupWebSocket();
   loadDashboard();
   loadRemoteStatus();
-  API.post('/api/remote/sync-peers').catch(() => {}); // broadcast remote state to peers on startup
   loadBackupStatus();
   renderQuickActions();
   loadPanelVersion();
@@ -5711,6 +5710,26 @@ function hideConfigYaml() {
 
 // ─── Remote (tunnel compose management) ──────────────────────────
 
+// Fetches each known peer's /api/instances from the browser (same mechanism
+// as the Servers tab scan) and returns the first peer with remoteActive: true.
+async function _checkPeerRemoteStatus() {
+  try {
+    const data  = await API.get('/api/instances');
+    const peers = (data.peers || []);
+    const selfHost = _cachedLanIp || window.location.hostname;
+    for (const peer of peers) {
+      try {
+        const resp = await fetch(`http://${selfHost}:${peer.port}/api/instances`,
+          { signal: AbortSignal.timeout(2000) });
+        if (!resp.ok) continue;
+        const d = await resp.json();
+        if (d?.self?.remoteActive) return { running: true, peerName: d.self.name || peer.name };
+      } catch {}
+    }
+  } catch {}
+  return { running: false };
+}
+
 async function loadRemoteStatus() {
   const loading    = document.getElementById('remoteLoading');
   const noConfig   = document.getElementById('remoteNoConfig');
@@ -5742,8 +5761,8 @@ async function loadRemoteStatus() {
       _remoteYaml = data.yaml || '';
       _lockComposeEntry(true);
     } else {
-      // Check if a peer instance has an active tunnel
-      const peer = await API.get('/api/remote/peer-status').catch(() => null);
+      // Check if a peer instance has an active tunnel via their public /api/instances
+      const peer = await _checkPeerRemoteStatus();
       if (peer?.running) {
         lastRemoteData = { configured: true, anyRunning: true, fromPeer: true };
         _remoteOptimisticState = null;
