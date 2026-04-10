@@ -31,6 +31,7 @@ services:
     environment:
       - PROJECT_DIR=${PWD}
       - COMPOSE_FILE=${PWD}/docker-compose.yml
+      - CONTAINER_PREFIX=${CONTAINER_PREFIX:-stardrop}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}:${PWD}

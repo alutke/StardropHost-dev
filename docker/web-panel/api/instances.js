@@ -95,6 +95,7 @@ function getInstances(req, res) {
       serverState:  live?.serverState || '',
       playerCount:  Array.isArray(live?.players) ? live.players.filter(p => !p.isHost).length : 0,
       remoteActive: readRemoteActive(),
+      lastChatTs:   getLastChatTs(),
     },
     peers:           loadPeers().filter(p => p.port !== config.PORT),
     multiInstance:   detectMultiInstance(),

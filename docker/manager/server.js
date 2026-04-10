@@ -22,9 +22,10 @@ const RUNTIME_ENV_FILE = `${PROJECT_DIR}/data/panel/runtime.env`;
 
 const ALLOWED_SERVICES = new Set(['stardrop-server', 'stardrop-steam-auth']);
 
+const PREFIX = process.env.CONTAINER_PREFIX || 'stardrop';
 const SERVICE_CONTAINERS = {
-  'stardrop-server':    'stardrop',
-  'stardrop-steam-auth': process.env.CONTAINER_PREFIX ? `${process.env.CONTAINER_PREFIX}-steam-auth` : 'stardrop-steam-auth',
+  'stardrop-server':    PREFIX,
+  'stardrop-steam-auth': `${PREFIX}-steam-auth`,
 };
 
 // -- Helpers --

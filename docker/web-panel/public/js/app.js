@@ -5548,6 +5548,10 @@ async function loadServersPage() {
               <span id="peer-status-label-${i}" style="font-size:12px;color:var(--text-muted)">—</span>
               <span id="peer-players-${i}" style="font-size:12px;color:var(--text-muted)"></span>
             </div>
+            <div id="peer-chat-${i}" style="display:none;align-items:center;gap:5px;margin-bottom:2px">
+              <span class="status-dot restarting"></span>
+              <span style="font-size:12px;color:var(--accent-warn)" id="peer-chat-label-${i}">Chat</span>
+            </div>
             <div style="font-size:11px;color:var(--text-muted)">Port ${s.port}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
@@ -5596,11 +5600,33 @@ async function _refreshPeerStatuses(selfHost, peers) {
 
       if (dot)   { dot.className = `status-dot ${running ? 'running' : 'offline'}`; }
       if (label) { label.textContent = running ? 'Online' : 'Offline'; label.style.color = running ? '#22c55e' : 'var(--text-muted)'; }
-      if (players && running && s.playerCount > 0) {
-        players.textContent = `· ${s.playerCount} player${s.playerCount !== 1 ? 's' : ''}`;
+      if (players) {
+        players.textContent = (running && s.playerCount > 0)
+          ? `· ${s.playerCount} player${s.playerCount !== 1 ? 's' : ''}` : '';
+      }
+
+      // Chat notification
+      const lastTs  = s.lastChatTs || 0;
+      const seenKey = `peer-chat-ts-${peer.port}`;
+      const seenTs  = parseInt(localStorage.getItem(seenKey) || '0', 10);
+      const chatEl  = document.getElementById(`peer-chat-${i}`);
+      const chatLbl = document.getElementById(`peer-chat-label-${i}`);
+      if (chatEl && lastTs > seenTs) {
+        chatEl.style.display = 'flex';
+        if (chatLbl) chatLbl.textContent = `Chat · ${_timeAgo(lastTs)}`;
+      } else if (chatEl) {
+        chatEl.style.display = 'none';
       }
     } catch {}
   });
+}
+
+function _timeAgo(ts) {
+  const secs = Math.floor(Date.now() / 1000) - ts;
+  if (secs < 60)  return `${secs}s`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h`;
+  return `${Math.floor(secs / 86400)}d`;
 }
 
 // Scan sibling ports (18642–18651) for other StardropHost instances.
@@ -5725,6 +5751,9 @@ async function _connectToServer(idx) {
     : `${window.location.protocol}//${window.location.hostname}:${s.port}`;
 
   if (!confirm(`Switch to ${s.name || s.host}?\n\n${escapeHtml(targetBase)}`)) return;
+
+  // Mark chat as seen for this peer
+  localStorage.setItem(`peer-chat-ts-${s.port}`, String(Math.floor(Date.now() / 1000)));
 
   // Build peer list to pass to destination — includes self + all current peers.
   // Use the browser's own hostname (what the user actually connects to), not the

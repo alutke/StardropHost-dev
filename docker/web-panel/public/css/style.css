@@ -600,15 +600,16 @@ body {
   word-break: break-all;
 }
 
-/* Console page — logs + terminal combined, fills viewport without page scroll.
-   100vh minus: sidebar header (~64px) + page-container padding (48px top+bottom)
+/* Console page — SMAPI console is fixed height, logs card is below it and scrolls when expanded.
+   Page height = 100vh minus sidebar header (~64px) + page-container padding (48px top+bottom) = 112px.
+   SMAPI height = page height minus logs-collapsed (260px) minus gap (16px) = 100vh - 388px.
    Must use .page.active.console-page to beat .page.active { display:block } specificity */
-.page.active.console-page { display: flex; flex-direction: column; height: calc(100vh - 112px); gap: 16px; }
+.page.active.console-page { display: flex; flex-direction: column; height: calc(100vh - 112px); gap: 16px; overflow-y: auto; }
 .page.active.console-page > .card { margin-bottom: 0; }
 
 .console-card {
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 calc(100vh - 388px);
+  min-height: 280px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -650,10 +651,7 @@ body {
   overflow: hidden;
 }
 .logs-card.expanded {
-  flex: 1;
-  flex-shrink: 1;
-  height: unset;
-  min-height: 0;
+  height: 500px;
 }
 .logs-expand-row {
   display: flex;
