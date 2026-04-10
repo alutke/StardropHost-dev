@@ -178,13 +178,15 @@ app.get(   '/api/install-instance/log',  auth.verifyMiddleware, instancesAPI.get
 
 // -- Remote (tunnel service management via compose override) --
 const remoteAPI = require('./api/remote');
-app.get( '/api/remote/status',    auth.verifyMiddleware, remoteAPI.getStatus);
-app.post('/api/remote/apply',     auth.verifyMiddleware, remoteAPI.applyCompose);
-app.post('/api/remote/start',     auth.verifyMiddleware, remoteAPI.startService);
-app.post('/api/remote/stop',      auth.verifyMiddleware, remoteAPI.stopService);
-app.post('/api/remote/remove',    auth.verifyMiddleware, remoteAPI.removeService);
-app.get( '/api/remote/addresses', auth.verifyMiddleware, remoteAPI.getAddresses);
-app.post('/api/remote/addresses', auth.verifyMiddleware, remoteAPI.saveAddresses);
+app.get( '/api/remote/status',      auth.verifyMiddleware, remoteAPI.getStatus);
+app.post('/api/remote/apply',       auth.verifyMiddleware, remoteAPI.applyCompose);
+app.post('/api/remote/start',       auth.verifyMiddleware, remoteAPI.startService);
+app.post('/api/remote/stop',        auth.verifyMiddleware, remoteAPI.stopService);
+app.post('/api/remote/remove',      auth.verifyMiddleware, remoteAPI.removeService);
+app.get( '/api/remote/addresses',   auth.verifyMiddleware, remoteAPI.getAddresses);
+app.post('/api/remote/addresses',   auth.verifyMiddleware, remoteAPI.saveAddresses);
+app.get( '/api/remote/running',                            remoteAPI.getRunning);
+app.get( '/api/remote/peer-status', auth.verifyMiddleware, remoteAPI.getPeerStatus);
 
 // -- Steam (auth via steam-auth container for game download only) --
 const steamAPI = require('./api/steam');

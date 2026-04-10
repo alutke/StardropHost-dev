@@ -11,6 +11,14 @@ const http = require('http');
 
 const config       = require('../server');
 const ADDR_FILE    = path.join(config.DATA_DIR, 'remote-addresses.json');
+const PEERS_FILE   = path.join(config.DATA_DIR, 'instances.json');
+
+function loadPeers() {
+  try {
+    if (!fs.existsSync(PEERS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(PEERS_FILE, 'utf-8'));
+  } catch { return []; }
+}
 
 function readAddresses() {
   try {
@@ -127,4 +135,38 @@ async function removeService(req, res) {
   }
 }
 
-module.exports = { getStatus, applyCompose, startService, stopService, removeService, getAddresses, saveAddresses };
+// Public (no auth) — lets peer instances check if this instance has an active tunnel
+async function getRunning(req, res) {
+  try {
+    const { body } = await callManager('GET', '/remote/status');
+    res.json({ running: !!(body.configured && body.anyRunning) });
+  } catch {
+    res.json({ running: false });
+  }
+}
+
+// Authenticated — checks all known peers for an active tunnel
+async function getPeerStatus(req, res) {
+  const peers = loadPeers();
+  for (const peer of peers) {
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const r = http.request(
+          { hostname: peer.host, port: peer.port, path: '/api/remote/running', method: 'GET', timeout: 3000 },
+          (resp) => {
+            let d = '';
+            resp.on('data', c => { d += c; });
+            resp.on('end', () => { try { resolve(JSON.parse(d)); } catch { reject(); } });
+          }
+        );
+        r.on('error', reject);
+        r.on('timeout', () => r.destroy());
+        r.end();
+      });
+      if (data.running) return res.json({ running: true, peerName: peer.name || peer.host });
+    } catch {}
+  }
+  res.json({ running: false });
+}
+
+module.exports = { getStatus, applyCompose, startService, stopService, removeService, getAddresses, saveAddresses, getRunning, getPeerStatus };

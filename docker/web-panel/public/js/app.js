@@ -1632,6 +1632,9 @@ function _qaButtonDef(id) {
     if (!lastRemoteData?.configured) {
       return { label: 'Setup Remote', icon: 'icon-globe', cls: 'btn-secondary', onclick: "navigateTo('remote')" };
     }
+    if (lastRemoteData.fromPeer) {
+      return { label: 'Remote Active', icon: 'icon-globe', cls: 'btn-secondary', onclick: "navigateTo('remote')" };
+    }
     return lastRemoteData.anyRunning
       ? { label: 'Pause Remote',  icon: 'icon-globe', cls: 'btn-secondary', onclick: 'stopRemoteService()',  disabled: !!_remoteOptimisticState }
       : { label: 'Resume Remote', icon: 'icon-globe', cls: 'btn-success',   onclick: 'startRemoteService()', disabled: !!_remoteOptimisticState };
@@ -5723,27 +5726,45 @@ async function loadRemoteStatus() {
       _remoteAddressCache.dashboard = addrs.dashboard || '';
     }
     _populateConnectionAddresses();
-    lastRemoteData         = data;
-    _remoteOptimisticState = null;
-    _updateRemoteBadge();
 
-    if (loading)    loading.style.display    = 'none';
-    if (noConfig)   noConfig.style.display   = data.configured ? 'none' : '';
-    if (configured) configured.style.display = data.configured ? ''     : 'none';
-
-    const addrCard = document.getElementById('remoteAddressCard');
-    if (addrCard) addrCard.style.display = data.configured ? '' : 'none';
+    if (loading) loading.style.display = 'none';
 
     if (data.configured) {
+      lastRemoteData = data;
+      _remoteOptimisticState = null;
+      _updateRemoteBadge();
+      if (noConfig)   noConfig.style.display   = 'none';
+      if (configured) configured.style.display = '';
+      const addrCard = document.getElementById('remoteAddressCard');
+      if (addrCard) addrCard.style.display = '';
       _renderRemoteServices(data.services || [], data.anyRunning);
       _remoteYaml = data.yaml || '';
-      // Lock compose entry while a service is configured
       _lockComposeEntry(true);
     } else {
-      _remoteYaml = '';
-      hideConfigYaml();
-      // Service was removed — re-enable compose entry
-      _lockComposeEntry(false);
+      // Check if a peer instance has an active tunnel
+      const peer = await API.get('/api/remote/peer-status').catch(() => null);
+      if (peer?.running) {
+        lastRemoteData = { configured: true, anyRunning: true, fromPeer: true };
+        _remoteOptimisticState = null;
+        _updateRemoteBadge();
+        if (noConfig)   noConfig.style.display   = 'none';
+        if (configured) configured.style.display = '';
+        const addrCard = document.getElementById('remoteAddressCard');
+        if (addrCard) addrCard.style.display = '';
+        _renderPeerRemoteServices(peer.peerName);
+        _lockComposeEntry(true, true);
+      } else {
+        lastRemoteData = data;
+        _remoteOptimisticState = null;
+        _updateRemoteBadge();
+        if (noConfig)   noConfig.style.display   = '';
+        if (configured) configured.style.display = 'none';
+        const addrCard = document.getElementById('remoteAddressCard');
+        if (addrCard) addrCard.style.display = 'none';
+        _remoteYaml = '';
+        hideConfigYaml();
+        _lockComposeEntry(false);
+      }
     }
   } catch {
     if (loading)    loading.style.display    = 'none';
@@ -5890,7 +5911,25 @@ function _renderRemoteServices(services, anyRunning) {
   }).join('');
 }
 
-function _lockComposeEntry(locked) {
+function _renderPeerRemoteServices(peerName) {
+  const el        = document.getElementById('remoteServiceStatus');
+  const startBtn  = document.getElementById('remoteStartBtn');
+  const stopBtn   = document.getElementById('remoteStopBtn');
+  const removeBtn = document.getElementById('remoteRemoveBtn');
+  const revealDiv = document.getElementById('remoteConfigReveal');
+  if (startBtn)  startBtn.style.display  = 'none';
+  if (stopBtn)   stopBtn.style.display   = 'none';
+  if (removeBtn) removeBtn.style.display = 'none';
+  if (revealDiv) revealDiv.style.display = 'none';
+  if (el) el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span class="status-dot running"></span>
+    <span style="font-size:13px;color:var(--text-secondary);font-family:monospace">playit.gg</span>
+    <span style="font-weight:500;color:#22c55e">Active</span>
+    <span style="font-size:12px;color:var(--text-muted)">— shared from ${peerName || 'Instance 1'}</span>
+  </div>`;
+}
+
+function _lockComposeEntry(locked, peerMode = false) {
   const textarea    = document.getElementById('remoteComposeInput');
   const btn         = document.getElementById('remoteApplyBtn');
   const msgEl       = document.getElementById('remoteApplyMsg');
@@ -5902,7 +5941,9 @@ function _lockComposeEntry(locked) {
   if (composeCard) composeCard.open      = !locked;
   if (msgEl) {
     if (locked) {
-      msgEl.innerHTML     = '<strong style="color:var(--text-primary);font-size:14px">&#x2713; Service configured.</strong> <span style="color:var(--text-secondary)">Stop &amp; Remove the current service to start a new one.</span>';
+      msgEl.innerHTML     = peerMode
+        ? '<strong style="color:var(--text-primary);font-size:14px">&#x2713; Remote Active.</strong> <span style="color:var(--text-secondary)">Tunnel is running on the primary instance. Enter your playit.gg addresses below.</span>'
+        : '<strong style="color:var(--text-primary);font-size:14px">&#x2713; Service configured.</strong> <span style="color:var(--text-secondary)">Stop &amp; Remove the current service to start a new one.</span>';
       msgEl.style.display = '';
     } else {
       msgEl.style.display = 'none';
