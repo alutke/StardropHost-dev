@@ -14,6 +14,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const config = require('../server');
 const { readRemoteActive } = require('./remote');
+const { getLastChatTs }   = require('./chat');
 
 function callManager(method, urlPath, body = null) {
   return new Promise((resolve, reject) => {
@@ -92,7 +93,7 @@ function getInstances(req, res) {
       port:         config.PORT,
       name:         live?.farmName || '',
       serverState:  live?.serverState || '',
-      playerCount:  Array.isArray(live?.players) ? live.players.length : 0,
+      playerCount:  Array.isArray(live?.players) ? live.players.filter(p => !p.isHost).length : 0,
       remoteActive: readRemoteActive(),
     },
     peers:           loadPeers().filter(p => p.port !== config.PORT),

@@ -106,4 +106,15 @@ function downloadMessages(req, res) {
   }
 }
 
-module.exports = { getMessages, sendMessage, clearMessages, downloadMessages };
+function getLastChatTs() {
+  try {
+    const lines = _readLines();
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const m = JSON.parse(lines[i]);
+      if (m?.ts) return m.ts;
+    }
+  } catch {}
+  return 0;
+}
+
+module.exports = { getMessages, sendMessage, clearMessages, downloadMessages, getLastChatTs };

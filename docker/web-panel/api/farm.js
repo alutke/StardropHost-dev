@@ -254,4 +254,23 @@ function getLiveStatus(req, res) {
   res.json({ available: true, ...live });
 }
 
-module.exports = { getFarmOverview, getLiveStatus };
+function setFarmName(req, res) {
+  const name = (req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Farm name is required' });
+
+  const saveName = getSelectedSaveName();
+  const savePath = getSaveFilePath(saveName);
+  if (!savePath) return res.status(404).json({ error: 'No save file found' });
+
+  try {
+    let xml = fs.readFileSync(savePath, 'utf-8');
+    if (!xml.includes('<farmName>')) return res.status(400).json({ error: '<farmName> tag not found in save file' });
+    xml = xml.replace(/<farmName>[^<]*<\/farmName>/, `<farmName>${name}</farmName>`);
+    fs.writeFileSync(savePath, xml, 'utf-8');
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to write save file' });
+  }
+}
+
+module.exports = { getFarmOverview, getLiveStatus, setFarmName };

@@ -147,6 +147,7 @@ app.post('/api/vnc/connected',       vncAPI.notifyConnected);  // internal — c
 const farmAPI = require('./api/farm');
 app.get('/api/farm/overview',        auth.verifyMiddleware, farmAPI.getFarmOverview);
 app.get('/api/farm/live',            auth.verifyMiddleware, farmAPI.getLiveStatus);
+app.post('/api/farm/name',           auth.verifyMiddleware, farmAPI.setFarmName);
 
 // -- Game update --
 const gameUpdateAPI = require('./api/game-update');

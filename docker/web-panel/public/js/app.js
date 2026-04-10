@@ -2061,9 +2061,12 @@ async function loadFarm() {
   // Farm info — no Farmer field
   infoEl.innerHTML = `
     <div class="details-grid">
-      <div class="detail-item">
+      <div class="detail-item" style="position:relative">
         <div class="detail-label">Farm Name</div>
         <div class="detail-value">${escapeHtml(data.farmName || '--')}</div>
+        <button class="btn-detail-edit" onclick="openFarmNameModal()" title="Edit farm name" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;line-height:1;border-radius:4px" onmouseenter="this.style.color='var(--text-primary)'" onmouseleave="this.style.color='var(--text-muted)'">
+          <svg class="icon" style="width:14px;height:14px"><use href="#icon-edit"></use></svg>
+        </button>
       </div>
       <div class="detail-item">
         <div class="detail-label">Farm Type</div>
@@ -2083,6 +2086,70 @@ async function loadFarm() {
       </div>
     </div>
   `;
+}
+
+// ─── Farm Name Edit ───────────────────────────────────────────────
+
+let _pendingFarmName = null;
+
+function openFarmNameModal() {
+  const current = document.querySelector('#farmInfoData .detail-value')?.textContent || '';
+  const input = document.getElementById('farmNameModalInput');
+  input.value = current === '--' ? '' : current;
+  document.getElementById('farmNameModal').style.display = 'flex';
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+}
+
+function closeFarmNameModal() {
+  document.getElementById('farmNameModal').style.display = 'none';
+}
+
+function farmNameModalSubmit() {
+  const name = document.getElementById('farmNameModalInput').value.trim();
+  if (!name) return;
+  closeFarmNameModal();
+  _pendingFarmName = name;
+
+  const isRunning = lastStatusData?.live?.serverState === 'running';
+  const confirmModal = document.getElementById('farmNameConfirmModal');
+  const btn = document.getElementById('farmNameConfirmBtn');
+
+  if (isRunning) {
+    document.getElementById('farmNameConfirmTitle').textContent = 'Restart Required';
+    document.getElementById('farmNameConfirmMsg').textContent =
+      `Rename farm to "${name}"? The server is running — it will be restarted to apply the change.`;
+    btn.textContent = 'Confirm & Restart';
+    btn.className = 'btn btn-sm btn-warning';
+  } else {
+    document.getElementById('farmNameConfirmTitle').textContent = 'Confirm Farm Name';
+    document.getElementById('farmNameConfirmMsg').textContent = `Rename farm to "${name}"?`;
+    btn.textContent = 'Confirm';
+    btn.className = 'btn btn-sm btn-primary';
+  }
+  confirmModal.style.display = 'flex';
+}
+
+function farmNameConfirmCancel() {
+  document.getElementById('farmNameConfirmModal').style.display = 'none';
+  _pendingFarmName = null;
+}
+
+async function farmNameConfirmApply() {
+  const name = _pendingFarmName;
+  if (!name) return;
+  _pendingFarmName = null;
+  document.getElementById('farmNameConfirmModal').style.display = 'none';
+
+  const isRunning = lastStatusData?.live?.serverState === 'running';
+  const result = await API.post('/api/farm/name', { name }).catch(() => null);
+  if (!result?.ok) { showToast('Failed to save farm name', 'error'); return; }
+
+  if (isRunning) {
+    confirmRestart();
+  } else {
+    showToast('Farm name saved');
+    loadFarm();
+  }
 }
 
 // ─── World Controls ───────────────────────────────────────────────
@@ -5453,9 +5520,9 @@ async function loadServersPage() {
       <div style="position:relative">
         <button class="btn btn-sm btn-secondary" type="button" onclick="_toggleServersMenu(event)">Manage ▾</button>
         <div id="serversMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;min-width:150px;z-index:100;overflow:hidden">
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openAddServerModal()">Add</div>
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Remove</div>
           <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openInstallModal()">Install</div>
+          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Remove</div>
+          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openAddServerModal()">Add</div>
         </div>
       </div>
     </div>`;
