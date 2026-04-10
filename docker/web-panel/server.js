@@ -311,6 +311,10 @@ async function start() {
   });
 
   panelUpdateAPI.startBackgroundCheck();
+
+  // Sync remote-active.json with manager on startup — handles the case where
+  // remote was already configured before this feature existed.
+  setTimeout(() => remoteAPI.syncRemoteActive(), 3000);
 }
 
 start().catch((err) => {

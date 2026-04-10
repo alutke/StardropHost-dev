@@ -147,7 +147,15 @@ async function removeService(req, res) {
   }
 }
 
+// Called on panel startup to sync file state with manager (handles pre-existing config)
+async function syncRemoteActive() {
+  try {
+    const { body } = await callManager('GET', '/remote/status');
+    writeRemoteActive(!!(body.configured));
+  } catch {}
+}
+
 module.exports = Object.assign(module.exports, {
   getStatus, applyCompose, startService, stopService, removeService,
-  getAddresses, saveAddresses,
+  getAddresses, saveAddresses, syncRemoteActive,
 });
