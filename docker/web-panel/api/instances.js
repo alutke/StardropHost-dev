@@ -53,11 +53,12 @@ function savePeers(peers) {
   fs.writeFileSync(PEERS_FILE, JSON.stringify(peers, null, 2), 'utf-8');
 }
 
+function getLiveStatus() {
+  try { return JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8')); } catch { return null; }
+}
+
 function getFarmName() {
-  try {
-    const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
-    return live.farmName || '';
-  } catch { return ''; }
+  return getLiveStatus()?.farmName || '';
 }
 
 function getSelfHost() {
@@ -84,11 +85,14 @@ function detectMultiInstance() {
 // GET /api/instances — no auth, intentionally public for cross-instance discovery
 function getInstances(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  const live = getLiveStatus();
   res.json({
     self: {
       host:         getSelfHost(),
       port:         config.PORT,
-      name:         getFarmName(),
+      name:         live?.farmName || '',
+      serverState:  live?.serverState || '',
+      playerCount:  Array.isArray(live?.players) ? live.players.length : 0,
       remoteActive: readRemoteActive(),
     },
     peers:           loadPeers().filter(p => p.port !== config.PORT),

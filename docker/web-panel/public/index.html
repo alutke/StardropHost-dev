@@ -173,6 +173,11 @@
         <path d="M15 18l-6-6 6-6"/>
       </g>
     </symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9l6 6 6-6"/>
+      </g>
+    </symbol>
     <symbol id="icon-loader" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 4.5a7.5 7.5 0 1 0 7 4.8"/><path d="M18 4.5h1.5V8"/>
@@ -1861,6 +1866,9 @@
   <div id="addServerModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAddServerModal()">
     <div class="modal-dialog" style="max-width:420px">
       <h3>Add Server Instance</h3>
+      <div style="background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:12px;font-size:12px;color:var(--text-secondary);line-height:1.5">
+        This connects to an <strong>existing</strong> StardropHost instance. To set up a new server, close this and use <strong>Manage → Install</strong>.
+      </div>
       <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
         <div>
           <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Server Name</label>

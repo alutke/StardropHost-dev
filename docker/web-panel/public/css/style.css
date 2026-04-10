@@ -604,6 +604,7 @@ body {
    100vh minus: sidebar header (~64px) + page-container padding (48px top+bottom)
    Must use .page.active.console-page to beat .page.active { display:block } specificity */
 .page.active.console-page { display: flex; flex-direction: column; height: calc(100vh - 112px); gap: 16px; }
+.page.active.console-page > .card { margin-bottom: 0; }
 
 .console-card {
   flex: 1;

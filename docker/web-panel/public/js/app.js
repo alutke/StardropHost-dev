@@ -5425,48 +5425,65 @@ async function loadServersPage() {
   _serversPeers = peers;
   if (self.host) _selfContainerIp = self.host;
 
-  // Use the browser's hostname for scanning — the container IP from self.host is
-  // unreachable from the browser and would cause all port-scan fetches to fail.
   const selfHost = _cachedLanIp || window.location.hostname;
   const selfPort = self.port || parseInt(window.location.port || '18642', 10);
 
   // Auto-scan sibling ports in background — registers any discovered instances silently
   _scanForInstances(selfHost, selfPort, peers);
 
-  const containerIp = self.host || '';
   const selfFarmName = self.name || '';
 
+  // -- Current instance card --
   let html = `
-    <div class="card" style="margin-bottom:16px">
+    <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Current Instance</div>
           ${selfFarmName ? `<div style="font-weight:600;font-size:15px;margin-bottom:2px">${escapeHtml(selfFarmName)}</div>` : ''}
-          <div style="font-size:12px;color:var(--text-muted)">${escapeHtml(containerIp || selfHost)}</div>
           <div style="font-size:12px;color:var(--text-muted)">Port ${selfPort}</div>
         </div>
         <span style="font-size:11px;background:var(--accent);color:#fff;padding:3px 10px;border-radius:10px;white-space:nowrap">This Instance</span>
       </div>
     </div>`;
 
+  // -- Manage toolbar (above peer cards) --
+  html += `
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:12px">
+      ${_serversEditMode ? `<button class="btn btn-sm btn-secondary" type="button" onclick="_exitServersEditMode()">Confirm</button>` : ''}
+      <div style="position:relative">
+        <button class="btn btn-sm btn-secondary" type="button" onclick="_toggleServersMenu(event)">Manage ▾</button>
+        <div id="serversMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;min-width:150px;z-index:100;overflow:hidden">
+          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openAddServerModal()">Add</div>
+          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Remove</div>
+          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openInstallModal()">Install</div>
+        </div>
+      </div>
+    </div>`;
+
+  // -- Peer cards --
   if (peers.length === 0) {
     html += `
     <div style="text-align:center;padding:40px 16px;color:var(--text-muted);font-size:13px">
-      No other instances added yet.<br>
+      No other instances found yet.<br>
       <span style="font-size:12px">Scanning for instances on this machine…</span>
     </div>`;
   } else {
     peers.forEach((s, i) => {
-      const alias = s.remoteAlias || '';
+      const alias      = s.remoteAlias || '';
+      const peerName   = /^Instance \(port \d+\)$/.test(s.name) ? 'Connect to Setup' : (s.name || 'Connect to Setup');
       html += `
       <div class="card" style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          <div>
-            ${(() => { const n = /^Instance \(port \d+\)$/.test(s.name) ? 'Connect to Setup' : s.name; return n ? `<div style="font-weight:600;font-size:15px;margin-bottom:2px">${escapeHtml(n)}</div>` : ''; })()}
-            <div style="font-size:12px;color:var(--text-muted)">${escapeHtml(s.host)}</div>
-            <div style="font-size:12px;color:var(--text-muted)">Port ${s.port}</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:15px;margin-bottom:4px">${escapeHtml(peerName)}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <span id="peer-status-dot-${i}" class="status-dot offline"></span>
+              <span id="peer-status-label-${i}" style="font-size:12px;color:var(--text-muted)">—</span>
+              <span id="peer-players-${i}" style="font-size:12px;color:var(--text-muted)"></span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted)">Port ${s.port}</div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
             <button class="btn btn-sm btn-primary" type="button" onclick="_connectToServer(${i})">Connect</button>
             <button class="btn btn-sm btn-icon" type="button" onclick="_removeServer(${i})" title="Remove" style="display:${_serversEditMode ? '' : 'none'}">×</button>
           </div>
@@ -5490,20 +5507,33 @@ async function loadServersPage() {
     });
   }
 
-  html += `
-    <div style="margin-top:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <div style="position:relative">
-        <button class="btn btn-secondary" type="button" onclick="_toggleServersMenu(event)">Manage ▾</button>
-        <div id="serversMenu" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;min-width:160px;z-index:100;overflow:hidden">
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openAddServerModal()">Add</div>
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Edit</div>
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openInstallModal()">Install</div>
-        </div>
-      </div>
-      ${_serversEditMode ? `<button class="btn btn-secondary" type="button" onclick="_exitServersEditMode()">Confirm</button>` : ''}
-    </div>`;
-
   container.innerHTML = html;
+
+  // Fetch live status for each peer in the background
+  if (peers.length) _refreshPeerStatuses(selfHost, peers);
+}
+
+async function _refreshPeerStatuses(selfHost, peers) {
+  peers.forEach(async (peer, i) => {
+    try {
+      const resp = await fetch(`http://${selfHost}:${peer.port}/api/instances`,
+        { signal: AbortSignal.timeout(3000) });
+      if (!resp.ok) return;
+      const d = await resp.json();
+      const s = d?.self || {};
+
+      const running = s.serverState === 'running';
+      const dot     = document.getElementById(`peer-status-dot-${i}`);
+      const label   = document.getElementById(`peer-status-label-${i}`);
+      const players = document.getElementById(`peer-players-${i}`);
+
+      if (dot)   { dot.className = `status-dot ${running ? 'running' : 'offline'}`; }
+      if (label) { label.textContent = running ? 'Online' : 'Offline'; label.style.color = running ? '#22c55e' : 'var(--text-muted)'; }
+      if (players && running && s.playerCount > 0) {
+        players.textContent = `· ${s.playerCount} player${s.playerCount !== 1 ? 's' : ''}`;
+      }
+    } catch {}
+  });
 }
 
 // Scan sibling ports (18642–18651) for other StardropHost instances.
