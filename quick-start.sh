@@ -40,7 +40,7 @@ case "$0" in
         PIPE_MODE=0
         ;;
 esac
-QUICK_START_URL="https://raw.githubusercontent.com/Tomomoto10/StardropHost/main/quick-start.sh"
+QUICK_START_URL="https://raw.githubusercontent.com/Tomomoto10/StardropHost-dev/main/quick-start.sh"
 
 # -- Colors --
 RED='\033[0;31m'
@@ -460,11 +460,11 @@ download_files() {
     mkdir -p "$INSTALL_DIR" || { print_error "Cannot create $INSTALL_DIR"; exit 1; }
     cd "$INSTALL_DIR"      || { print_error "Cannot cd to $INSTALL_DIR"; exit 1; }
 
-    BASE_URL="https://raw.githubusercontent.com/Tomomoto10/StardropHost/main"
+    BASE_URL="https://raw.githubusercontent.com/Tomomoto10/StardropHost-dev/main"
 
     if command -v git &>/dev/null; then
         print_info "Cloning from GitHub (git)..."
-        git clone https://github.com/Tomomoto10/StardropHost.git . 2>&1 \
+        git clone https://github.com/Tomomoto10/StardropHost-dev.git . 2>&1 \
             || { print_error "Git clone failed — check your network and retry"; exit 1; }
     elif command -v curl &>/dev/null; then
         print_info "git not found — downloading key files via curl..."

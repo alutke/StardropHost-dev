@@ -413,5 +413,5 @@ if [ "$REMOVE_SAVES" = "0" ] && [ "$HAS_SAVES" = "1" ]; then
 fi
 
 echo -e "  To reinstall StardropHost:"
-echo -e "    ${CYAN}curl -fsSL https://raw.githubusercontent.com/Tomomoto10/StardropHost/main/quick-start.sh | sudo bash${NC}"
+echo -e "    ${CYAN}curl -fsSL https://raw.githubusercontent.com/Tomomoto10/StardropHost-dev/main/quick-start.sh | sudo bash${NC}"
 echo ""
