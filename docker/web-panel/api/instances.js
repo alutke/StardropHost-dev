@@ -217,4 +217,28 @@ async function getInstallLog(req, res) {
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
-module.exports = { getInstances, registerPeer, addPeer, removePeer, removePeerByPort, startInstall, getInstallLog, writeChatTs };
+// POST /api/uninstall-instance — remove peer from registry then proxy to manager
+async function startUninstall(req, res) {
+  const port = parseInt(req.body?.port, 10);
+  if (!port) return res.status(400).json({ error: 'port required' });
+
+  // Remove the peer entry immediately so the card disappears on reload
+  const peers = loadPeers();
+  const idx   = peers.findIndex(p => p.port === port);
+  if (idx >= 0) { peers.splice(idx, 1); savePeers(peers); }
+
+  try {
+    const data = await callManager('POST', '/uninstall-instance', { port });
+    res.status(data.error ? 409 : 202).json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+}
+
+// GET /api/uninstall-instance/log — proxy to manager
+async function getUninstallLog(req, res) {
+  try {
+    const data = await callManager('GET', '/uninstall-instance/log');
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+}
+
+module.exports = { getInstances, registerPeer, addPeer, removePeer, removePeerByPort, startInstall, getInstallLog, startUninstall, getUninstallLog, writeChatTs };

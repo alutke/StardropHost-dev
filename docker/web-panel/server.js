@@ -187,8 +187,10 @@ app.post(  '/api/instances/peer',      auth.verifyMiddleware, instancesAPI.addPe
 app.post(  '/api/instances/chat-ts',   auth.verifyMiddleware, instancesAPI.writeChatTs);
 app.delete('/api/instances/peer/by-port/:port', auth.verifyMiddleware, instancesAPI.removePeerByPort);
 app.delete('/api/instances/peer/:idx',          auth.verifyMiddleware, instancesAPI.removePeer);
-app.post(  '/api/install-instance',      auth.verifyMiddleware, instancesAPI.startInstall);
-app.get(   '/api/install-instance/log',  auth.verifyMiddleware, instancesAPI.getInstallLog);
+app.post(  '/api/install-instance',        auth.verifyMiddleware, instancesAPI.startInstall);
+app.get(   '/api/install-instance/log',    auth.verifyMiddleware, instancesAPI.getInstallLog);
+app.post(  '/api/uninstall-instance',      auth.verifyMiddleware, instancesAPI.startUninstall);
+app.get(   '/api/uninstall-instance/log',  auth.verifyMiddleware, instancesAPI.getUninstallLog);
 
 // -- Remote (tunnel service management via compose override) --
 const remoteAPI = require('./api/remote');

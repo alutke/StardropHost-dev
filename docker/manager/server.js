@@ -336,6 +336,9 @@ function installInstance() {
   return true;
 }
 
+// Strip ANSI escape codes so the browser log box shows clean text
+function stripAnsi(s) { return s.replace(/\x1b\[[0-9;]*m/g, '').replace(/\r/g, ''); }
+
 function getInstallLog() {
   const running = _installProcess !== null;
   let status = null;
@@ -343,7 +346,69 @@ function getInstallLog() {
   let lines = [];
   try {
     const raw = fs.readFileSync(INSTALL_LOG, 'utf-8');
-    lines = raw.split('\n').filter(l => l.trim()).slice(-100);
+    lines = raw.split('\n').map(stripAnsi).filter(l => l.trim()).slice(-100);
+  } catch {}
+  return { running, status: status?.status || (running ? 'running' : 'idle'), lines };
+}
+
+// -- Uninstall instance --
+
+let _uninstallProcess = null;
+const UNINSTALL_LOG    = path.join(PROJECT_DIR, 'data', 'panel', 'uninstall-instance.log');
+const UNINSTALL_STATUS = path.join(PROJECT_DIR, 'data', 'panel', 'uninstall-instance-status.json');
+
+function writeUninstallStatus(status, message) {
+  try {
+    fs.mkdirSync(path.dirname(UNINSTALL_STATUS), { recursive: true });
+    fs.writeFileSync(UNINSTALL_STATUS, JSON.stringify({ status, message, updatedAt: Date.now() }));
+  } catch {}
+}
+
+function uninstallInstance(port) {
+  if (_uninstallProcess) return false;
+
+  const env       = buildComposeEnv();
+  const parentDir = path.dirname(PROJECT_DIR);
+
+  try { fs.mkdirSync(path.dirname(UNINSTALL_LOG), { recursive: true }); fs.writeFileSync(UNINSTALL_LOG, ''); } catch {}
+  writeUninstallStatus('running', 'Starting uninstall...');
+
+  const command = [
+    'docker run --rm --name stardrop-uninstall',
+    '-v /var/run/docker.sock:/var/run/docker.sock',
+    `-v ${parentDir}:${parentDir}`,
+    `-e STARDROP_REAL_HOME=${parentDir}`,
+    `-e UNINSTALL_PORT=${port}`,
+    `-w ${parentDir}`,
+    'alpine',
+    `sh -c "apk add -q bash docker-cli docker-cli-compose && bash ${PROJECT_DIR}/uninstall.sh"`,
+  ].join(' ');
+
+  const logFd = fs.openSync(UNINSTALL_LOG, 'a');
+  const child = spawn('sh', ['-lc', command], {
+    cwd: parentDir, env, detached: true, stdio: ['ignore', logFd, logFd],
+  });
+
+  _uninstallProcess = child;
+
+  child.on('close', (code) => {
+    try { fs.closeSync(logFd); } catch {}
+    writeUninstallStatus(code === 0 ? 'done' : 'error', code === 0 ? 'Uninstall complete' : `Exited with code ${code}`);
+    _uninstallProcess = null;
+  });
+
+  child.unref();
+  return true;
+}
+
+function getUninstallLog() {
+  const running = _uninstallProcess !== null;
+  let status = null;
+  try { status = JSON.parse(fs.readFileSync(UNINSTALL_STATUS, 'utf-8')); } catch {}
+  let lines = [];
+  try {
+    const raw = fs.readFileSync(UNINSTALL_LOG, 'utf-8');
+    lines = raw.split('\n').map(stripAnsi).filter(l => l.trim()).slice(-100);
   } catch {}
   return { running, status: status?.status || (running ? 'running' : 'idle'), lines };
 }
@@ -436,6 +501,24 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && req.url === '/install-instance/log') {
     try { sendJson(res, 200, getInstallLog()); }
+    catch (e) { sendJson(res, 500, { error: e.message }); }
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/uninstall-instance') {
+    try {
+      const body = await readJson(req);
+      const port = parseInt(body?.port, 10);
+      if (!port) return sendJson(res, 400, { error: 'port required' });
+      const started = uninstallInstance(port);
+      if (started === false) return sendJson(res, 409, { error: 'Uninstall already in progress' });
+      sendJson(res, 202, { success: true, action: 'uninstall-instance' });
+    } catch (e) { sendJson(res, 500, { error: e.message }); }
+    return;
+  }
+
+  if (req.method === 'GET' && req.url === '/uninstall-instance/log') {
+    try { sendJson(res, 200, getUninstallLog()); }
     catch (e) { sendJson(res, 500, { error: e.message }); }
     return;
   }

@@ -1876,33 +1876,30 @@
   </div>
 
   <!-- ── Add Server Modal ─────────────────────────────────────── -->
-  <div id="addServerModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeAddServerModal()">
-    <div class="modal-dialog" style="max-width:420px">
-      <h3>Add Server Instance</h3>
-      <div style="background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:12px;font-size:12px;color:var(--text-secondary);line-height:1.5">
-        This connects to an <strong>existing</strong> StardropHost instance. To set up a new server, close this and use <strong>Manage → Install</strong>.
-      </div>
-      <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
-        <div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Server Name</label>
-          <input id="addServerName" class="input" type="text" placeholder="e.g. My Second Farm" style="width:100%">
+  <div id="uninstallInstanceModal" class="modal-overlay" style="display:none" onclick="if(event.target===this&&!_uninstallRunning)closeUninstallModal()">
+    <div class="modal-dialog" style="width:500px;max-width:95vw">
+      <h3>Uninstall Instance</h3>
+      <div id="uninstallConfirmView">
+        <p style="color:var(--text-secondary);margin-bottom:4px">Permanently remove <strong id="uninstallInstanceName"></strong>?</p>
+        <p style="color:var(--accent-error);font-size:12px;margin-bottom:16px">This cannot be undone. All containers and files for this instance will be deleted.</p>
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">Admin password</label>
+          <input id="uninstallPasswordInput" class="input" type="password" placeholder="Enter your password to confirm" style="width:100%" onkeydown="if(event.key==='Enter')startUninstallInstance()">
+          <div id="uninstallPasswordError" style="color:var(--accent-error);font-size:12px;margin-top:4px;display:none"></div>
         </div>
-        <div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Container IP (172.x.x.x)</label>
-          <input id="addServerHost" class="input" type="text" placeholder="e.g. 172.30.0.11" style="width:100%">
-        </div>
-        <div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Panel Port</label>
-          <input id="addServerPort" class="input" type="number" placeholder="18642" value="18642" style="width:100%">
-        </div>
-        <div>
-          <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Remote Alias <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
-          <input id="addServerRemoteAlias" class="input" type="text" placeholder="e.g. http://myserver.playit.plus:1049" style="width:100%">
+        <div class="modal-actions">
+          <button class="btn btn-sm btn-secondary" type="button" onclick="closeUninstallModal()">Cancel</button>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
-        <button class="btn btn-secondary" type="button" onclick="closeAddServerModal()">Cancel</button>
-        <button class="btn btn-primary" type="button" onclick="submitAddServer()">Add Server</button>
+      <div id="uninstallProgressView" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+          <div style="width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent-error);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0"></div>
+          <span id="uninstallProgressLabel" style="font-size:13px;color:var(--text-secondary)">Removing instance…</span>
+        </div>
+        <pre id="uninstallLogBox" style="background:var(--bg-tertiary);border-radius:8px;padding:12px;font-size:11px;max-height:220px;overflow-y:auto;margin-bottom:16px;white-space:pre-wrap;word-break:break-all;color:var(--text-secondary)">Starting…</pre>
+        <div class="modal-actions">
+          <button class="btn btn-sm btn-secondary" type="button" onclick="closeUninstallModal()">Close</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2089,7 +2086,6 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-sm btn-secondary" type="button" onclick="closeInstallModal()">Cancel</button>
-          <button class="btn btn-sm btn-primary" type="button" id="installConfirmBtn" onclick="startInstallInstance()">Install</button>
         </div>
       </div>
       <div id="installProgressView" style="display:none">

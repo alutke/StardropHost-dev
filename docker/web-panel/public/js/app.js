@@ -5620,8 +5620,6 @@ function openInstallModal() {
   document.getElementById('installProgressView').style.display = 'none';
   document.getElementById('installPasswordInput').value = '';
   document.getElementById('installPasswordError').style.display = 'none';
-  document.getElementById('installConfirmBtn').disabled = false;
-  document.getElementById('installConfirmBtn').textContent = 'Install';
   document.getElementById('installInstanceModal').style.display = '';
   setTimeout(() => document.getElementById('installPasswordInput').focus(), 50);
 }
@@ -5632,7 +5630,6 @@ function closeInstallModal() {
 }
 
 async function startInstallInstance() {
-  const btn     = document.getElementById('installConfirmBtn');
   const pwInput = document.getElementById('installPasswordInput');
   const pwErr   = document.getElementById('installPasswordError');
 
@@ -5641,21 +5638,18 @@ async function startInstallInstance() {
     pwErr.textContent = 'Password required'; pwErr.style.display = '';
     pwInput?.focus(); return;
   }
-
-  btn.disabled = true; btn.textContent = 'Verifying...';
   pwErr.style.display = 'none';
 
   const check = await API.post('/api/auth/verify-password', { password }).catch(() => null);
   if (!check?.valid) {
     pwErr.textContent = 'Incorrect password'; pwErr.style.display = '';
-    btn.disabled = false; btn.textContent = 'Install';
     pwInput?.select(); return;
   }
 
   const data = await API.post('/api/install-instance').catch(() => null);
   if (!data?.success) {
     showToast(data?.error || 'Failed to start installation', 'error');
-    btn.disabled = false; btn.textContent = 'Install'; return;
+    return;
   }
 
   _installRunning = true;
@@ -5667,15 +5661,26 @@ async function startInstallInstance() {
   _installPollTimer = setInterval(_pollInstall, 2000);
 }
 
+function _renderLogLines(box, lines) {
+  if (!box || !lines?.length) return;
+  box.innerHTML = lines.map(line => {
+    const e = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (/^\[OK\]/.test(line))   return `<span style="color:#22c55e">${e}</span>`;
+    if (/^\[ERR\]/.test(line))  return `<span style="color:#ef4444;font-weight:600">${e}</span>`;
+    if (/^\[WARN\]/.test(line)) return `<span style="color:#f59e0b">${e}</span>`;
+    if (/^\[>>\]/.test(line))   return `<span style="color:var(--accent)">${e}</span>`;
+    if (/^=+$/.test(line.trim())) return `<span style="color:var(--border)">${e}</span>`;
+    return `<span style="color:var(--text-muted)">${e}</span>`;
+  }).join('\n');
+  box.scrollTop = box.scrollHeight;
+}
+
 async function _pollInstall() {
   const data = await API.get('/api/install-instance/log').catch(() => null);
   if (!data) return;
 
   const box = document.getElementById('installLogBox');
-  if (box && data.lines?.length) {
-    box.textContent = data.lines.join('\n');
-    box.scrollTop = box.scrollHeight;
-  }
+  _renderLogLines(box, data.lines);
 
   const label = document.getElementById('installProgressLabel');
 
@@ -5700,6 +5705,86 @@ async function _pollInstall() {
     clearInterval(_installPollTimer); _installPollTimer = null;
     _installRunning = false;
     if (label) label.textContent = 'Installation failed — see log above';
+  }
+}
+
+// ─── Uninstall Instance ───────────────────────────────────────────
+
+let _uninstallRunning  = false;
+let _uninstallPollTimer = null;
+let _uninstallTargetPort = null;
+
+function openUninstallModal(idx) {
+  const s = _serversPeers[idx];
+  if (!s) return;
+  _uninstallTargetPort = s.port;
+  _uninstallRunning = false;
+
+  const nameEl = document.getElementById('uninstallInstanceName');
+  if (nameEl) nameEl.textContent = s.name || `Port ${s.port}`;
+  document.getElementById('uninstallConfirmView').style.display = '';
+  document.getElementById('uninstallProgressView').style.display = 'none';
+  document.getElementById('uninstallPasswordInput').value = '';
+  document.getElementById('uninstallPasswordError').style.display = 'none';
+  document.getElementById('uninstallInstanceModal').style.display = '';
+  setTimeout(() => document.getElementById('uninstallPasswordInput').focus(), 50);
+}
+
+function closeUninstallModal() {
+  if (_uninstallRunning) return;
+  document.getElementById('uninstallInstanceModal').style.display = 'none';
+  if (_uninstallPollTimer) { clearInterval(_uninstallPollTimer); _uninstallPollTimer = null; }
+}
+
+async function startUninstallInstance() {
+  const pwInput = document.getElementById('uninstallPasswordInput');
+  const pwErr   = document.getElementById('uninstallPasswordError');
+
+  const password = pwInput?.value?.trim() || '';
+  if (!password) {
+    pwErr.textContent = 'Password required'; pwErr.style.display = '';
+    pwInput?.focus(); return;
+  }
+  pwErr.style.display = 'none';
+
+  const check = await API.post('/api/auth/verify-password', { password }).catch(() => null);
+  if (!check?.valid) {
+    pwErr.textContent = 'Incorrect password'; pwErr.style.display = '';
+    pwInput?.select(); return;
+  }
+
+  const data = await API.post('/api/uninstall-instance', { port: _uninstallTargetPort }).catch(() => null);
+  if (!data?.success) {
+    showToast(data?.error || 'Failed to start uninstall', 'error');
+    return;
+  }
+
+  _uninstallRunning = true;
+  document.getElementById('uninstallConfirmView').style.display = 'none';
+  document.getElementById('uninstallProgressView').style.display = '';
+  document.getElementById('uninstallLogBox').textContent = 'Starting…';
+
+  _uninstallPollTimer = setInterval(_pollUninstall, 2000);
+}
+
+async function _pollUninstall() {
+  const data = await API.get('/api/uninstall-instance/log').catch(() => null);
+  if (!data) return;
+
+  _renderLogLines(document.getElementById('uninstallLogBox'), data.lines);
+
+  const label = document.getElementById('uninstallProgressLabel');
+
+  if (data.status === 'done') {
+    clearInterval(_uninstallPollTimer); _uninstallPollTimer = null;
+    _uninstallRunning = false;
+    if (label) label.textContent = 'Instance removed.';
+    document.getElementById('uninstallInstanceModal').style.display = 'none';
+    _exitServersEditMode();
+  } else if (data.status === 'error') {
+    clearInterval(_uninstallPollTimer); _uninstallPollTimer = null;
+    _uninstallRunning = false;
+    if (label) label.textContent = 'Uninstall failed — see log above';
   }
 }
 
@@ -5837,7 +5922,6 @@ async function loadServersPage() {
       <div style="position:relative">
         <button class="btn btn-sm btn-secondary" type="button" onclick="_toggleServersMenu(event)">Manage ▾</button>
         <div id="serversMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;min-width:150px;z-index:100;overflow:hidden">
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();openInstallModal()">Install</div>
           <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Edit</div>
         </div>
       </div>
@@ -5879,8 +5963,7 @@ async function loadServersPage() {
             </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
-            <button class="btn btn-sm btn-primary" type="button" onclick="_connectToServer(${i})">Connect</button>
-            <button class="btn btn-sm btn-icon" type="button" onclick="_removeServer(${i})" title="Remove" style="display:${_serversEditMode && !s.autoDiscovered ? '' : 'none'}">×</button>
+            <button class="btn btn-sm ${_serversEditMode ? 'btn-danger' : 'btn-primary'}" type="button" onclick="${_serversEditMode ? `openUninstallModal(${i})` : `_connectToServer(${i})`}">${_serversEditMode ? 'Uninstall' : 'Connect'}</button>
           </div>
         </div>
         <div style="margin-top:10px;display:flex;align-items:center;gap:6px">
@@ -5902,11 +5985,11 @@ async function loadServersPage() {
     });
   }
 
-  // "+" add button shown in edit mode (right-aligned, below cards)
+  // "Install +" button shown in edit mode below cards
   if (_serversEditMode) {
     html += `
     <div style="display:flex;justify-content:flex-end;margin-top:4px">
-      <button class="btn btn-sm btn-secondary" type="button" onclick="openAddServerModal()" title="Add instance" style="font-size:18px;line-height:1;padding:2px 12px">+</button>
+      <button class="btn btn-sm btn-secondary" type="button" onclick="openInstallModal()">Install +</button>
     </div>`;
   }
 
