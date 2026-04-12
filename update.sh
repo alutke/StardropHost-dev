@@ -160,8 +160,15 @@ write_status "started" "Pulling latest code from GitHub..."
 print_step "Step 1: Pulling latest code from GitHub..."
 print_info "Fetching any new commits from the main branch..."
 if command -v git &>/dev/null && [ -d "$SCRIPT_DIR/.git" ]; then
+    # Ensure remote points to the correct repo
+    _CORRECT_REMOTE="https://github.com/Tomomoto10/StardropHost-dev.git"
+    _CURRENT_REMOTE=$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null || true)
+    if [ "$_CURRENT_REMOTE" != "$_CORRECT_REMOTE" ]; then
+        print_info "Fixing remote URL: $_CURRENT_REMOTE → $_CORRECT_REMOTE"
+        git -C "$SCRIPT_DIR" remote set-url origin "$_CORRECT_REMOTE"
+    fi
     BEFORE=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
-    if git -C "$SCRIPT_DIR" pull; then
+    if GIT_TERMINAL_PROMPT=0 git -C "$SCRIPT_DIR" pull; then
         AFTER=$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null)
         if [ "$BEFORE" != "$AFTER" ]; then
             print_success "Updated  $BEFORE → $AFTER"
@@ -172,7 +179,7 @@ if command -v git &>/dev/null && [ -d "$SCRIPT_DIR/.git" ]; then
         fi
     else
         print_warning "Git pull failed — building from current local files"
-        print_info "Check your network connection or resolve any merge conflicts"
+        print_info "Check your network connection or run: sudo git -C $SCRIPT_DIR pull"
     fi
 else
     print_info "Not a git repository or git not installed — skipping pull"
