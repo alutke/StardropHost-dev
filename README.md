@@ -127,6 +127,7 @@ Five Docker containers:
 |---|---|
 | `stardrop` | Game server — Stardew Valley + SMAPI |
 | `stardrop-manager` | Web panel — Node.js API + frontend |
+| `stardrop-init` | One-shot init — sets up volumes and permissions, exits 0 |
 | `stardrop-steam-auth` | Steam 2FA auth — `restart:no`, started on demand by wizard |
 | `stardrop-gog-downloader` | GOG downloader — `restart:no`, ephemeral credentials, port 18701 internal |
 | `stardrophost-playit-1` | playit.gg remote tunnel |
@@ -188,7 +189,8 @@ Projects and mods referenced during development. All used under free/open-source
 | [SMAPI Dedicated Server Mod](https://github.com/alanperrow/StardewModding) | alanperrow | MIT | Reference for headless host automation |
 | [Always On Server](https://www.nexusmods.com/stardewvalley/mods/2677) | funny-snek & Zuberii | Public Domain | Reference for always-on server mod |
 | [SMAPI](https://smapi.io/) | Pathoschild | MIT + Apache 2.0 | Modding platform powering the server |
-| [playit.gg](https://playit.gg/) | PlayIt LLC | Free tier | Remote tunnel service |
+| [GogDownloader](https://github.com/RikudouSage/GogDownloader) | RikudouSage | MIT | GOG game downloader used in gog-downloader container |
+
 
 ---
 

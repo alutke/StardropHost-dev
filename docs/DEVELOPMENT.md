@@ -74,7 +74,7 @@ StardropHost/
                       │ completes successfully
                       ▼
 ┌──────────────────────────────────────────────┐
-│  stardrop-server  (main game container)       │
+│  stardrop  (main game container)       │
 │  entrypoint.sh → Xvfb → SMAPI → game         │
 │  web-panel on :18642                          │
 │  Prometheus on :9090 (optional)               │
@@ -172,7 +172,7 @@ There are two distinct Steam integrations that serve different purposes:
 ### Build the image
 
 ```bash
-docker build -t stardrop-server:dev -f docker/Dockerfile docker/
+docker build -t stardrop:dev -f docker/Dockerfile docker/
 ```
 
 ### Start with a local game copy
