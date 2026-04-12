@@ -5920,13 +5920,15 @@ async function loadServersPage() {
   // -- Manage toolbar (above peer cards) --
   html += `
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:12px">
-      ${_serversEditMode ? `<button class="btn btn-sm btn-secondary" type="button" onclick="_exitServersEditMode()">Confirm</button>` : ''}
-      <div style="position:relative">
-        <button class="btn btn-sm btn-secondary" type="button" onclick="_toggleServersMenu(event)">Manage ▾</button>
-        <div id="serversMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;min-width:150px;z-index:100;overflow:hidden">
-          <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Edit</div>
-        </div>
-      </div>
+      ${_serversEditMode
+        ? `<button class="btn btn-sm btn-secondary" type="button" onclick="_exitServersEditMode()">Confirm</button>`
+        : `<div style="position:relative">
+            <button class="btn btn-sm btn-secondary" type="button" onclick="_toggleServersMenu(event)">Manage ▾</button>
+            <div id="serversMenu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;min-width:150px;z-index:100;overflow:hidden">
+              <div style="padding:8px 14px;cursor:pointer;font-size:13px" onmouseenter="this.style.background='var(--bg-tertiary)'" onmouseleave="this.style.background=''" onclick="_closeServersMenu();_enterServersEditMode()">Edit</div>
+            </div>
+          </div>`
+      }
     </div>`;
 
   // -- Peer cards --
