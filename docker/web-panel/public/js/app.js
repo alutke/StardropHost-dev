@@ -659,6 +659,26 @@ async function _wizPollGogLog(logEl, cntEl) {
   } catch { return null; }
 }
 
+// Extract latest integer percentage from GOG log lines (e.g. "] 42% -")
+function _gogExtractPct(lines) {
+  if (!lines?.length) return null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const m = lines[i].match(/\]\s*(\d+)%/);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
+
+// Build the dynamic status label for a GOG download state
+function _gogStatusText(state, pct) {
+  if (state === 'logging-in')  return 'Logging in to GOG…';
+  if (state === 'logged-in')   return 'Updating game metadata…';
+  if (state === 'downloading') return pct !== null ? `Downloading ${pct}%…` : 'Downloading…';
+  if (state === 'extracting')  return 'Extracting game files…';
+  if (state === 'done')        return '✅ Download complete!';
+  return 'Working…';
+}
+
 // ─── End GOG Wizard ───────────────────────────────────────────────
 
 // Step 3 — poll game-ready + stream setup.log while download/install is running
@@ -838,18 +858,15 @@ async function wizPollDownloadProgress() {
       return;
     }
 
-    if (state === 'downloading' && bar) {
-      // Crude pct from log — look for "[XX%]" pattern
-      const lines = logEl?.querySelectorAll('div');
-      if (lines?.length) {
-        const last = lines[lines.length - 1].textContent;
-        const m = last.match(/\[(\d+)%\]/);
-        if (m) bar.style.width = Math.min(5 + Math.round(parseInt(m[1]) * 0.85), 90) + '%';
-      }
-    } else if (bar && state === 'logging-in') {
-      bar.style.width = '10%';
-    } else if (bar && state === 'logged-in') {
-      bar.style.width = '20%';
+    const pct = _gogExtractPct(gogData?.lines);
+    if (lbl) { lbl.style.color = ''; lbl.textContent = _gogStatusText(state, pct); }
+
+    if (state === 'downloading') {
+      if (bar) bar.style.width = pct !== null ? Math.min(5 + Math.round(pct * 0.85), 90) + '%' : '30%';
+    } else if (state === 'logging-in') {
+      if (bar) bar.style.width = '5%';
+    } else if (state === 'logged-in') {
+      if (bar) bar.style.width = '15%';
     }
 
     if (_wizState.currentStep === 3) {
@@ -5494,13 +5511,10 @@ async function _guPoll() {
 
     const state = gogData.state;
     if (statusEl) {
-      statusEl.textContent =
-        state === 'logging-in'  ? 'Logging in to GOG…' :
-        state === 'logged-in'   ? 'Logged in — preparing download…' :
-        state === 'downloading' ? 'Downloading game files…' :
-        state === 'done'        ? 'Download complete!' :
-        state === 'error'       ? `Error: ${gogData.error || 'Download failed'}` :
-                                  'Working…';
+      const pct = _gogExtractPct(gogData.lines);
+      statusEl.textContent = state === 'error'
+        ? `Error: ${gogData.lastError || 'Download failed'}`
+        : _gogStatusText(state, pct);
       statusEl.style.color = state === 'error' ? '#ef4444' : 'var(--accent)';
     }
 

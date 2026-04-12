@@ -12,6 +12,7 @@
 const http     = require('http');
 const { spawn, spawnSync } = require('child_process');
 const fs       = require('fs');
+const path     = require('path');
 
 const PORT      = parseInt(process.env.GOG_AUTH_PORT || '18701', 10);
 const PHP_APP   = '/app/bin/app.php';
@@ -25,8 +26,9 @@ const GOG_AUTH_URL =
   '&response_type=code&layout=client2';
 
 // State machine: idle → logging-in → logged-in → downloading → done | error
-let state     = 'idle';
-let lastError = '';
+let state           = 'idle';
+let lastError       = '';
+let _lastProgressPct = -1; // deduplicate progress lines — only log on pct change
 
 // -- Helpers --
 
@@ -49,7 +51,18 @@ function readBody(req) {
 }
 
 function appendLog(text) {
-  try { fs.appendFileSync(LOG_FILE, text + '\n'); } catch {}
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    // Progress lines: "38.59 MB / 471.15 MB [░░] 8% - …"
+    // Only keep one line per integer percentage point.
+    const pctMatch = line.match(/\]\s*(\d+)%/);
+    if (pctMatch) {
+      const pct = parseInt(pctMatch[1], 10);
+      if (pct === _lastProgressPct) continue;
+      _lastProgressPct = pct;
+    }
+    try { fs.appendFileSync(LOG_FILE, line + '\n'); } catch {}
+  }
 }
 
 // Run PHP CLI synchronously (login, games list)
@@ -101,6 +114,7 @@ async function runDownload() {
   appendLog(`[GOG] Starting download to ${DOWNLOADS}…`);
 
   // Step 3 — download
+  let downloadOk = false;
   await new Promise(resolve => {
     const proc = runPhpAsync([
       'download',
@@ -112,8 +126,8 @@ async function runDownload() {
     ]);
     proc.on('close', (code) => {
       if (code === 0) {
-        state = 'done';
-        appendLog('[GOG] ✅ Download complete.');
+        downloadOk = true;
+        appendLog('[GOG] Download complete — extracting installer…');
       } else {
         state = 'error';
         lastError = `Download process exited with code ${code}`;
@@ -125,6 +139,97 @@ async function runDownload() {
       state = 'error';
       lastError = err.message;
       appendLog(`[GOG] ❌ Process error: ${err.message}`);
+      resolve();
+    });
+  });
+
+  if (!downloadOk) return;
+
+  // Step 4 — extract the GOG Linux .sh installer
+  state = 'extracting';
+  await extractGogInstaller();
+}
+
+// Find the downloaded .sh installer, extract it with MojoSetup, copy game files to DOWNLOADS root
+async function extractGogInstaller() {
+  // Find .sh installer under DOWNLOADS
+  const findResult = spawnSync('find', [DOWNLOADS, '-name', '*.sh', '-type', 'f'], {
+    encoding: 'utf-8', timeout: 10000,
+  });
+  const installerPath = (findResult.stdout || '').trim().split('\n').filter(Boolean)[0];
+
+  if (!installerPath) {
+    // No installer — check if the binary is already present (e.g. already extracted)
+    if (fs.existsSync(path.join(DOWNLOADS, 'StardewValley'))) {
+      state = 'done';
+      appendLog('[GOG] ✅ Game files ready.');
+    } else {
+      state = 'error';
+      lastError = 'No installer found and no game binary present after download';
+      appendLog(`[GOG] ❌ ${lastError}`);
+    }
+    return;
+  }
+
+  appendLog(`[GOG] Extracting: ${path.basename(installerPath)}…`);
+  const extractDir = '/tmp/gog-extract';
+  try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
+
+  await new Promise(resolve => {
+    // GOG MojoSetup installers support --installpath to override destination
+    const proc = spawn('bash', [installerPath, '--', `--installpath=${extractDir}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, HOME: '/tmp' }, // prevent installer writing to ~/GOG Games
+    });
+    proc.stdout.on('data', d => appendLog(d.toString()));
+    proc.stderr.on('data', d => appendLog(d.toString()));
+
+    proc.on('close', async () => {
+      // Installer puts game files in <installpath>/game/
+      const gameDataPath = path.join(extractDir, 'game');
+      const gameDataPathAlt = path.join(extractDir, 'data', 'noarch');
+      const actualGamePath = fs.existsSync(gameDataPath)    ? gameDataPath :
+                             fs.existsSync(gameDataPathAlt) ? gameDataPathAlt : null;
+
+      if (actualGamePath) {
+        appendLog('[GOG] Copying game files…');
+        await new Promise(copyResolve => {
+          const cp = spawn('sh', ['-c', `cp -r "${actualGamePath}/." "${DOWNLOADS}/"`], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+          });
+          cp.stdout.on('data', d => appendLog(d.toString()));
+          cp.on('close', copyResolve);
+          cp.on('error', copyResolve);
+        });
+
+        // Clean up installer and temp dir
+        try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
+        try { fs.unlinkSync(installerPath); } catch {}
+        const installerDir = path.dirname(installerPath);
+        if (installerDir !== DOWNLOADS) {
+          try { fs.rmSync(installerDir, { recursive: true, force: true }); } catch {}
+        }
+
+        if (fs.existsSync(path.join(DOWNLOADS, 'StardewValley'))) {
+          state = 'done';
+          appendLog('[GOG] ✅ Game files extracted and ready.');
+        } else {
+          state = 'error';
+          lastError = 'Game binary not found after extraction — check installer format';
+          appendLog(`[GOG] ❌ ${lastError}`);
+        }
+      } else {
+        state = 'error';
+        lastError = 'Could not find game directory in extracted installer';
+        appendLog(`[GOG] ❌ ${lastError}`);
+      }
+      resolve();
+    });
+
+    proc.on('error', (err) => {
+      state = 'error';
+      lastError = `Extraction failed: ${err.message}`;
+      appendLog(`[GOG] ❌ ${lastError}`);
       resolve();
     });
   });
@@ -197,8 +302,9 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    state     = 'downloading';
-    lastError = '';
+    state            = 'downloading';
+    lastError        = '';
+    _lastProgressPct = -1;
     try { fs.writeFileSync(LOG_FILE, ''); } catch {}
 
     // Respond immediately; download runs in background
