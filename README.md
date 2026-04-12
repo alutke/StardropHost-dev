@@ -6,7 +6,11 @@
 
 *24/7 server your friends can join any time, even when you're offline.*
 
-**v1.0.0** · [stardrophost.dev](https://stardrophost.dev) · [Report a Bug](https://github.com/Tomomoto10/StardropHost-dev/issues)
+**v1.0.0** · [Report a Bug](https://github.com/Tomomoto10/StardropHost-dev/issues)
+
+---
+
+*Try the interactive demo and see more guides and info at* **[stardrophost.dev](https://stardrophost.dev)**
 
 </div>
 
