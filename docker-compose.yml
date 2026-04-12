@@ -92,6 +92,7 @@ services:
       - SERVER_PASSWORD=${SERVER_PASSWORD:-}
       - SAVE_NAME=${SAVE_NAME:-}
       - PANEL_PORT=${PANEL_PORT:-18642}
+      - GAME_PORT=${GAME_PORT:-24642}
       - SERVER_MODE=${SERVER_MODE:-lan}
       - STEAM_AUTH_URL=http://stardrop-steam-auth:18700
       - CPU_LIMIT=${CPU_LIMIT:-}
