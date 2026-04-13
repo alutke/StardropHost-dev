@@ -241,8 +241,6 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_upgradecabin",   "Set a farmhand's cabin upgrade level (0-3). Usage: stardrop_upgradecabin <name> <level>", OnUpgradeCabinCommand);
             helper.ConsoleCommands.Add("stardrop_cropsaver",      "Toggle CropSaver on or off. Usage: stardrop_cropsaver <on|off>",                        OnCropSaverCommand);
             helper.ConsoleCommands.Add("stardrop_upgradehouse",    "Upgrade the host farmhouse one level (max 3). Usage: stardrop_upgradehouse [targetLevel]", OnUpgradeHouseCommand);
-            helper.ConsoleCommands.Add("stardrop_addminute",       "Advance game time by 10 minutes.",                                                         OnAddMinuteCommand);
-            helper.ConsoleCommands.Add("stardrop_addhour",         "Advance game time by 1 hour.",                                                             OnAddHourCommand);
             helper.ConsoleCommands.Add("stardrop_watercrops",     "Water all tilled soil on the Farm. Usage: stardrop_watercrops [location]",                OnWaterCropsCommand);
             helper.ConsoleCommands.Add("stardrop_growcrops",      "Grow all crops on the Farm N days. Usage: stardrop_growcrops <days>",                      OnGrowCropsCommand);
             helper.ConsoleCommands.Add("stardrop_growgrass",      "Spread grass on the Farm N times. Usage: stardrop_growgrass <times>",                      OnGrowGrassCommand);
