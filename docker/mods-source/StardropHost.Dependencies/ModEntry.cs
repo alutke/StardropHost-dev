@@ -2130,6 +2130,60 @@ namespace StardropHostDependencies
         }
 
         /// <summary>
+        /// Clears terrain features, large terrain features (bushes), and resource clumps
+        /// from the cabin footprint + door approach tile so a newly placed cabin is accessible.
+        /// Called once when a farmhand's cabin is first shown at its default position.
+        /// </summary>
+        private void ClearCabinArea(Farm farm, Vector2 cabinTile, int width, int height)
+        {
+            try
+            {
+                int x0 = (int)cabinTile.X;
+                int y0 = (int)cabinTile.Y;
+                // +1 row below cabin for door approach tile
+                int clearHeight = height + 1;
+
+                // Remove terrain features (trees, stumps, etc.) and objects in the footprint
+                for (int dy = 0; dy <= clearHeight; dy++)
+                for (int dx = 0; dx < width; dx++)
+                {
+                    var tile = new Vector2(x0 + dx, y0 + dy);
+                    farm.terrainFeatures.Remove(tile);
+                    farm.objects.Remove(tile);
+                }
+
+                // Remove bushes (LargeTerrainFeature) overlapping the area
+                var areaRect = new Rectangle(
+                    x0 * Game1.tileSize, y0 * Game1.tileSize,
+                    width * Game1.tileSize, clearHeight * Game1.tileSize);
+                var bushesToRemove = farm.largeTerrainFeatures
+                    .Where(f => f.getBoundingBox().Intersects(areaRect))
+                    .ToList();
+                foreach (var b in bushesToRemove)
+                    farm.largeTerrainFeatures.Remove(b);
+
+                // Remove resource clumps (stumps, boulders) overlapping the area
+                var clumpsToRemove = farm.resourceClumps
+                    .Where(rc =>
+                    {
+                        var rcRect = new Rectangle(
+                            (int)rc.tile.X * Game1.tileSize, (int)rc.tile.Y * Game1.tileSize,
+                            rc.width.Value * Game1.tileSize, rc.height.Value * Game1.tileSize);
+                        return rcRect.Intersects(areaRect);
+                    })
+                    .ToList();
+                foreach (var rc in clumpsToRemove)
+                    farm.resourceClumps.Remove(rc);
+
+                Monitor.Log($"[CabinStack] Cleared debris at cabin area ({x0},{y0}) size {width}×{height}.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"[CabinStack] ClearCabinArea failed: {ex.Message}", LogLevel.Warn);
+            }
+        }
+
+        /// <summary>
         /// Harmony prefix on GameServer.sendMessage.
         /// Intercepts LocationIntroduction messages destined for a specific peer and
         /// relocates that peer's cabin client-side so they see it at a real farm position.
@@ -2171,9 +2225,20 @@ namespace StardropHostDependencies
                 if (cabinBuilding == null) return;
 
                 // Move cabin to visible position in this client's copy of the message only
+                bool isFirstPlacement = !_cabinPositions.ContainsKey(peerId.ToString());
                 var visiblePos = _cabinPositions.TryGetValue(peerId.ToString(), out var savedPos)
                     ? savedPos
                     : GetDefaultCabinVisiblePosition(farm);
+
+                // On first placement, persist the default position and clear debris on the real farm
+                if (isFirstPlacement)
+                {
+                    _cabinPositions[peerId.ToString()] = visiblePos;
+                    SaveCabinPositions();
+                    ClearCabinArea(Game1.getFarm(), visiblePos,
+                        cabinBuilding.tilesWide.Value, cabinBuilding.tilesHigh.Value);
+                }
+
                 cabinBuilding.tileX.Value = (int)visiblePos.X;
                 cabinBuilding.tileY.Value = (int)visiblePos.Y;
 
