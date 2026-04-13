@@ -31,6 +31,7 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Locations;
+using StardewValley.TerrainFeatures;
 using StardewValley.Menus;
 using StardewValley.Network;
 using StardewValley.Objects;
@@ -239,7 +240,12 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_deletefarmhand", "Delete an offline farmhand and free their cabin. Usage: stardrop_deletefarmhand <name>", OnDeleteFarmhandCommand);
             helper.ConsoleCommands.Add("stardrop_upgradecabin",   "Set a farmhand's cabin upgrade level (0-3). Usage: stardrop_upgradecabin <name> <level>", OnUpgradeCabinCommand);
             helper.ConsoleCommands.Add("stardrop_cropsaver",      "Toggle CropSaver on or off. Usage: stardrop_cropsaver <on|off>",                        OnCropSaverCommand);
-            helper.ConsoleCommands.Add("stardrop_watercrops",     "Water all tilled soil on the Farm. Usage: stardrop_watercrops",                           OnWaterCropsCommand);
+            helper.ConsoleCommands.Add("stardrop_upgradehouse",    "Upgrade the host farmhouse one level (max 3). Usage: stardrop_upgradehouse",            OnUpgradeHouseCommand);
+            helper.ConsoleCommands.Add("stardrop_watercrops",     "Water all tilled soil on the Farm. Usage: stardrop_watercrops [location]",                OnWaterCropsCommand);
+            helper.ConsoleCommands.Add("stardrop_growcrops",      "Grow all crops on the Farm N days. Usage: stardrop_growcrops <days>",                      OnGrowCropsCommand);
+            helper.ConsoleCommands.Add("stardrop_growgrass",      "Spread grass on the Farm N times. Usage: stardrop_growgrass <times>",                      OnGrowGrassCommand);
+            helper.ConsoleCommands.Add("stardrop_growwildtrees",  "Grow all wild trees on the Farm to maturity. Usage: stardrop_growwildtrees",               OnGrowWildTreesCommand);
+            helper.ConsoleCommands.Add("stardrop_fruittrees",     "Add a month of growth to all fruit trees on the Farm. Usage: stardrop_fruittrees",          OnFruitTreesCommand);
 
             // Player limit — read once at startup from env, enforced every tick in OnUpdateTicked
             var envLimit = Environment.GetEnvironmentVariable("PLAYER_LIMIT");
@@ -1395,20 +1401,120 @@ namespace StardropHostDependencies
                 $"You will be disconnected in 10 seconds — log back in to see the changes.");
         }
 
+        private void OnUpgradeHouseCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer)
+            {
+                Monitor.Log("[Admin] stardrop_upgradehouse requires an active hosted session.", LogLevel.Warn);
+                return;
+            }
+
+            int current = Game1.player.houseUpgradeLevel.Value;
+            if (current >= 3)
+            {
+                Monitor.Log("[Admin] Farmhouse is already at max upgrade level (3).", LogLevel.Warn);
+                return;
+            }
+
+            // Block if any farmhand is currently inside the FarmHouse
+            var farmhands = Game1.getOnlineFarmers().Where(f => !f.IsMainPlayer);
+            var inside = farmhands.Where(f => f.currentLocation?.Name == "FarmHouse").ToList();
+            if (inside.Any())
+            {
+                var names = string.Join(", ", inside.Select(f => f.Name));
+                Monitor.Log($"[Admin] Cannot upgrade farmhouse — {names} is currently inside.", LogLevel.Warn);
+                foreach (var f in inside)
+                    Game1.chatBox?.textBoxEnter(
+                        $"/message {f.Name} A farmhouse upgrade was requested, but you must leave the farmhouse first. Please step outside and ask the host to try again.");
+                return;
+            }
+
+            Game1.player.houseUpgradeLevel.Value = current + 1;
+
+            // Always remove the crib — not relevant on a server
+            Game1.player.cribStyle.Value = 0;
+
+            Monitor.Log($"[Admin] Upgraded farmhouse from level {current} to {current + 1}.", LogLevel.Info);
+        }
+
+        private GameLocation? ResolveLocation(string[] args, int argIndex)
+        {
+            string name = args.Length > argIndex ? args[argIndex] : "Farm";
+            var loc = Game1.getLocationFromName(name);
+            if (loc == null) Monitor.Log($"[FarmControls] Location '{name}' not found or not loaded.", LogLevel.Warn);
+            return loc;
+        }
+
         private void OnWaterCropsCommand(string cmd, string[] args)
         {
             if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farm = Game1.getFarm();
+            var loc = ResolveLocation(args, 0);
+            if (loc == null) return;
             int count = 0;
-            foreach (var tf in farm.terrainFeatures.Values)
-            {
-                if (tf is StardewValley.TerrainFeatures.HoeDirt dirt)
+            foreach (var tf in loc.terrainFeatures.Values)
+                if (tf is HoeDirt dirt) { dirt.state.Value = HoeDirt.watered; count++; }
+            Monitor.Log($"[FarmControls] Watered {count} tilled soil tile(s) on {loc.Name}.", LogLevel.Info);
+        }
+
+        private void OnGrowCropsCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            if (args.Length < 1 || !int.TryParse(args[0], out int days) || days < 1)
+            { Monitor.Log("Usage: stardrop_growcrops <days> [location]", LogLevel.Info); return; }
+            var loc = ResolveLocation(args, 1);
+            if (loc == null) return;
+            int count = 0;
+            foreach (var pair in loc.terrainFeatures.Pairs)
+                if (pair.Value is HoeDirt hd && hd.crop != null)
                 {
-                    dirt.state.Value = StardewValley.TerrainFeatures.HoeDirt.watered;
+                    for (int i = 0; i < days; i++)
+                        hd.crop.newDay(HoeDirt.watered, hd, pair.Key, loc);
                     count++;
                 }
-            }
-            Monitor.Log($"[FarmControls] Watered {count} tilled soil tile(s) on the Farm.", LogLevel.Info);
+            Monitor.Log($"[FarmControls] Grew {count} crop(s) by {days} day(s) on {loc.Name}.", LogLevel.Info);
+        }
+
+        private void OnGrowGrassCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            if (args.Length < 1 || !int.TryParse(args[0], out int times) || times < 1)
+            { Monitor.Log("Usage: stardrop_growgrass <times> [location]", LogLevel.Info); return; }
+            var loc = ResolveLocation(args, 1);
+            if (loc == null) return;
+            for (int i = 0; i < times; i++)
+                foreach (var tf in loc.terrainFeatures.Values.ToList())
+                    if (tf is Grass grass)
+                        grass.tickUpdate(new Microsoft.Xna.Framework.GameTime(), tf.currentTileLocation, loc);
+            Monitor.Log($"[FarmControls] Spread grass {times} time(s) on {loc.Name}.", LogLevel.Info);
+        }
+
+        private void OnGrowWildTreesCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var loc = ResolveLocation(args, 0);
+            if (loc == null) return;
+            int count = 0;
+            foreach (var tf in loc.terrainFeatures.Values)
+                if (tf is Tree tree && tree.growthStage.Value < Tree.treeStage)
+                { tree.growthStage.Value = Tree.treeStage; count++; }
+            Monitor.Log($"[FarmControls] Grew {count} wild tree(s) to maturity on {loc.Name}.", LogLevel.Info);
+        }
+
+        private void OnFruitTreesCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var loc = ResolveLocation(args, 0);
+            if (loc == null) return;
+            int count = 0;
+            foreach (var tf in loc.terrainFeatures.Values)
+                if (tf is FruitTree ft)
+                {
+                    ft.daysUntilMature.Value = Math.Max(0, ft.daysUntilMature.Value - 28);
+                    if (ft.daysUntilMature.Value <= 0)
+                        ft.growthStage.Value = FruitTree.treeStage;
+                    count++;
+                }
+            Monitor.Log($"[FarmControls] Added a month of growth to {count} fruit tree(s) on {loc.Name}.", LogLevel.Info);
         }
 
         private void OnCropSaverCommand(string cmd, string[] args)

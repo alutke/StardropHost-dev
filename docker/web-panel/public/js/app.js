@@ -2405,13 +2405,9 @@ function setBuildPermissionCmd(btn) {
 async function upgradeHouseCmd(btn) {
   btn.disabled = true;
   btn.style.opacity = '0.4';
-  const r = await API.post('/api/players/admin-command', { command: 'debug upgradehouse' }).catch(() => null);
-  if (r?.success) {
-    await API.post('/api/players/admin-command', { command: 'debug crib 0' }).catch(() => null);
-    showToast('Success: House upgraded', 'success');
-  } else {
-    showToast(r?.error || 'Failed — is the server running?', 'error');
-  }
+  const r = await API.post('/api/players/admin-command', { command: 'stardrop_upgradehouse' }).catch(() => null);
+  if (r?.success) showToast('Success: House upgraded', 'success');
+  else showToast(r?.error || 'Failed — is the server running?', 'error');
   btn.disabled = false;
   btn.style.opacity = '';
 }
@@ -2422,17 +2418,28 @@ function onGrowTypeChange() {
   el.style.display = ['growwildtrees', 'fruittrees'].includes(type) ? 'none' : '';
 }
 
+function _farmCmdLocation() {
+  return document.getElementById('farmCmdLocation')?.value || 'Farm';
+}
+
+function waterCropsCmd(btn) {
+  const loc = _farmCmdLocation();
+  worldCmd('stardrop_watercrops', loc, null, btn, `Success: All tilled soil watered (${loc})`);
+}
+
 function growCmd(btn) {
   const type = document.getElementById('farmGrowType').value;
-  const n = parseInt(document.getElementById('farmGrowDays').value, 10);
+  const loc  = _farmCmdLocation();
+  const n    = parseInt(document.getElementById('farmGrowDays').value, 10);
   const noParam = ['growwildtrees', 'fruittrees'];
-  const labels = { growcrops: 'Crops', growgrass: 'Grass', growwildtrees: 'Wild Trees', fruittrees: 'Fruit Trees' };
-  const label = labels[type] || type;
+  const labels  = { growcrops: 'Crops', growgrass: 'Grass', growwildtrees: 'Wild Trees', fruittrees: 'Fruit Trees' };
+  const label   = labels[type] || type;
+  const cmd     = `stardrop_${type}`;
   if (noParam.includes(type)) {
-    worldCmd('debug', type, null, btn, `Success: ${label} grown`);
+    worldCmd(cmd, loc, null, btn, `Success: ${label} grown (${loc})`);
   } else {
     if (!n || n < 1) { showToast('Enter a number of days', 'error'); return; }
-    worldCmd('debug', `${type} ${n}`, null, btn, `Success: ${label} grown ${n} day${n === 1 ? '' : 's'}`);
+    worldCmd(cmd, `${n} ${loc}`, null, btn, `Success: ${label} grown ${n} day${n === 1 ? '' : 's'} (${loc})`);
   }
 }
 

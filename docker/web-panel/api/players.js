@@ -568,7 +568,8 @@ const ALLOWED_ADMIN_COMMANDS = new Set([
   'world_freezetime', 'hurry_all', 'world_clear', 'debug', 'kick',
   'set_farm_type',
   'say',
-  'stardrop_deletefarmhand', 'stardrop_watercrops',
+  'stardrop_deletefarmhand', 'stardrop_upgradehouse', 'stardrop_watercrops',
+  'stardrop_growcrops', 'stardrop_growgrass', 'stardrop_growwildtrees', 'stardrop_fruittrees',
   'stardrop_upgradecabin',
   'stardrop_cropsaver',
 ]);

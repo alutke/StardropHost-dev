@@ -598,9 +598,19 @@
                   </div>
                 </div>
 
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+                  <span class="admin-cmd-label" style="margin:0">Location</span>
+                  <select id="farmCmdLocation" class="form-input" style="width:auto">
+                    <option value="Farm">Farm</option>
+                    <option value="Greenhouse">Greenhouse</option>
+                    <option value="IslandWest">Ginger Island Farm</option>
+                    <option value="IslandNorth">Island North</option>
+                  </select>
+                </div>
+
                 <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Water Crops</span>
-                  <button class="btn btn-sm btn-primary" onclick="worldCmd('stardrop_watercrops', '', null, this, 'Success: All tilled soil watered')">Water All</button>
+                  <button class="btn btn-sm btn-primary" onclick="waterCropsCmd(this)">Water All</button>
                 </div>
 
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
