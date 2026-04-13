@@ -551,15 +551,15 @@
 
                 <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Set Time</span>
-                  <input type="number" id="worldSetTime" class="form-input" placeholder="e.g. 1300 (1pm)" min="600" max="2600" style="width:150px">
+                  <input type="number" id="worldSetTime" class="form-input" placeholder="6am–2am = 0600–2600" min="600" max="2600" style="width:150px">
                   <button class="btn btn-sm btn-primary" onclick="worldCmd('world_settime', document.getElementById('worldSetTime').value, 'worldSetTime')">Set</button>
                 </div>
 
                 <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Time Shortcuts</span>
-                  <button class="btn btn-sm" onclick="worldCmd('addminute', '')">+10 Min</button>
-                  <button class="btn btn-sm" onclick="worldCmd('addhour', '')">+1 Hour</button>
-                  <button class="btn btn-sm btn-warning" onclick="worldCmd('sleep', '')">End Day</button>
+                  <button class="btn btn-sm" onclick="worldCmd('debug', 'addminute')">+10 Min</button>
+                  <button class="btn btn-sm" onclick="worldCmd('debug', 'addhour')">+1 Hour</button>
+                  <button class="btn btn-sm btn-warning" onclick="worldCmd('world_settime', '2600')">End Day</button>
                 </div>
 
                 <div class="admin-cmd-row">
