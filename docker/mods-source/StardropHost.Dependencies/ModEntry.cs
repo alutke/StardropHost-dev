@@ -1178,7 +1178,7 @@ namespace StardropHostDependencies
             Game1.player.farmName.Value      = cfg.FarmName;
             Game1.player.favoriteThing.Value = string.IsNullOrWhiteSpace(cfg.FavoriteThing) ? "Farming" : cfg.FavoriteThing;
             Game1.player.isCustomized.Value  = true;
-            Game1.player.whichPetType        = cfg.PetSpecies.Equals("dog", StringComparison.OrdinalIgnoreCase) ? "dog" : "cat";
+            Game1.player.whichPetType        = cfg.PetSpecies.Equals("dog", StringComparison.OrdinalIgnoreCase) ? "Dog" : "Cat";
             Game1.player.whichPetBreed       = cfg.PetBreed.ToString();
             Game1.startingCabins             = Math.Clamp(cfg.CabinCount, 1, 16);
             Game1.cabinsSeparate             = cfg.CabinLayout.Equals("separate", StringComparison.OrdinalIgnoreCase);
