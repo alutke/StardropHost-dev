@@ -6060,10 +6060,14 @@ async function loadServersPage() {
 }
 
 async function _refreshPeerStatuses(selfHost, peers) {
+  const remote = _isRemoteAccess();
   peers.forEach(async (peer, i) => {
     try {
-      const resp = await fetch(`http://${selfHost}:${peer.port}/api/instances`,
-        { signal: AbortSignal.timeout(3000) });
+      // When remote, use the peer's remoteAlias — the LAN address is unreachable from outside
+      const url = (remote && peer.remoteAlias)
+        ? `${peer.remoteAlias.replace(/\/?$/, '')}/api/instances`
+        : `http://${selfHost}:${peer.port}/api/instances`;
+      const resp = await fetch(url, { signal: AbortSignal.timeout(3000) });
       if (!resp.ok) return;
       const d = await resp.json();
       const s = d?.self || {};
@@ -6253,11 +6257,15 @@ async function _connectToServer(idx) {
   localStorage.setItem(`peer-chat-ts-${s.port}`, String(Math.floor(Date.now() / 1000)));
 
   // Build peer list to pass to destination — includes self + all current peers.
-  // Use the browser's own hostname (what the user actually connects to), not the
-  // container-internal IP that hostname -I returns inside Docker.
+  // Use the real panel port, never window.location.port (may be a playit tunnel port).
+  let selfPort = lastStatusData?.panelPort || null;
+  if (!selfPort) {
+    try { const d = await API.get('/api/instances'); selfPort = d?.self?.port || null; } catch {}
+  }
+  selfPort = selfPort || 18642;
   const selfData = {
     host: _selfContainerIp || _cachedLanIp || window.location.hostname,
-    port: lastStatusData?.panelPort || parseInt(window.location.port || '18642', 10),
+    port: selfPort,
     name: lastStatusData?.live?.farmName || lastStatusData?.farmName || 'StardropHost',
   };
   const allPeers = [selfData, ..._serversPeers.filter((_, i) => i !== idx)];
