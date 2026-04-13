@@ -2259,9 +2259,12 @@ async function loadFarm() {
           <svg class="icon" style="width:14px;height:14px"><use href="#icon-edit"></use></svg>
         </button>
       </div>
-      <div class="detail-item">
+      <div class="detail-item" style="position:relative">
         <div class="detail-label">Farm Type</div>
         <div class="detail-value">${escapeHtml(data.farmType || '--')}</div>
+        <button class="btn-detail-edit" onclick="openFarmTypeModal('${escapeHtml(data.farmType || '')}')" title="Change farm type" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;line-height:1;border-radius:4px" onmouseenter="this.style.color='var(--text-primary)'" onmouseleave="this.style.color='var(--text-muted)'">
+          <svg class="icon" style="width:14px;height:14px"><use href="#icon-edit"></use></svg>
+        </button>
       </div>
       <div class="detail-item">
         <div class="detail-label">Combined Money</div>
@@ -2340,6 +2343,52 @@ async function farmNameConfirmApply() {
   } else {
     showToast('Farm name saved');
     loadFarm();
+  }
+}
+
+// ─── Farm Type Edit ───────────────────────────────────────────────
+
+const _FARM_TYPE_NAMES = ['Standard','Riverland','Forest','Hill-top','Wilderness','Four Corners','Beach','Meadowlands'];
+let _pendingFarmType = null;
+
+function openFarmTypeModal(currentTypeName) {
+  const sel = document.getElementById('farmTypeModalSelect');
+  const idx = _FARM_TYPE_NAMES.findIndex(n => n.toLowerCase() === (currentTypeName || '').toLowerCase());
+  sel.value = idx >= 0 ? String(idx) : '0';
+  document.getElementById('farmTypeModal').style.display = 'flex';
+}
+
+function closeFarmTypeModal() {
+  document.getElementById('farmTypeModal').style.display = 'none';
+}
+
+function farmTypeModalSubmit() {
+  const val = document.getElementById('farmTypeModalSelect').value;
+  const name = _FARM_TYPE_NAMES[parseInt(val, 10)] || 'Standard';
+  closeFarmTypeModal();
+  _pendingFarmType = val;
+  document.getElementById('farmTypeConfirmMsg').innerHTML =
+    `Change farm type to "<strong>${name}</strong>"?<br><br>` +
+    `⚠️ <strong>Warning:</strong> This changes the farm map layout immediately. Any crops, placed items, buildings, or flooring in areas that no longer exist on the new layout may be destroyed or behave unexpectedly. This cannot be undone.`;
+  document.getElementById('farmTypeConfirmModal').style.display = 'flex';
+}
+
+function farmTypeConfirmCancel() {
+  document.getElementById('farmTypeConfirmModal').style.display = 'none';
+  _pendingFarmType = null;
+}
+
+async function farmTypeConfirmApply() {
+  const val = _pendingFarmType;
+  if (val == null) return;
+  _pendingFarmType = null;
+  document.getElementById('farmTypeConfirmModal').style.display = 'none';
+  const data = await API.post('/api/players/admin-command', { command: `set_farm_type ${val}` }).catch(() => null);
+  if (data?.success) {
+    showToast('Farm type updated');
+    loadFarm();
+  } else {
+    showToast(data?.error || 'Failed — is the server running?', 'error');
   }
 }
 
@@ -3434,20 +3483,9 @@ function closeAdminModal() {
   _adminPlayer = null;
 }
 
-// Map host-only ConsoleCommands to per-farmhand stardrop_ equivalents
-const _FARMHAND_CMD_MAP = {
-  'player_sethealth':    (name, val) => `stardrop_sethealth ${name} ${val}`,
-  'player_setmaxhealth': (name, val) => `stardrop_setmaxhealth ${name} ${val}`,
-  'player_setstamina':   (name, val) => `stardrop_setstamina ${name} ${val}`,
-  'player_setmaxstamina':(name, val) => `stardrop_setmaxstamina ${name} ${val}`,
-  'player_setmoney':     (name, val) => `stardrop_setmoney ${name} ${val}`,
-};
-
 async function sendAdminCmd(base, value) {
   if (!value && value !== 0) return;
-  const name = _adminPlayer?.name;
-  const remap = name && _FARMHAND_CMD_MAP[base];
-  const command = remap ? remap(name, value) : `${base} ${value}`;
+  const command = `${base} ${value}`;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
   _showAdminResult(data?.success, command, data?.error);
 }
@@ -3455,8 +3493,7 @@ async function sendAdminCmd(base, value) {
 async function sendAdminGiveItem() {
   if (!_selectedItemId) { _showAdminResult(false, '', 'Browse and select an item first'); return; }
   const qty = parseInt(document.getElementById('adminItemQty').value || '1', 10) || 1;
-  const name = _adminPlayer?.name;
-  const command = name ? `stardrop_give ${name} ${_selectedItemId} ${qty}` : `player_add ${_selectedItemId} ${qty}`;
+  const command = `player_add ${_selectedItemId} ${qty}`;
   const data = await API.post('/api/players/admin-command', { command }).catch(() => null);
   _showAdminResult(data?.success, command, data?.error);
 }
@@ -3642,28 +3679,6 @@ function toggleEmoteMenu() {
   else document.getElementById('chatEmoteBtn').classList.remove('active');
 }
 
-async function sendEmote(name) {
-  document.getElementById('chatEmoteMenu').style.display = 'none';
-  document.getElementById('chatEmoteBtn').classList.remove('active');
-
-  const emoteId = EMOTE_IDS[name];
-  if (emoteId === undefined) return;
-
-  if (_chatTarget) {
-    // DM mode — play on the target player only
-    await API.post('/api/players/admin-command', {
-      command: `stardrop_emote ${_chatTarget} ${emoteId}`,
-    }).catch(() => null);
-  } else {
-    // World chat — play on every online non-host farmhand
-    const farmhands = (_lastPlayersData?.players || []).filter(p => !p.isHost);
-    await Promise.all(farmhands.map(p =>
-      API.post('/api/players/admin-command', {
-        command: `stardrop_emote ${p.name} ${emoteId}`,
-      }).catch(() => null)
-    ));
-  }
-}
 
 // Close emote menu when clicking outside
 document.addEventListener('click', e => {
@@ -6062,6 +6077,14 @@ async function loadServersPage() {
 async function _refreshPeerStatuses(selfHost, peers) {
   const remote = _isRemoteAccess();
   peers.forEach(async (peer, i) => {
+    // When remote with no alias, we can't reach this peer — show "No remote"
+    if (remote && !peer.remoteAlias) {
+      const dot   = document.getElementById(`peer-status-dot-${i}`);
+      const label = document.getElementById(`peer-status-label-${i}`);
+      if (dot)   dot.className = 'status-dot restarting';
+      if (label) { label.textContent = 'No remote'; label.style.color = '#f59e0b'; }
+      return;
+    }
     try {
       // When remote, use the peer's remoteAlias — the LAN address is unreachable from outside
       const url = (remote && peer.remoteAlias)

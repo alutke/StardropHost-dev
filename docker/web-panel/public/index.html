@@ -556,6 +556,13 @@
                 </div>
 
                 <div class="admin-cmd-row">
+                  <span class="admin-cmd-label">Time Shortcuts</span>
+                  <button class="btn btn-sm" onclick="worldCmd('addminute', '')">+10 Min</button>
+                  <button class="btn btn-sm" onclick="worldCmd('addhour', '')">+1 Hour</button>
+                  <button class="btn btn-sm btn-warning" onclick="worldCmd('sleep', '')">End Day</button>
+                </div>
+
+                <div class="admin-cmd-row">
                   <span class="admin-cmd-label">Set Day</span>
                   <input type="number" id="worldSetDay" class="form-input" placeholder="1 – 28" min="1" max="28" style="width:100px">
                   <button class="btn btn-sm btn-primary" onclick="worldCmd('world_setday', document.getElementById('worldSetDay').value, 'worldSetDay')">Set</button>
@@ -1930,6 +1937,40 @@
       <div class="modal-actions">
         <button class="btn btn-sm btn-secondary" type="button" onclick="farmNameConfirmCancel()">Cancel</button>
         <button class="btn btn-sm btn-primary" id="farmNameConfirmBtn" type="button" onclick="farmNameConfirmApply()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Farm Type Edit Modal ──────────────────────────────────── -->
+  <div id="farmTypeModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeFarmTypeModal()">
+    <div class="modal-dialog" style="max-width:380px">
+      <h3>Change Farm Type</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin:10px 0 16px">Changes the farm type in the running game via SMAPI. The map layout will update immediately.</p>
+      <select id="farmTypeModalSelect" class="input" style="width:100%;margin-bottom:20px">
+        <option value="0">Standard — balanced, good for beginners</option>
+        <option value="1">Riverland — lots of water, great for fishing</option>
+        <option value="2">Forest — foraging focus, stumps regrow</option>
+        <option value="3">Hill-top — mining focus, ore spawns on farm</option>
+        <option value="4">Wilderness — monsters spawn at night</option>
+        <option value="5">Four Corners — split layout, great for co-op</option>
+        <option value="6">Beach — unique crops, no sprinklers</option>
+        <option value="7">Meadowlands — grass starts grown, chicken included</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn btn-sm btn-secondary" type="button" onclick="closeFarmTypeModal()">Cancel</button>
+        <button class="btn btn-sm btn-primary" type="button" onclick="farmTypeModalSubmit()">Change</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Farm Type Confirm Modal ───────────────────────────────── -->
+  <div id="farmTypeConfirmModal" class="modal-overlay" style="display:none">
+    <div class="modal-dialog" style="max-width:420px">
+      <h3>Confirm Farm Type Change</h3>
+      <p id="farmTypeConfirmMsg" style="font-size:13px;line-height:1.6;color:var(--text-secondary)"></p>
+      <div class="modal-actions">
+        <button class="btn btn-sm btn-secondary" type="button" onclick="farmTypeConfirmCancel()">Cancel</button>
+        <button class="btn btn-sm btn-warning" type="button" onclick="farmTypeConfirmApply()">I understand, change it</button>
       </div>
     </div>
   </div>

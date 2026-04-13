@@ -236,14 +236,6 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("say",   "Broadcast a chat message as host. Usage: say <message>",    OnSayCommand);
             helper.ConsoleCommands.Add("tell",  "Send a private message. Usage: tell <player> <message>",    OnTellCommand);
 
-            // Per-farmhand admin commands (used by web panel admin modal)
-            helper.ConsoleCommands.Add("stardrop_sethealth",    "Set a farmhand's health. Usage: stardrop_sethealth <name> <amount>",        OnSetHealthCommand);
-            helper.ConsoleCommands.Add("stardrop_setmaxhealth","Set a farmhand's max health. Usage: stardrop_setmaxhealth <name> <amount>",  OnSetMaxHealthCommand);
-            helper.ConsoleCommands.Add("stardrop_setstamina",  "Set a farmhand's stamina. Usage: stardrop_setstamina <name> <amount>",       OnSetStaminaCommand);
-            helper.ConsoleCommands.Add("stardrop_setmaxstamina","Set a farmhand's max stamina. Usage: stardrop_setmaxstamina <name> <amount>",OnSetMaxStaminaCommand);
-            helper.ConsoleCommands.Add("stardrop_setmoney",    "Set a farmhand's money. Usage: stardrop_setmoney <name> <amount>",            OnSetMoneyCommand);
-            helper.ConsoleCommands.Add("stardrop_give",        "Give item to a farmhand. Usage: stardrop_give <name> <itemId> <count>",       OnGiveItemCommand);
-            helper.ConsoleCommands.Add("stardrop_emote",          "Play emote for a farmhand. Usage: stardrop_emote <name> <emoteId>",                  OnEmoteCommand);
             helper.ConsoleCommands.Add("stardrop_deletefarmhand", "Delete an offline farmhand and free their cabin. Usage: stardrop_deletefarmhand <name>", OnDeleteFarmhandCommand);
             helper.ConsoleCommands.Add("stardrop_upgradecabin",   "Set a farmhand's cabin upgrade level (0-3). Usage: stardrop_upgradecabin <name> <level>", OnUpgradeCabinCommand);
             helper.ConsoleCommands.Add("stardrop_cropsaver",      "Toggle CropSaver on or off. Usage: stardrop_cropsaver <on|off>",                        OnCropSaverCommand);
@@ -1285,96 +1277,6 @@ namespace StardropHostDependencies
             // Attempt a private whisper via SDV's /message chat command.
             Game1.chatBox.textBoxEnter($"/message {targetName} {message}");
             AppendChatLog(Game1.player.Name, message, true, targetName);
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        // PER-FARMHAND ADMIN COMMANDS
-        // ════════════════════════════════════════════════════════════════════
-
-        private void OnSetHealthCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_sethealth <name> <amount>", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            if (!int.TryParse(args[1], out int amount)) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
-            farmer.health = Math.Clamp(amount, 0, farmer.maxHealth);
-            Monitor.Log($"[Admin] Set {farmer.Name} health to {farmer.health}.", LogLevel.Info);
-        }
-
-        private void OnSetStaminaCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_setstamina <name> <amount>", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            if (!float.TryParse(args[1], out float amount)) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
-            farmer.stamina = Math.Clamp(amount, 0f, farmer.maxStamina.Value);
-            Monitor.Log($"[Admin] Set {farmer.Name} stamina to {farmer.stamina}.", LogLevel.Info);
-        }
-
-        private void OnSetMaxHealthCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_setmaxhealth <name> <amount>", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            if (!int.TryParse(args[1], out int amount) || amount < 1) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
-            farmer.maxHealth = amount;
-            farmer.health = Math.Clamp(farmer.health, 0, farmer.maxHealth);
-            Monitor.Log($"[Admin] Set {farmer.Name} max health to {farmer.maxHealth}.", LogLevel.Info);
-        }
-
-        private void OnSetMaxStaminaCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_setmaxstamina <name> <amount>", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            if (!int.TryParse(args[1], out int amount) || amount < 1) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
-            farmer.maxStamina.Value = amount;
-            farmer.stamina = Math.Clamp(farmer.stamina, 0f, farmer.maxStamina.Value);
-            Monitor.Log($"[Admin] Set {farmer.Name} max stamina to {farmer.maxStamina.Value}.", LogLevel.Info);
-        }
-
-        private void OnSetMoneyCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_setmoney <name> <amount>", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            if (!int.TryParse(args[1], out int amount) || amount < 0) { Monitor.Log("[Admin] Invalid amount.", LogLevel.Warn); return; }
-            farmer.Money = amount;
-            Monitor.Log($"[Admin] Set {farmer.Name} money to {farmer.Money}.", LogLevel.Info);
-        }
-
-        private void OnGiveItemCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_give <name> <itemId> [count]", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            string itemId = args[1];
-            int count = args.Length >= 3 && int.TryParse(args[2], out int c) ? Math.Max(1, c) : 1;
-            try
-            {
-                var item = ItemRegistry.Create(itemId, count);
-                if (item == null) { Monitor.Log($"[Admin] Unknown item ID: {itemId}.", LogLevel.Warn); return; }
-                farmer.addItemByMenuIfNecessary(item);
-                Monitor.Log($"[Admin] Gave {count}x {item.DisplayName} to {farmer.Name}.", LogLevel.Info);
-            }
-            catch (Exception ex) { Monitor.Log($"[Admin] Give item failed: {ex.Message}", LogLevel.Warn); }
-        }
-
-        private void OnEmoteCommand(string cmd, string[] args)
-        {
-            if (args.Length < 2) { Monitor.Log("Usage: stardrop_emote <name> <emoteId>", LogLevel.Info); return; }
-            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
-            var farmer = FindFarmhand(args[0]);
-            if (farmer == null) { Monitor.Log($"[Admin] Farmhand '{args[0]}' not found.", LogLevel.Warn); return; }
-            if (!int.TryParse(args[1], out int emoteId)) { Monitor.Log("[Admin] emoteId must be an integer.", LogLevel.Warn); return; }
-            farmer.doEmote(emoteId);
-            Monitor.Log($"[Admin] Played emote {emoteId} for {farmer.Name}.", LogLevel.Info);
         }
 
         private void OnDeleteFarmhandCommand(string cmd, string[] args)
