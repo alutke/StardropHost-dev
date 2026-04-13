@@ -592,9 +592,11 @@
 
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
                   <span class="admin-cmd-label" style="margin:0">Upgrade House</span>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <button class="btn btn-sm btn-primary" onclick="upgradeHouseCmd(this)">Upgrade</button>
-                    <span style="font-size:11px;color:var(--text-muted)">Upgrades host farmhouse one level (max 3). Crib is automatically removed.</span>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                    <select id="upgradeHouseLevel" class="form-input" style="flex:1;min-width:130px" disabled>
+                      <option value="">— level —</option>
+                    </select>
+                    <button id="upgradeHouseBtn" class="btn btn-sm btn-primary" onclick="upgradeHouseCmd(this)" disabled>Upgrade</button>
                   </div>
                 </div>
 

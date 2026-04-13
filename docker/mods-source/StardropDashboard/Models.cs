@@ -34,9 +34,10 @@ namespace StardropDashboard
         public float  MaxStamina    { get; set; }
         public int    Money         { get; set; }
         public long   TotalEarned   { get; set; }
-        public string LocationName  { get; set; } = "";
-        public int    TileX        { get; set; }
-        public int    TileY        { get; set; }
+        public string LocationName      { get; set; } = "";
+        public int    HouseUpgradeLevel { get; set; }
+        public int    TileX            { get; set; }
+        public int    TileY            { get; set; }
         public SkillData Skills    { get; set; } = new();
         public int    DaysPlayed          { get; set; }
         public double TotalPlaytimeHours  { get; set; }

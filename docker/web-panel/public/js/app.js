@@ -1990,6 +1990,7 @@ function updateDashboardUI(data) {
   }
 
   populateUpgradeCabinDropdown();
+  populateUpgradeHouseDropdown();
   renderQuickActions();
   if (data.sysCores)              _populateCpuOptions(data.sysCores);
   if (data.sysMemory?.total > 0)  _populateRamOptions(data.sysMemory.total);
@@ -2402,14 +2403,64 @@ function setBuildPermissionCmd(btn) {
   worldCmd('say', `/movebuildingpermission ${v}`, null, btn, `Success: Build permissions → ${labels[v] || v}`);
 }
 
+let _houseLevelLocal = null; // tracks applied level between status ticks
+
+function populateUpgradeHouseDropdown() {
+  const lvlSel = document.getElementById('upgradeHouseLevel');
+  const btn    = document.getElementById('upgradeHouseBtn');
+  if (!lvlSel || !btn) return;
+
+  // Prefer locally-applied level; fall back to live-status
+  const hostPlayer = lastStatusData?.live?.players?.find(p => p.isHost);
+  const liveLevel  = hostPlayer?.houseUpgradeLevel ?? null;
+  const current    = _houseLevelLocal !== null ? _houseLevelLocal : (liveLevel ?? 0);
+
+  // Sync local if status caught up
+  if (liveLevel !== null && liveLevel >= (_houseLevelLocal ?? 0)) _houseLevelLocal = liveLevel;
+
+  const maxed = current >= 3;
+  const prevVal = parseInt(lvlSel.value) || 0;
+  lvlSel.innerHTML = '';
+
+  if (maxed) {
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = 'Max level reached';
+    lvlSel.appendChild(o);
+  } else {
+    for (let l = current + 1; l <= 3; l++) {
+      const o = document.createElement('option');
+      o.value       = l;
+      o.textContent = `Level ${l} — ${CABIN_LEVEL_NAMES[l]}`;
+      if (l === prevVal) o.selected = true;
+      lvlSel.appendChild(o);
+    }
+  }
+
+  lvlSel.disabled = maxed;
+  btn.disabled    = maxed;
+  btn.title       = maxed ? 'Farmhouse is fully upgraded' : '';
+}
+
 async function upgradeHouseCmd(btn) {
-  btn.disabled = true;
-  btn.style.opacity = '0.4';
-  const r = await API.post('/api/players/admin-command', { command: 'stardrop_upgradehouse' }).catch(() => null);
-  if (r?.success) showToast('Success: House upgraded', 'success');
-  else showToast(r?.error || 'Failed — is the server running?', 'error');
-  btn.disabled = false;
-  btn.style.opacity = '';
+  const lvlSel     = document.getElementById('upgradeHouseLevel');
+  const targetLevel = parseInt(lvlSel?.value);
+  if (!targetLevel) return;
+
+  btn.disabled    = true;
+  lvlSel.disabled = true;
+
+  const r = await API.post('/api/players/admin-command', { command: `stardrop_upgradehouse ${targetLevel}` }).catch(() => null);
+
+  if (r?.success) {
+    _houseLevelLocal = targetLevel;
+    populateUpgradeHouseDropdown();
+    showToast(`Success: Farmhouse upgraded to level ${targetLevel} — ${CABIN_LEVEL_NAMES[targetLevel]}`, 'success');
+  } else {
+    btn.disabled    = false;
+    lvlSel.disabled = false;
+    showToast(r?.error || 'Failed — is the server running?', 'error');
+  }
 }
 
 function onGrowTypeChange() {
@@ -2638,17 +2689,10 @@ async function upgradeCabin() {
       opt.textContent = `${ownerName} — Lv${targetLevel} ${CABIN_LEVEL_NAMES[targetLevel] ?? ''}${targetLevel >= 3 ? ' (Max)' : ' (reconnecting…)'}`;
     }
     onUpgradeCabinSelect();
+    showToast(`Success: ${ownerName}'s cabin upgraded to level ${targetLevel} — reconnecting in ~10s`, 'success');
+  } else {
+    showToast(data?.error || 'Failed — is the server running?', 'error');
   }
-
-  const el = document.getElementById('worldCmdResult');
-  if (!el) return;
-  el.textContent      = data?.success
-    ? `✓ ${ownerName}'s cabin upgraded to level ${targetLevel}. They will be disconnected in ~10s.`
-    : `✗ ${data?.error || 'Failed — is the server running?'}`;
-  el.style.color      = data?.success ? 'var(--accent)' : '#ef4444';
-  el.style.background = data?.success ? 'rgba(167,139,250,0.08)' : 'rgba(239,68,68,0.08)';
-  el.style.display    = '';
-  setTimeout(() => { el.style.display = 'none'; }, 6000);
 }
 
 async function toggleWorldPause() {
@@ -2721,6 +2765,7 @@ async function toggleCropSaver() {
   if (cfgRes?.success !== false) {
     _cropSaverEnabled = newVal;
     _updateCropSaverBtn();
+    showToast(`Success: Crop Saver ${newVal ? 'enabled' : 'disabled'}`, 'success');
   } else {
     showToast('Failed to update Crop Saver setting', 'error');
   }

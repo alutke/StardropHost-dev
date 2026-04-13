@@ -103,9 +103,10 @@ namespace StardropDashboard
                         MaxStamina   = farmer.maxStamina.Value,
                         Money        = farmer.Money,
                         TotalEarned  = (long)farmer.totalMoneyEarned,
-                        LocationName = farmer.currentLocation?.Name ?? "",
-                        TileX        = farmer.TilePoint.X,
-                        TileY        = farmer.TilePoint.Y,
+                        LocationName      = farmer.currentLocation?.Name ?? "",
+                        HouseUpgradeLevel = farmer.HouseUpgradeLevel,
+                        TileX             = farmer.TilePoint.X,
+                        TileY             = farmer.TilePoint.Y,
                         DaysPlayed          = (int)farmer.stats.DaysPlayed,
                         TotalPlaytimeHours  = Math.Round(farmer.millisecondsPlayed / 3600000.0, 1),
                         Skills       = new SkillData

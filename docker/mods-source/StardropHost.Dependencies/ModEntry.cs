@@ -240,7 +240,9 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_deletefarmhand", "Delete an offline farmhand and free their cabin. Usage: stardrop_deletefarmhand <name>", OnDeleteFarmhandCommand);
             helper.ConsoleCommands.Add("stardrop_upgradecabin",   "Set a farmhand's cabin upgrade level (0-3). Usage: stardrop_upgradecabin <name> <level>", OnUpgradeCabinCommand);
             helper.ConsoleCommands.Add("stardrop_cropsaver",      "Toggle CropSaver on or off. Usage: stardrop_cropsaver <on|off>",                        OnCropSaverCommand);
-            helper.ConsoleCommands.Add("stardrop_upgradehouse",    "Upgrade the host farmhouse one level (max 3). Usage: stardrop_upgradehouse",            OnUpgradeHouseCommand);
+            helper.ConsoleCommands.Add("stardrop_upgradehouse",    "Upgrade the host farmhouse one level (max 3). Usage: stardrop_upgradehouse [targetLevel]", OnUpgradeHouseCommand);
+            helper.ConsoleCommands.Add("stardrop_addminute",       "Advance game time by 10 minutes.",                                                         OnAddMinuteCommand);
+            helper.ConsoleCommands.Add("stardrop_addhour",         "Advance game time by 1 hour.",                                                             OnAddHourCommand);
             helper.ConsoleCommands.Add("stardrop_watercrops",     "Water all tilled soil on the Farm. Usage: stardrop_watercrops [location]",                OnWaterCropsCommand);
             helper.ConsoleCommands.Add("stardrop_growcrops",      "Grow all crops on the Farm N days. Usage: stardrop_growcrops <days>",                      OnGrowCropsCommand);
             helper.ConsoleCommands.Add("stardrop_growgrass",      "Spread grass on the Farm N times. Usage: stardrop_growgrass <times>",                      OnGrowGrassCommand);
@@ -1416,6 +1418,11 @@ namespace StardropHostDependencies
                 return;
             }
 
+            // Optional arg: target level (default: current + 1, clamped to 3)
+            int targetLevel = current + 1;
+            if (args.Length > 0 && int.TryParse(args[0], out int t))
+                targetLevel = Math.Clamp(t, current + 1, 3);
+
             // Block if any farmhand is currently inside the FarmHouse
             var farmhands = Game1.getOnlineFarmers().Where(f => !f.IsMainPlayer);
             var inside = farmhands.Where(f => f.currentLocation?.Name == "FarmHouse").ToList();
@@ -1429,12 +1436,12 @@ namespace StardropHostDependencies
                 return;
             }
 
-            Game1.player.houseUpgradeLevel.Value = current + 1;
+            Game1.player.houseUpgradeLevel.Value = targetLevel;
 
             // Always remove the crib — not relevant on a server
             Game1.player.cribStyle.Value = 0;
 
-            Monitor.Log($"[Admin] Upgraded farmhouse from level {current} to {current + 1}.", LogLevel.Info);
+            Monitor.Log($"[Admin] Upgraded farmhouse from level {current} to {targetLevel}.", LogLevel.Info);
         }
 
         private GameLocation? ResolveLocation(string[] args, int argIndex)
