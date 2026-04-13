@@ -15,6 +15,12 @@ const playersAPI  = require('./players');
 // -- Panel start time (used to compute container uptime, not host uptime) --
 const PANEL_START_TIME = Date.now();
 
+// -- System core count — fixed for process lifetime --
+const _sysCores = (() => {
+  try { return parseInt(execSync('nproc --all', { encoding: 'utf-8' }).trim(), 10) || 1; }
+  catch { return 1; }
+})();
+
 // -- System CPU background sampler (1s sample every 5s, cached) --
 const HOST_PROC = fs.existsSync('/host-proc/stat') ? '/host-proc' : '/proc';
 let _sysCpuCache = 0;
@@ -218,7 +224,7 @@ function collectStatus(req = null) {
     sysCpu: 0,
     sysMemory: { used: 0, total: 0 },
     containerCores: getCoreCount(),
-    sysCores: (() => { try { return parseInt(execSync('nproc --all', { encoding: 'utf-8' }).trim(), 10) || 1; } catch { return 1; } })(),
+    sysCores: _sysCores,
     day: null,
     season: null,
     backupCount: 0,

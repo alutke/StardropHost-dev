@@ -595,12 +595,15 @@ namespace StardropHostDependencies
         private void HandleSewersKey()
         {
             if (Game1.player.hasRustyKey) return;
-            if (LibraryMuseum.totalArtifacts >= 60)
+            var museum = Game1.getLocationFromName("ArchaeologyHouse") as LibraryMuseum;
+            if (museum == null) return;
+            int donated = museum.museumPieces.Count();
+            if (donated >= 60)
             {
                 Game1.player.eventsSeen.Add("295672");
                 Game1.player.eventsSeen.Add("66");
                 Game1.player.hasRustyKey = true;
-                Monitor.Log("[Automation] Rusty key granted (60+ artifacts donated).", LogLevel.Info);
+                Monitor.Log($"[Automation] Rusty key granted ({donated} artifacts donated).", LogLevel.Info);
             }
         }
 

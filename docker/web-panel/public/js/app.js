@@ -1580,7 +1580,7 @@ function init() {
   loadBackupStatus();
   renderQuickActions();
   loadPanelVersion();
-  startChatBackgroundPoll();
+  // Chat background poll starts only when players are online (see updateDashboardUI)
 
   document.getElementById('logoutBtn').onclick = () => {
     localStorage.removeItem('panel_token');
@@ -1732,7 +1732,7 @@ function navigateTo(page) {
       initChatColorRow();
       _resetChatLines();
       loadChatMessages();
-      if (!_chatPollTimer) _chatPollTimer = setInterval(loadChatMessages, 3000);
+      if (!_chatPollTimer) _chatPollTimer = setInterval(loadChatMessages, 5000);
       break;
     case 'saves':     loadSaves();                                           break;
     case 'mods':      loadMods();                                            break;
@@ -1935,6 +1935,8 @@ function renderQuickActionsPickerList() {
 
 // ─── Dashboard ───────────────────────────────────────────────────
 async function loadDashboard() {
+  // WebSocket already pushes status every 5s — skip HTTP fetch while connected
+  if (ws && ws.readyState === WebSocket.OPEN) return;
   const data = await API.get('/api/status');
   if (data) updateDashboardUI(data);
 }
@@ -2150,6 +2152,15 @@ function updateDashboardUI(data) {
   const updatesCardDot = document.getElementById('updatesCardDot');
   if (updatesCardDot) updatesCardDot.style.display = hasUpdate ? '' : 'none';
   _updateMenuToggleDot();
+
+  // Chat background notifications — only needed while players are online
+  const playersOnline = (data.players?.online ?? 0) > 0;
+  if (playersOnline) {
+    startChatBackgroundPoll();
+  } else if (_chatBgPoll) {
+    clearInterval(_chatBgPoll);
+    _chatBgPoll = null;
+  }
 
 }
 
