@@ -1488,9 +1488,9 @@ namespace StardropHostDependencies
             var loc = ResolveLocation(args, 1);
             if (loc == null) return;
             for (int i = 0; i < times; i++)
-                foreach (var pair in loc.terrainFeatures.Pairs.ToList())
-                    if (pair.Value is Grass grass)
-                        grass.tickUpdate(new Microsoft.Xna.Framework.GameTime(), pair.Key, loc);
+                foreach (var tf in loc.terrainFeatures.Values.ToList())
+                    if (tf is Grass grass)
+                        grass.tickUpdate(new Microsoft.Xna.Framework.GameTime());
             Monitor.Log($"[FarmControls] Spread grass {times} time(s) on {loc.Name}.", LogLevel.Info);
         }
 
