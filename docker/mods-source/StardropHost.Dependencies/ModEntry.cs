@@ -1436,8 +1436,9 @@ namespace StardropHostDependencies
 
             Game1.player.houseUpgradeLevel.Value = targetLevel;
 
-            // Always remove the crib — not relevant on a server
-            Game1.player.cribStyle.Value = 0;
+            // Remove the crib if the FarmHouse interior exposes it
+            if (Game1.getLocationFromName("FarmHouse") is StardewValley.Locations.FarmHouse farmHouse)
+                farmHouse.cribStyle.Value = 0;
 
             Monitor.Log($"[Admin] Upgraded farmhouse from level {current} to {targetLevel}.", LogLevel.Info);
         }
@@ -1473,7 +1474,7 @@ namespace StardropHostDependencies
                 if (pair.Value is HoeDirt hd && hd.crop != null)
                 {
                     for (int i = 0; i < days; i++)
-                        hd.crop.newDay(HoeDirt.watered, hd, pair.Key, loc);
+                        hd.crop.newDay(HoeDirt.watered);
                     count++;
                 }
             Monitor.Log($"[FarmControls] Grew {count} crop(s) by {days} day(s) on {loc.Name}.", LogLevel.Info);
@@ -1487,9 +1488,9 @@ namespace StardropHostDependencies
             var loc = ResolveLocation(args, 1);
             if (loc == null) return;
             for (int i = 0; i < times; i++)
-                foreach (var tf in loc.terrainFeatures.Values.ToList())
-                    if (tf is Grass grass)
-                        grass.tickUpdate(new Microsoft.Xna.Framework.GameTime(), tf.currentTileLocation, loc);
+                foreach (var pair in loc.terrainFeatures.Pairs.ToList())
+                    if (pair.Value is Grass grass)
+                        grass.tickUpdate(new Microsoft.Xna.Framework.GameTime(), pair.Key, loc);
             Monitor.Log($"[FarmControls] Spread grass {times} time(s) on {loc.Name}.", LogLevel.Info);
         }
 
