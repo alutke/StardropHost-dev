@@ -533,6 +533,9 @@ namespace StardropHostDependencies
             {
                 if (!Game1.player.hasPet())
                 {
+                    // Ensure type/breed are correct — save file may have defaults
+                    Game1.player.whichPetType  = _auto.PetSpecies;
+                    Game1.player.whichPetBreed = _auto.PetBreed.ToString();
                     try { Helper.Reflection.GetMethod(new Event(), "namePet").Invoke(_auto.PetName.Substring(0)); }
                     catch { /* not in a state where this works yet */ }
                 }
@@ -1234,6 +1237,8 @@ namespace StardropHostDependencies
                 {
                     PurchaseJojaMembership = cfg.PurchaseJojaMembership,
                     AcceptPet              = cfg.AcceptPet,
+                    PetSpecies             = cfg.PetSpecies.Equals("dog", StringComparison.OrdinalIgnoreCase) ? "Dog" : "Cat",
+                    PetBreed               = cfg.PetBreed,
                     PetName                = cfg.PetName,
                     MushroomsOrBats        = cfg.MushroomsOrBats,
                 };
@@ -2346,6 +2351,8 @@ namespace StardropHostDependencies
     {
         public bool   PurchaseJojaMembership { get; set; } = false;
         public bool   AcceptPet              { get; set; } = true;
+        public string PetSpecies             { get; set; } = "Cat";
+        public int    PetBreed               { get; set; } = 0;
         public string PetName                { get; set; } = "Stella";
         public string MushroomsOrBats        { get; set; } = "mushrooms";
     }
