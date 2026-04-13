@@ -733,15 +733,130 @@
             </div>
           </details>
 
-          <details class="card admin-cred-details" id="farm-cc-card">
-            <summary>Community Center
+          <div class="card" id="farm-cc-card">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <h3 style="margin:0">Community Center</h3>
               <span id="farmCCSummary" style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);font-weight:400">
                 <span id="farmCCSummaryText">--</span>
                 <span class="cc-room-bar" style="width:80px"><span id="farmCCSummaryFill" class="cc-room-fill" style="width:0%"></span></span>
+                <span id="farmCCSummaryPct" style="min-width:30px;text-align:right">--</span>
               </span>
-            </summary>
-            <div id="farmCCData" style="padding-top:8px">
+            </div>
+            <div id="farmCCData">
               <div class="empty-state">Loading save data...</div>
+            </div>
+          </div>
+
+          <details class="card admin-cred-details" id="farm-cc-controls-card">
+            <summary>Community Controls</summary>
+            <div style="padding-top:10px">
+              <div style="display:flex;flex-direction:column;gap:0">
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="admin-cmd-label" style="margin:0">Complete CC</span>
+                    <button class="btn btn-sm btn-warning" onclick="ccCmd(this,'completecc')">Complete</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted)">Marks all bundles complete and restores all Community Center areas.</div>
+                </div>
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="admin-cmd-label" style="margin:0">Complete Joja</span>
+                    <button class="btn btn-sm btn-warning" onclick="ccCmd(this,'completejoja')">Complete</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted)">Adds all Joja membership flags and completes all Community Development purchases.</div>
+                </div>
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="admin-cmd-label" style="margin:0">All Bundles</span>
+                    <button class="btn btn-sm btn-primary" onclick="ccCmd(this,'allbundles')">Complete All</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted)">Marks all bundles complete — does not restore CC areas or trigger cutscenes.</div>
+                </div>
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="admin-cmd-label" style="margin:0">Reset Bundles</span>
+                    <button class="btn btn-sm btn-warning" onclick="ccCmd(this,'resetjunimonotes')">Reset</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted)">Clears all bundle progress. Does not regenerate — use Regenerate after this to rebuild.</div>
+                </div>
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+                  <span class="admin-cmd-label" style="margin:0">Regenerate Bundles</span>
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <select id="ccRegenType" class="form-input" style="width:auto">
+                      <option value="default">Default</option>
+                      <option value="remixed">Remixed</option>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="ccRegenCmd(this)">Regenerate</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted)">Resets and rebuilds all bundle data. Remixed uses current save seed.</div>
+                </div>
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="admin-cmd-label" style="margin:0">Shuffle Bundles</span>
+                    <button class="btn btn-sm btn-primary" onclick="ccCmd(this,'shufflebundles')">Shuffle</button>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted)">Remixed mode only — regenerates bundles with a random seed (ignores save seed).</div>
+                </div>
+
+                <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px;border-bottom:none">
+                  <span class="admin-cmd-label" style="margin:0">Complete Bundle</span>
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <select id="ccBundleId" class="form-input" style="width:auto">
+                      <optgroup label="Pantry">
+                        <option value="0">Spring Crops (0)</option>
+                        <option value="1">Summer Crops (1)</option>
+                        <option value="2">Fall Crops (2)</option>
+                        <option value="3">Quality Crops (3)</option>
+                        <option value="4">Animal Products (4)</option>
+                        <option value="5">Artisan (5)</option>
+                      </optgroup>
+                      <optgroup label="Crafts Room">
+                        <option value="13">Spring Foraging (13)</option>
+                        <option value="14">Summer Foraging (14)</option>
+                        <option value="15">Fall Foraging (15)</option>
+                        <option value="16">Winter Foraging (16)</option>
+                        <option value="17">Construction (17)</option>
+                        <option value="18">Exotic Foraging (18)</option>
+                      </optgroup>
+                      <optgroup label="Fish Tank">
+                        <option value="6">River Fish (6)</option>
+                        <option value="7">Lake Fish (7)</option>
+                        <option value="8">Ocean Fish (8)</option>
+                        <option value="9">Night Fishing (9)</option>
+                        <option value="10">Specialty Fish (10)</option>
+                        <option value="11">Crab Pot (11)</option>
+                      </optgroup>
+                      <optgroup label="Boiler Room">
+                        <option value="20">Blacksmith (20)</option>
+                        <option value="21">Geologist (21)</option>
+                        <option value="22">Adventurer's (22)</option>
+                      </optgroup>
+                      <optgroup label="Bulletin Board">
+                        <option value="25">Chef's (25)</option>
+                        <option value="26">Dye (26)</option>
+                        <option value="27">Field Research (27)</option>
+                        <option value="28">Fodder (28)</option>
+                        <option value="29">Enchanter's (29)</option>
+                      </optgroup>
+                      <optgroup label="Vault">
+                        <option value="23">2,500g (23)</option>
+                        <option value="24">5,000g (24)</option>
+                        <option value="19">10,000g (19)</option>
+                        <option value="12">25,000g (12)</option>
+                      </optgroup>
+                    </select>
+                    <button class="btn btn-sm btn-primary" onclick="ccBundleCmd(this)">Complete</button>
+                  </div>
+                </div>
+
+              </div>
+              <div id="ccCmdResult" style="display:none;margin-top:10px;font-size:13px;padding:8px;border-radius:6px"></div>
             </div>
           </details>
 

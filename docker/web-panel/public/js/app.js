@@ -2212,41 +2212,36 @@ async function loadFarm() {
   if (data.communityCenter) {
     const cc = data.communityCenter;
     const roomsHtml = Object.entries(cc.rooms).map(([room, info]) => {
-      const done      = info.bundles.filter(b => b.complete).length;
-      const total     = info.bundles.length;
-      const pct       = total ? Math.round(done / total * 100) : 100;
-      const complete  = info.complete;
-      const bundleRows = info.bundles.map(b =>
-        `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:12px">
-          <span style="color:${b.complete ? 'var(--accent)' : 'var(--text-secondary)'}">${escapeHtml(b.name || 'Bundle')}</span>
-          <span style="color:${b.complete ? 'var(--accent)' : 'var(--text-muted)'}">${b.complete ? '✅' : `${b.itemsComplete ?? 0}/${b.itemsRequired ?? '?'}`}</span>
-        </div>`
-      ).join('');
+      const done     = info.bundles.filter(b => b.complete).length;
+      const total    = info.bundles.length;
+      const pct      = total ? Math.round(done / total * 100) : 100;
+      const complete = info.complete;
       return `
-        <details class="cc-room-details"${complete ? '' : ''}>
-          <summary class="cc-room-summary">
-            <span class="cc-room-name">${escapeHtml(room)}</span>
-            <span class="cc-room-meta">
-              <span style="color:${complete ? 'var(--accent)' : 'var(--text-muted)'};font-size:12px">${complete ? '✅ Complete' : `${done}/${total}`}</span>
-              <span class="cc-room-bar"><span class="cc-room-fill" style="width:${pct}%;${complete ? 'background:var(--accent)' : ''}"></span></span>
-              <span style="font-size:11px;color:var(--text-muted);min-width:30px;text-align:right">${pct}%</span>
-            </span>
-          </summary>
-          <div style="padding:6px 0 2px">${bundleRows}</div>
-        </details>`;
+        <div class="cc-room-summary">
+          <span class="cc-room-name">${escapeHtml(room)}</span>
+          <span class="cc-room-meta">
+            <span style="color:${complete ? 'var(--accent)' : 'var(--text-muted)'};font-size:12px">${complete ? '✅ Complete' : `${done}/${total}`}</span>
+            <span class="cc-room-bar"><span class="cc-room-fill" style="width:${pct}%;${complete ? 'background:var(--accent)' : ''}"></span></span>
+            <span style="font-size:11px;color:var(--text-muted);min-width:30px;text-align:right">${pct}%</span>
+          </span>
+        </div>`;
     }).join('');
 
     const summaryText = document.getElementById('farmCCSummaryText');
     const summaryFill = document.getElementById('farmCCSummaryFill');
-    if (summaryText) summaryText.textContent = `${cc.completedRooms} / ${cc.totalRooms} rooms  ${cc.percentComplete}%`;
+    const summaryPct  = document.getElementById('farmCCSummaryPct');
+    if (summaryText) summaryText.textContent = `${cc.completedRooms} / ${cc.totalRooms} rooms`;
     if (summaryFill) {
       summaryFill.style.width = `${cc.percentComplete}%`;
       summaryFill.style.background = cc.percentComplete === 100 ? 'var(--accent)' : '';
     }
+    if (summaryPct) summaryPct.textContent = `${cc.percentComplete}%`;
     ccEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px">${roomsHtml}</div>`;
   } else {
     const summaryText = document.getElementById('farmCCSummaryText');
-    if (summaryText) summaryText.textContent = '0 / 6 rooms  0%';
+    const summaryPct2 = document.getElementById('farmCCSummaryPct');
+    if (summaryText) summaryText.textContent = '0 / 6 rooms';
+    if (summaryPct2) summaryPct2.textContent = '0%';
     ccEl.innerHTML = '<div class="empty-state">Community Center data not available</div>';
   }
 
@@ -2492,6 +2487,31 @@ function growCmd(btn) {
     if (!n || n < 1) { showToast('Enter a number of days', 'error'); return; }
     worldCmd(cmd, `${n} ${loc}`, null, btn, `Success: ${label} grown ${n} day${n === 1 ? '' : 's'} (${loc})`);
   }
+}
+
+// ─── Community Controls ───────────────────────────────────────────
+
+function ccCmd(btn, command) {
+  const labels = {
+    completecc:       'Success: Community Center completed',
+    completejoja:     'Success: Joja route completed',
+    allbundles:       'Success: All bundles marked complete',
+    resetjunimonotes: 'Success: Bundle progress reset',
+    shufflebundles:   'Success: Bundles shuffled (Remixed)',
+  };
+  worldCmd('debug', command, null, btn, labels[command] || `Success: ${command}`);
+}
+
+function ccRegenCmd(btn) {
+  const type = document.getElementById('ccRegenType').value;
+  const label = type === 'remixed' ? 'Remixed' : 'Default';
+  worldCmd('debug', `regenerate_bundles ${type} confirm`, null, btn, `Success: Bundles regenerated (${label})`);
+}
+
+function ccBundleCmd(btn) {
+  const id = document.getElementById('ccBundleId').value;
+  const name = document.getElementById('ccBundleId').options[document.getElementById('ccBundleId').selectedIndex].text;
+  worldCmd('debug', `bundle ${id}`, null, btn, `Success: Bundle completed — ${name}`);
 }
 
 // ─── World Controls ─ set helpers ────────────────────────────────
