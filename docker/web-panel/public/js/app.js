@@ -2415,12 +2415,18 @@ function farmTypeConfirmCancel() {
 async function farmTypeConfirmApply() {
   const val = _pendingFarmType;
   if (val == null) return;
+  const newName = _FARM_TYPE_NAMES[parseInt(val, 10)] || 'Standard';
   _pendingFarmType = null;
   document.getElementById('farmTypeConfirmModal').style.display = 'none';
   const data = await API.post('/api/players/admin-command', { command: `set_farm_type ${val}` }).catch(() => null);
   if (data?.success) {
-    showToast('Farm type updated');
-    loadFarm();
+    const editBtn = document.querySelector('[onclick^="openFarmTypeModal"]');
+    if (editBtn) {
+      const item = editBtn.closest('.detail-item');
+      if (item) item.querySelector('.detail-value').textContent = newName;
+      editBtn.setAttribute('onclick', `openFarmTypeModal('${newName}')`);
+    }
+    showToast(`Farm type changed to ${newName}`);
   } else {
     showToast(data?.error || 'Failed — is the server running?', 'error');
   }
@@ -2543,12 +2549,12 @@ function ccConfirm(btn, command) {
   const configs = {
     completecc: {
       title: 'Complete Community Center?',
-      msg:   'This will instantly mark all bundles complete and restore all CC areas. This cannot be undone. The CC and Joja buttons will be disabled afterwards.',
+      msg:   'This will instantly mark all bundles complete and unlock all rewards.',
       btnClass: 'btn-warning',
     },
     completejoja: {
       title: 'Complete Joja Route?',
-      msg:   'This will add all Joja membership flags and complete all Community Development purchases. This cannot be undone. The CC and Joja buttons will be disabled afterwards.',
+      msg:   'This will instantly mark all bundles complete and unlock all rewards.',
       btnClass: 'btn-primary',
     },
   };
@@ -3532,7 +3538,7 @@ function populateGiveItemPlayerDropdown() {
     : liveFarmhands;
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select player…</option>' +
-    (farmhands.length ? '<option value="__all__">— All Players —</option>' : '') +
+    (farmhands.length >= 2 ? '<option value="__all__">— All Players —</option>' : '') +
     farmhands.map(name =>
       `<option value="${escapeHtml(name)}"${name === prev ? ' selected' : ''}>${escapeHtml(name)}${onlineNames.has(name) ? '' : ' (offline)'}</option>`
     ).join('');
@@ -3543,8 +3549,8 @@ function populateGiveItemPlayerDropdown() {
 function onGiveItemPlayerChange() {
   _updateGiveItemBtn();
   const player = document.getElementById('giveItemPlayer')?.value;
-  const btn = document.getElementById('removeChestBtn');
-  if (btn) btn.style.display = (player && player !== '__all__' && _playersWithGiftChests.has(player)) ? '' : 'none';
+  const row = document.getElementById('removeChestRow');
+  if (row) row.style.display = (player && player !== '__all__' && _playersWithGiftChests.has(player)) ? '' : 'none';
 }
 
 function onGiveItemCategoryChange() {
@@ -3581,6 +3587,8 @@ async function giveItemCmd(_btn) {
       API.post('/api/players/admin-command', { command: `stardrop_giveitem ${p.name} ${qty} ${quality} ${itemId}` }).catch(() => null)
     ));
     const failed = results.filter(r => !r?.success).length;
+    const succeeded = results.map((r, i) => r?.success ? targets[i].name : null).filter(Boolean);
+    succeeded.forEach(n => _playersWithGiftChests.add(n));
     if (failed === 0) showToast(`${qty}x ${itemLabel} → all cabin chests`, 'success');
     else showToast(`${qty}x ${itemLabel} sent — ${failed} failed`, failed < results.length ? 'info' : 'error');
     return;
@@ -3589,6 +3597,8 @@ async function giveItemCmd(_btn) {
   const command = `stardrop_giveitem ${player} ${qty} ${quality} ${itemId}`;
   const data    = await API.post('/api/players/admin-command', { command }).catch(() => null);
   if (data?.success) {
+    _playersWithGiftChests.add(player);
+    onGiveItemPlayerChange();
     showToast(`${qty}x ${itemLabel} → ${player}'s cabin chest`, 'success');
   } else {
     showToast(data?.error || 'Failed — is the server running?', 'error');
@@ -3600,6 +3610,8 @@ async function removeGiftChestCmd(_btn) {
   if (!player || player === '__all__') { showToast('Select a specific player first', 'error'); return; }
   const data = await API.post('/api/players/admin-command', { command: `stardrop_removegiftchest ${player}` }).catch(() => null);
   if (data?.success) {
+    _playersWithGiftChests.delete(player);
+    onGiveItemPlayerChange();
     showToast(`Gift chest removed from ${player}'s cabin`, 'success');
   } else {
     showToast(data?.error || 'Failed — is the server running?', 'error');

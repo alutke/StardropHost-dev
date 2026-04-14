@@ -905,9 +905,11 @@
                   <option value="4">Iridium</option>
                 </select>
                 <button id="giveItemBtn" class="btn btn-sm btn-primary" onclick="giveItemCmd(this)" disabled>Give</button>
-                <button id="removeChestBtn" class="btn btn-sm btn-danger" onclick="removeGiftChestCmd(this)" style="display:none">Remove Chest</button>
               </div>
               <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Items placed in a chest in the player's cabin. Online players get a chat notification.</div>
+              <div id="removeChestRow" style="display:none;margin-top:6px">
+                <button id="removeChestBtn" class="btn btn-sm btn-danger" onclick="removeGiftChestCmd(this)">Remove Chest</button>
+              </div>
 
             </div>
           </details>

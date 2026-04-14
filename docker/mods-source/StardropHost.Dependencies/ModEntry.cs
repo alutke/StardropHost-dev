@@ -1751,9 +1751,26 @@ namespace StardropHostDependencies
                 }
             }
 
+            // Get cabin interior for item collection
+            var cabinForItems = cabinBuilding?.indoors.Value as Cabin;
+
+            // Collect all items (except gift chest) before upgrading so they aren't lost
+            Chest? movedChest = cabinForItems != null ? CollectItemsToChest(cabinForItems) : null;
+
             // Apply upgrades sequentially from current+1 up to targetLevel
             for (int l = current + 1; l <= targetLevel; l++)
                 farmer.houseUpgradeLevel.Value = l;
+
+            // Refresh the cabin interior layout immediately
+            if (cabinForItems != null)
+            {
+                try { Helper.Reflection.GetMethod(cabinForItems, "updateLayout").Invoke(); }
+                catch (Exception ex) { Monitor.Log($"[Admin] cabin updateLayout failed: {ex.Message}", LogLevel.Warn); }
+
+                // Relocate gift chest and place moved-items chest at safe tiles
+                RelocateGiftChest(cabinForItems);
+                if (movedChest != null) PlaceChestSafe(cabinForItems, movedChest);
+            }
 
             WriteCabinLevels();
             Monitor.Log($"[Admin] Upgraded '{farmer.Name}' cabin from level {current} to {targetLevel}.", LogLevel.Info);
@@ -1792,8 +1809,99 @@ namespace StardropHostDependencies
             _buildingMovePermission = savedPerm;
         }
 
-        private const string GiftChestName = "Stardrop Gifts";
+        private const string GiftChestName  = "Stardrop Gifts";
+        private const string MovedChestName = "Moved Items";
         private static readonly Vector2 GiftChestTile = new(5, 5);
+
+        /// <summary>
+        /// Scan the Back layer for the first open floor tile, avoiding occupied tiles.
+        /// </summary>
+        private static Vector2 FindSafeTile(GameLocation location)
+        {
+            var back = location.map?.GetLayer("Back");
+            if (back != null)
+            {
+                for (int y = 2; y < back.LayerHeight - 1; y++)
+                for (int x = 2; x < back.LayerWidth  - 1; x++)
+                {
+                    if (back.Tiles[x, y] == null) continue;
+                    var v = new Vector2(x, y);
+                    if (!location.objects.ContainsKey(v) &&
+                        !location.furniture.Any(f => f.TileLocation == v))
+                        return v;
+                }
+            }
+            return new Vector2(5, 5);
+        }
+
+        /// <summary>
+        /// Collect ALL objects (except the gift chest) and ALL furniture from a location into a
+        /// named chest. Returns the chest if anything was collected, otherwise null.
+        /// </summary>
+        private Chest? CollectItemsToChest(GameLocation location)
+        {
+            var items = new List<Item>();
+
+            // Collect non-gift-chest objects
+            var objKeys = new List<Vector2>();
+            foreach (var key in location.objects.Keys)
+            {
+                var obj = location.objects[key];
+                if (obj is Chest ch && ch.Name == GiftChestName) continue;
+                objKeys.Add(key);
+            }
+            foreach (var key in objKeys)
+            {
+                items.Add(location.objects[key]);
+                location.objects.Remove(key);
+            }
+
+            // Collect all furniture
+            var furnCopy = location.furniture.ToList();
+            foreach (var f in furnCopy)
+            {
+                items.Add(f);
+                location.furniture.Remove(f);
+            }
+
+            if (items.Count == 0) return null;
+
+            var chest = new Chest(true) { Name = MovedChestName };
+            foreach (var item in items)
+                chest.addItem(item);
+            return chest;
+        }
+
+        /// <summary>
+        /// Move the gift chest (if present) to a safe tile in the (possibly updated) layout.
+        /// </summary>
+        private static void RelocateGiftChest(GameLocation location)
+        {
+            Vector2? oldKey = null;
+            Chest?   gift   = null;
+            foreach (var key in location.objects.Keys)
+            {
+                if (location.objects[key] is Chest ch && ch.Name == GiftChestName)
+                {
+                    oldKey = key; gift = ch; break;
+                }
+            }
+            if (gift == null || oldKey == null) return;
+            location.objects.Remove(oldKey.Value);
+            var tile = FindSafeTile(location);
+            location.objects[tile] = gift;
+        }
+
+        /// <summary>
+        /// Place a chest at a safe tile, shifting right if that tile is already occupied.
+        /// </summary>
+        private static void PlaceChestSafe(GameLocation location, Chest chest)
+        {
+            var tile = FindSafeTile(location);
+            while (location.objects.ContainsKey(tile))
+                tile = new Vector2(tile.X + 1, tile.Y);
+            location.objects[tile] = chest;
+        }
 
         private void OnGiveItemCommand(string cmd, string[] args)
         {
@@ -1931,6 +2039,9 @@ namespace StardropHostDependencies
 
             var farmHouse = Game1.getLocationFromName("FarmHouse") as StardewValley.Locations.FarmHouse;
 
+            // Collect ALL items (except gift chest) before upgrading so nothing gets lost
+            Chest? movedChest = farmHouse != null ? CollectItemsToChest(farmHouse) : null;
+
             for (int lvl = current + 1; lvl <= targetLevel; lvl++)
             {
                 Game1.player.houseUpgradeLevel.Value = lvl;
@@ -1941,7 +2052,14 @@ namespace StardropHostDependencies
                 }
             }
 
-            if (farmHouse != null) farmHouse.cribStyle.Value = 0;
+            if (farmHouse != null)
+            {
+                farmHouse.cribStyle.Value = 0;
+
+                // Relocate gift chest and place moved-items chest at safe tiles in the new layout
+                RelocateGiftChest(farmHouse);
+                if (movedChest != null) PlaceChestSafe(farmHouse, movedChest);
+            }
 
             // Reset sleep point to the new bed position for the upgraded level
             var (bx, by) = GetBedCoords();
