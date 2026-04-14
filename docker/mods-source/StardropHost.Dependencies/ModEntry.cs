@@ -311,10 +311,10 @@ namespace StardropHostDependencies
                 // Remove the new-game starter gift chest from the FarmHouse on every load
                 if (Game1.getLocationFromName("FarmHouse") is StardewValley.Locations.FarmHouse fh)
                 {
-                    var giftKeys = fh.objects
-                        .Where(kv => kv.Value is Chest)
-                        .Select(kv => kv.Key)
-                        .ToList();
+                    var giftKeys = new List<Vector2>();
+                    foreach (var key in fh.objects.Keys)
+                        if (fh.objects[key] is Chest)
+                            giftKeys.Add(key);
                     foreach (var key in giftKeys)
                         fh.objects.Remove(key);
                     if (giftKeys.Count > 0)
