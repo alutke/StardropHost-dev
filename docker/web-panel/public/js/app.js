@@ -2954,13 +2954,15 @@ const GIVE_ITEMS = {
 function populateGiveItemPlayerDropdown() {
   const sel = document.getElementById('giveItemPlayer');
   if (!sel) return;
-  const onlineNames = new Set(
-    (lastStatusData?.live?.players || []).filter(p => !p.isHost && p.isOnline).map(p => p.name)
-  );
-  // All claimed cabin owners (online + offline)
-  const farmhands = _lastFarmhandCabins
-    .map(c => c.ownerName || c.OwnerName)
-    .filter(n => n && n !== 'Unclaimed');
+  const liveFarmhands = (lastStatusData?.live?.players || []).filter(p => !p.isHost).map(p => p.name);
+  const onlineNames = new Set(liveFarmhands.filter(n => {
+    const p = (lastStatusData?.live?.players || []).find(x => x.name === n);
+    return p?.isOnline;
+  }));
+  // Use cabin data if available (includes offline), fall back to live players
+  const farmhands = _lastFarmhandCabins.length
+    ? _lastFarmhandCabins.map(c => c.ownerName).filter(n => n && n.trim())
+    : liveFarmhands;
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select player…</option>' +
     (farmhands.length ? '<option value="__all__">— All Players —</option>' : '') +
@@ -3473,7 +3475,7 @@ async function loadFarmhands() {
 
   const cabins = data?.cabins || [];
 
-  if (cabins.length) { _lastKnownCabinCount = cabins.length; _lastFarmhandCabins = cabins; }
+  if (cabins.length) { _lastKnownCabinCount = cabins.length; _lastFarmhandCabins = cabins; populateGiveItemPlayerDropdown(); }
 
   if (!cabins.length) {
     card.style.display = '';
