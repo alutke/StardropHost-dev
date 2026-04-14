@@ -102,8 +102,12 @@ const CORE_SOURCES = new Set(['smapi', 'game', 'stardrop', 'stardropsavegamemana
 //  1. Strip "TRACE " from the inner bracket so it reads [HH:MM:SS Source]
 //  2. For non-core (mod) sources, prepend "Source Name - " before the message
 function transformLogLine(text) {
+  // Strip outer date-time prefix added by log-monitor.sh (e.g. "[2026-04-14 23:31:09] ")
+  // — redundant with the inner SMAPI bracket timestamp
+  let t = text.replace(/^\[\d{4}-\d{2}-\d{2}[^\]]*\]\s*/, '');
+
   // Strip TRACE level from inner timestamp bracket
-  let t = text.replace(/(\[\d{2}:\d{2}:\d{2})\s+TRACE\s+/g, '$1 ');
+  t = t.replace(/(\[\d{2}:\d{2}:\d{2})\s+TRACE\s+/g, '$1 ');
 
   // Match: optional outer timestamp + inner [HH:MM:SS Source] + message
   const m = t.match(/^((?:\[\d{4}-\d{2}-\d{2}[^\]]*\]\s*)?)(\[(\d{2}:\d{2}:\d{2})\s+([^\]]+)\])\s+(.+)$/s);

@@ -2075,41 +2075,42 @@ function updateDashboardUI(data) {
   // Disable all restart buttons while in any transitional state
   document.querySelectorAll('.btn[onclick="restartServer()"]').forEach(btn => { btn.disabled = starting; });
 
-  setText('stat-players', liveRunning ? `${data.players?.online ?? 0}/${data.players?.max ?? '--'}` : '--');
-  setText('stat-uptime',  formatUptime(data.uptime || 0));
-  setText('stat-day',     data.paused ? 'Paused' : (data.day || '--'));
-  setText('stat-backups', data.backupCount ?? 0);
-  setText('stat-mods',    data.modCount    ?? 0);
+  // Stat cards and CPU/RAM bars are only visible on the dashboard — skip when on other tabs
+  if (currentPage === 'dashboard') {
+    setText('stat-players', liveRunning ? `${data.players?.online ?? 0}/${data.players?.max ?? '--'}` : '--');
+    setText('stat-uptime',  formatUptime(data.uptime || 0));
+    setText('stat-day',     data.paused ? 'Paused' : (data.day || '--'));
+    setText('stat-backups', data.backupCount ?? 0);
+    setText('stat-mods',    data.modCount    ?? 0);
 
-  // CPU
-  const cpu            = Math.round(data.cpu    || 0);
-  const sysCpu         = Math.round(data.sysCpu || 0);
-  const containerCores = data.containerCores || '';
-  const sysCores       = data.sysCores       || '';
-  const cpuEl = document.getElementById('cpu-value');
-  const coreLabel    = containerCores ? ` / ${containerCores} cores` : '';
-  const sysCoreLabel = sysCores       ? ` / ${sysCores} cores`       : '';
-  if (cpuEl) cpuEl.innerHTML = `${cpu}%${coreLabel}` + (sysCpu > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysCpu}%${sysCoreLabel} sys</span>` : '');
-  const cpuBar    = document.getElementById('cpu-bar');
-  const cpuBarSys = document.getElementById('cpu-bar-sys');
-  cpuBar.style.width    = Math.min(cpu, 100) + '%';
-  cpuBar.className      = 'progress-fill' + (cpu > 80 ? ' danger' : cpu > 60 ? ' warn' : '');
-  cpuBarSys.style.width = Math.min(sysCpu, 100) + '%';
+    // CPU
+    const cpu            = Math.round(data.cpu    || 0);
+    const sysCpu         = Math.round(data.sysCpu || 0);
+    const containerCores = data.containerCores || '';
+    const sysCores       = data.sysCores       || '';
+    const cpuEl = document.getElementById('cpu-value');
+    const coreLabel    = containerCores ? ` / ${containerCores} cores` : '';
+    const sysCoreLabel = sysCores       ? ` / ${sysCores} cores`       : '';
+    if (cpuEl) cpuEl.innerHTML = `${cpu}%${coreLabel}` + (sysCpu > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysCpu}%${sysCoreLabel} sys</span>` : '');
+    const cpuBar    = document.getElementById('cpu-bar');
+    const cpuBarSys = document.getElementById('cpu-bar-sys');
+    if (cpuBar)    { cpuBar.style.width    = Math.min(cpu, 100) + '%'; cpuBar.className = 'progress-fill' + (cpu > 80 ? ' danger' : cpu > 60 ? ' warn' : ''); }
+    if (cpuBarSys)   cpuBarSys.style.width = Math.min(sysCpu, 100) + '%';
 
-  // RAM
-  const memUsedMB  = Math.round(data.memory?.used  || 0);
-  const memLimitMB = data.memory?.limit || 2048;
-  const memPct     = Math.round((memUsedMB / memLimitMB) * 100);
-  const sysMemUsed  = Math.round(data.sysMemory?.used  || 0);
-  const sysMemTotal = Math.round(data.sysMemory?.total || 0);
-  const sysMemPct   = sysMemTotal > 0 ? Math.round((sysMemUsed / sysMemTotal) * 100) : 0;
-  const ramEl = document.getElementById('ram-value');
-  if (ramEl) ramEl.innerHTML = `${memUsedMB} / ${memLimitMB} MB` + (sysMemTotal > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysMemTotal} MB sys</span>` : '');
-  const ramBar    = document.getElementById('ram-bar');
-  const ramBarSys = document.getElementById('ram-bar-sys');
-  ramBar.style.width    = Math.min(memPct, 100) + '%';
-  ramBar.className      = 'progress-fill' + (memPct > 80 ? ' danger' : memPct > 60 ? ' warn' : '');
-  ramBarSys.style.width = Math.min(sysMemPct, 100) + '%';
+    // RAM
+    const memUsedMB  = Math.round(data.memory?.used  || 0);
+    const memLimitMB = data.memory?.limit || 2048;
+    const memPct     = Math.round((memUsedMB / memLimitMB) * 100);
+    const sysMemUsed  = Math.round(data.sysMemory?.used  || 0);
+    const sysMemTotal = Math.round(data.sysMemory?.total || 0);
+    const sysMemPct   = sysMemTotal > 0 ? Math.round((sysMemUsed / sysMemTotal) * 100) : 0;
+    const ramEl = document.getElementById('ram-value');
+    if (ramEl) ramEl.innerHTML = `${memUsedMB} / ${memLimitMB} MB` + (sysMemTotal > 0 ? ` <span style="color:var(--text-muted);font-size:11px">| ${sysMemTotal} MB sys</span>` : '');
+    const ramBar    = document.getElementById('ram-bar');
+    const ramBarSys = document.getElementById('ram-bar-sys');
+    if (ramBar)    { ramBar.style.width    = Math.min(memPct, 100) + '%'; ramBar.className = 'progress-fill' + (memPct > 80 ? ' danger' : memPct > 60 ? ' warn' : ''); }
+    if (ramBarSys)   ramBarSys.style.width = Math.min(sysMemPct, 100) + '%';
+  }
 
   // Details — static after first load, no need to update on every poll
   if (!_networkDetailsCached) {
@@ -2456,6 +2457,7 @@ async function farmTypeConfirmApply() {
       editBtn.setAttribute('onclick', `openFarmTypeModal('${newName}')`);
     }
     showToast(`Farm type changed to ${newName}`);
+    setTimeout(loadFarm, 1000);
   } else {
     showToast(data?.error || 'Failed — is the server running?', 'error');
   }
@@ -2524,6 +2526,7 @@ async function upgradeHouseCmd(btn) {
     _houseLevelLocal = targetLevel;
     populateUpgradeHouseDropdown();
     showToast(`Success: Farmhouse upgraded to level ${targetLevel} — ${CABIN_LEVEL_NAMES[targetLevel]}`, 'success');
+    setTimeout(loadFarm, 2000);
   } else {
     btn.disabled    = false;
     lvlSel.disabled = false;
