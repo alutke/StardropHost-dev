@@ -2221,17 +2221,28 @@ async function loadFarm() {
   `;
 
   // Community Center
+  const CC_UNLOCKS = {
+    'Pantry':         'Unlocks the Greenhouse',
+    'Crafts Room':    'Unlocks the Quarry',
+    'Fish Tank':      'Removes the Glittering Boulder (river panning)',
+    'Boiler Room':    'Repairs Minecarts',
+    'Bulletin Board': 'Increases Friendship with all villagers',
+    'Vault':          'Repairs the Bus to Calico Desert',
+  };
   if (data.communityCenter) {
     const cc = data.communityCenter;
+    const allComplete = cc.percentComplete === 100;
     const roomsHtml = Object.entries(cc.rooms).map(([room, info]) => {
       const done     = info.bundles.filter(b => b.complete).length;
       const total    = info.bundles.length;
       const complete = info.complete;
       const valueColor = complete ? 'var(--accent)' : 'var(--text-primary)';
+      const unlock   = CC_UNLOCKS[room] ? `<div class="detail-note">${escapeHtml(CC_UNLOCKS[room])}</div>` : '';
       return `
         <div class="detail-item">
           <div class="detail-label">${escapeHtml(room)}</div>
           <div class="detail-value" style="color:${valueColor}">${done}/${total}</div>
+          ${unlock}
         </div>`;
     }).join('');
 
@@ -2241,10 +2252,24 @@ async function loadFarm() {
     if (summaryText) summaryText.textContent = `${cc.completedRooms} / ${cc.totalRooms} rooms`;
     if (summaryFill) {
       summaryFill.style.width = `${cc.percentComplete}%`;
-      summaryFill.style.background = cc.percentComplete === 100 ? 'var(--accent)' : '';
+      summaryFill.style.background = allComplete ? 'var(--accent)' : '';
     }
     if (summaryPct) summaryPct.textContent = `${cc.percentComplete}%`;
     ccEl.innerHTML = `<div class="details-grid">${roomsHtml}</div>`;
+
+    // Show completion banner and dim controls when all bundles done
+    const banner = document.getElementById('cc-complete-banner');
+    const body   = document.getElementById('cc-controls-body');
+    if (banner) banner.style.display = allComplete ? '' : 'none';
+    if (body)   body.style.opacity   = allComplete ? '0.35' : '';
+    ['btn-completecc', 'btn-completejoja', 'btn-ccbundle', 'btn-resetregen', 'btn-shufflebundles'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.disabled = allComplete;
+    });
+    const regen = document.getElementById('ccRegenType');
+    if (regen) regen.disabled = allComplete;
+    const bundleSel = document.getElementById('ccBundleId');
+    if (bundleSel) bundleSel.disabled = allComplete;
   } else {
     const summaryText = document.getElementById('farmCCSummaryText');
     const summaryPct2 = document.getElementById('farmCCSummaryPct');
@@ -2506,11 +2531,36 @@ function ccCmd(btn, command) {
   const labels = {
     completecc:       'Success: Community Center completed',
     completejoja:     'Success: Joja route completed',
-    allbundles:       'Success: All bundles marked complete',
     resetjunimonotes: 'Success: Bundle progress reset',
     shufflebundles:   'Success: Bundles shuffled (Remixed)',
   };
   worldCmd('debug', command, null, btn, labels[command] || `Success: ${command}`);
+}
+
+function ccConfirm(btn, command) {
+  const configs = {
+    completecc: {
+      title: 'Complete Community Center?',
+      msg:   'This will instantly mark all bundles complete and restore all CC areas. This cannot be undone. The CC and Joja buttons will be disabled afterwards.',
+      btnClass: 'btn-warning',
+    },
+    completejoja: {
+      title: 'Complete Joja Route?',
+      msg:   'This will add all Joja membership flags and complete all Community Development purchases. This cannot be undone. The CC and Joja buttons will be disabled afterwards.',
+      btnClass: 'btn-primary',
+    },
+  };
+  const cfg = configs[command];
+  document.getElementById('ccConfirmTitle').textContent = cfg.title;
+  document.getElementById('ccConfirmMsg').textContent   = cfg.msg;
+  const confirmBtn = document.getElementById('ccConfirmBtn');
+  confirmBtn.className = `btn btn-sm ${cfg.btnClass}`;
+  confirmBtn.onclick   = () => { closeCcConfirmModal(); ccCmd(btn, command); };
+  document.getElementById('ccConfirmModal').style.display = 'flex';
+}
+
+function closeCcConfirmModal() {
+  document.getElementById('ccConfirmModal').style.display = 'none';
 }
 
 async function ccResetRegenCmd(btn) {

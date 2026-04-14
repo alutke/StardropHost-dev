@@ -88,11 +88,11 @@ function xmlBool(xml, tag) {
 
 const CC_ROOMS = {
   'Pantry':          [0, 1, 2, 3, 4, 5],
-  'Crafts Room':     [13, 14, 15, 16, 17],
-  'Fish Tank':       [6, 7, 8, 9, 10],
+  'Crafts Room':     [13, 14, 15, 16, 17, 18],
+  'Fish Tank':       [6, 7, 8, 9, 10, 11],
   'Boiler Room':     [20, 21, 22],
-  'Vault':           [23, 24, 25, 26],
-  'Bulletin Board':  [31, 32, 33, 34, 35, 36],
+  'Bulletin Board':  [25, 26, 27, 28, 29],
+  'Vault':           [23, 24, 19, 12],
 };
 
 function parseCommunityCenter(xml) {

@@ -741,7 +741,11 @@
           <details class="card admin-cred-details" id="farm-cc-controls-card">
             <summary>Community Controls</summary>
             <div style="padding-top:10px">
-              <div style="display:flex;flex-direction:column;gap:0">
+              <div id="cc-complete-banner" style="display:none;background:var(--bg-tertiary);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;text-align:center">
+                <div style="font-size:13px;font-weight:600;color:var(--accent)">All Bundles Completed</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:3px">The Community Center is fully restored. Controls below are disabled.</div>
+              </div>
+              <div id="cc-controls-body" style="display:flex;flex-direction:column;gap:0">
 
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
                   <span class="admin-cmd-label" style="margin:0">Complete Bundle</span>
@@ -790,14 +794,14 @@
                         <option value="12">25,000g</option>
                       </optgroup>
                     </select>
-                    <button class="btn btn-sm btn-primary" onclick="ccBundleCmd(this)">Complete</button>
+                    <button id="btn-ccbundle" class="btn btn-sm btn-primary" onclick="ccBundleCmd(this)">Complete</button>
                   </div>
                 </div>
 
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
                   <div style="display:flex;align-items:center;gap:8px">
                     <span class="admin-cmd-label" style="margin:0">Complete CC</span>
-                    <button class="btn btn-sm btn-warning" onclick="ccCmd(this,'completecc')">Complete</button>
+                    <button id="btn-completecc" class="btn btn-sm btn-warning" onclick="ccConfirm(this,'completecc')">Complete</button>
                   </div>
                   <div style="font-size:11px;color:var(--text-muted)">Marks all bundles complete and restores all Community Center areas. Opens the backroom at Willy's, unlocking Ginger Island.</div>
                 </div>
@@ -805,7 +809,7 @@
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px">
                   <div style="display:flex;align-items:center;gap:8px">
                     <span class="admin-cmd-label" style="margin:0">Complete Joja</span>
-                    <button class="btn btn-sm btn-primary" onclick="ccCmd(this,'completejoja')">Complete</button>
+                    <button id="btn-completejoja" class="btn btn-sm btn-primary" onclick="ccConfirm(this,'completejoja')">Complete</button>
                   </div>
                   <div style="font-size:11px;color:var(--text-muted)">Adds all Joja membership flags and completes all Community Development purchases. Opens the backroom at Willy's, unlocking Ginger Island.</div>
                 </div>
@@ -817,7 +821,7 @@
                       <option value="default">Default</option>
                       <option value="remixed">Remixed</option>
                     </select>
-                    <button class="btn btn-sm btn-warning" onclick="ccResetRegenCmd(this)">Reset &amp; Regenerate</button>
+                    <button id="btn-resetregen" class="btn btn-sm btn-warning" onclick="ccResetRegenCmd(this)">Reset &amp; Regenerate</button>
                   </div>
                   <div style="font-size:11px;color:var(--text-muted)">Wipes all bundle progress and rebuilds requirements. Default uses the original bundles; Remixed uses the save's seed for randomised requirements.</div>
                 </div>
@@ -825,7 +829,7 @@
                 <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:4px;border-bottom:none">
                   <div style="display:flex;align-items:center;gap:8px">
                     <span class="admin-cmd-label" style="margin:0">Shuffle Bundles</span>
-                    <button class="btn btn-sm btn-primary" onclick="ccCmd(this,'shufflebundles')">Shuffle</button>
+                    <button id="btn-shufflebundles" class="btn btn-sm btn-primary" onclick="ccCmd(this,'shufflebundles')">Shuffle</button>
                   </div>
                   <div style="font-size:11px;color:var(--text-muted)">Remixed mode only — regenerates bundles with a random seed (ignores save seed).</div>
                 </div>
@@ -2140,6 +2144,18 @@
       <div class="modal-actions">
         <button class="btn btn-sm btn-secondary" type="button" onclick="closeSetMoneyModal()">Cancel</button>
         <button class="btn btn-sm btn-primary" type="button" onclick="setMoneyModalSubmit()">Set</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CC Confirm Modal ─────────────────────────────────────── -->
+  <div id="ccConfirmModal" class="modal-overlay" style="display:none">
+    <div class="modal-dialog" style="max-width:420px">
+      <h3 id="ccConfirmTitle">Confirm</h3>
+      <p id="ccConfirmMsg" style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin:10px 0 16px"></p>
+      <div class="modal-actions">
+        <button class="btn btn-sm btn-secondary" type="button" onclick="closeCcConfirmModal()">Cancel</button>
+        <button class="btn btn-sm btn-warning" id="ccConfirmBtn" type="button">Confirm</button>
       </div>
     </div>
   </div>
