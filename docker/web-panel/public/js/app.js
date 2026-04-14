@@ -2513,10 +2513,15 @@ function ccCmd(btn, command) {
   worldCmd('debug', command, null, btn, labels[command] || `Success: ${command}`);
 }
 
-function ccRegenCmd(btn) {
+async function ccResetRegenCmd(btn) {
   const type = document.getElementById('ccRegenType').value;
   const label = type === 'remixed' ? 'Remixed' : 'Default';
-  worldCmd('debug', `regenerate_bundles ${type} confirm`, null, btn, `Success: Bundles regenerated (${label})`);
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+  await worldCmd('debug', 'resetjunimonotes', null, null, null);
+  btn.disabled = false;
+  btn.style.opacity = '';
+  worldCmd('debug', `regenerate_bundles ${type} confirm`, null, btn, `Success: Bundles reset & regenerated (${label})`);
 }
 
 function ccBundleCmd(btn) {
