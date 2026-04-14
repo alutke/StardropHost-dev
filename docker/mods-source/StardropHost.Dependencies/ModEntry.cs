@@ -1888,20 +1888,20 @@ namespace StardropHostDependencies
                 return;
             }
 
-            // Step through each level progressively so setUpHouse places objects correctly at every stage
             var farmHouse = Game1.getLocationFromName("FarmHouse") as StardewValley.Locations.FarmHouse;
-            for (int lvl = current + 1; lvl <= targetLevel; lvl++)
-            {
-                Game1.player.houseUpgradeLevel.Value = lvl;
-                if (farmHouse != null)
-                {
-                    try { Helper.Reflection.GetMethod(farmHouse, "setUpHouse").Invoke(); }
-                    catch (Exception ex) { Monitor.Log($"[Admin] setUpHouse (level {lvl}) failed: {ex.Message}", LogLevel.Warn); }
-                }
-            }
+
+            // Clear furniture first — setUpHouse adds items but doesn't remove old ones,
+            // leaving level 0/1 furniture stranded outside the expanded walls.
+            farmHouse?.furniture.Clear();
+
+            Game1.player.houseUpgradeLevel.Value = targetLevel;
 
             if (farmHouse != null)
+            {
+                try { Helper.Reflection.GetMethod(farmHouse, "setUpHouse").Invoke(); }
+                catch (Exception ex) { Monitor.Log($"[Admin] setUpHouse failed: {ex.Message}", LogLevel.Warn); }
                 farmHouse.cribStyle.Value = 0;
+            }
 
             // Reset sleep point to the new bed position for the upgraded level
             var (bx, by) = GetBedCoords();
