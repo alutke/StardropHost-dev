@@ -186,11 +186,11 @@ namespace StardropDashboard
                 FarmType         = Game1.whichFarm switch
                 {
                     0 => "Standard",
-                    1 => "Riverlands",
+                    1 => "Riverland",
                     2 => "Forest",
-                    3 => "Hilltop",
-                    4 => "Combat",
-                    5 => "FourCorners",
+                    3 => "Hill-top",
+                    4 => "Wilderness",
+                    5 => "Four Corners",
                     6 => "Beach",
                     7 => "Meadowlands",
                     _ => $"Custom ({Game1.whichFarm})",

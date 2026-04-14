@@ -1192,7 +1192,7 @@ namespace StardropHostDependencies
             Game1.player.team.useSeparateWallets.Value =
                 cfg.MoneyStyle.Equals("separate", StringComparison.OrdinalIgnoreCase);
 
-            Game1.whichFarm     = Math.Clamp(cfg.FarmType, 0, 6);
+            Game1.whichFarm     = Math.Clamp(cfg.FarmType, 0, 7);
             Game1.whichModFarm  = null; // explicit reset — no mod farm support
             Game1.bundleType = cfg.CommunityCenterBundles.Equals("remixed", StringComparison.OrdinalIgnoreCase)
                                ? Game1.BundleType.Remixed : Game1.BundleType.Default;
@@ -1806,12 +1806,6 @@ namespace StardropHostDependencies
                 return;
             }
 
-            if (!farmer.IsLocalPlayer && !farmer.isActive())
-            {
-                Monitor.Log($"[Admin] stardrop_giveitem: '{playerName}' is not online.", LogLevel.Warn);
-                return;
-            }
-
             Item? item = ItemRegistry.Create(itemId, quantity, quality);
             if (item == null)
             {
@@ -1819,18 +1813,7 @@ namespace StardropHostDependencies
                 return;
             }
 
-            if (farmer.IsLocalPlayer)
-            {
-                // Host — add directly to inventory, overflow as debris
-                var overflow = farmer.addItemToInventory(item);
-                if (overflow != null)
-                    Game1.createItemDebris(overflow, farmer.getStandingPosition(), farmer.FacingDirection, farmer.currentLocation);
-                Monitor.Log($"[Admin] Gave {quantity}x {item.DisplayName} to host {farmer.Name}.", LogLevel.Info);
-            }
-            else
-            {
-                PlaceInCabinChest(farmer, item);
-            }
+            PlaceInCabinChest(farmer, item);
         }
 
         private void PlaceInCabinChest(Farmer farmer, Item item)
@@ -1841,17 +1824,23 @@ namespace StardropHostDependencies
                 return;
             }
 
-            // Re-use existing gift chest anywhere in the cabin, or create one at the fixed tile
+            // Re-use existing gift chest anywhere in the cabin, or create at centre
             var chest = home.objects.Values.OfType<Chest>()
                 .FirstOrDefault(c => c.Name == GiftChestName);
 
             if (chest == null)
             {
+                var centre = new Vector2(home.map.Layers[0].LayerWidth / 2, home.map.Layers[0].LayerHeight / 2);
                 chest = new Chest(true) { Name = GiftChestName };
-                home.objects[GiftChestTile] = chest;
+                home.objects[centre] = chest;
             }
 
             chest.addItem(item);
+
+            // Notify online players
+            if (farmer.isActive())
+                Game1.chatBox?.textBoxEnter($"/message {farmer.Name} The host has placed {item.Stack}x {item.DisplayName} in your cabin chest.");
+
             Monitor.Log($"[Admin] Placed {item.Stack}x {item.DisplayName} in {farmer.Name}'s cabin chest.", LogLevel.Info);
         }
 

@@ -152,7 +152,7 @@ function parseSaveFile(savePath) {
     const playtimeMs  = xmlInt(xml, 'millisecondsPlayed');
     const farmType    = xmlInt(xml, 'whichFarm');
 
-    const FARM_TYPES = ['Standard', 'Riverland', 'Forest', 'Hilltop', 'Wilderness', 'Four Corners', 'Beach', 'Meadowlands'];
+    const FARM_TYPES = ['Standard', 'Riverland', 'Forest', 'Hill-top', 'Wilderness', 'Four Corners', 'Beach', 'Meadowlands'];
 
     const cc = parseCommunityCenter(xml);
 

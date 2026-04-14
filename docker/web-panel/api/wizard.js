@@ -409,8 +409,8 @@ function submitNewFarm(req, res) {
 
   // ── Farm type ──
   const ft = parseInt(body.farmType ?? '0', 10);
-  if (isNaN(ft) || ft < 0 || ft > 6) {
-    return res.status(400).json({ error: 'farmType must be 0–6' });
+  if (isNaN(ft) || ft < 0 || ft > 7) {
+    return res.status(400).json({ error: 'farmType must be 0–7' });
   }
 
   // ── Cabin count (1–16; 9–16 is experimental) ──

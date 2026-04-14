@@ -1236,7 +1236,7 @@ async function wizCreateNewFarm() {
     statusEl.textContent = '✅ Farm config saved';
     _wizState._farmMode = 'new';
     _wizState._farmName = farmName;
-    const typeNames = ['Standard','Riverland','Forest','Hill-top','Wilderness','Four Corners','Beach'];
+    const typeNames = ['Standard','Riverland','Forest','Hill-top','Wilderness','Four Corners','Beach','Meadowlands'];
     document.getElementById('wiz-confirm-save').textContent =
       `✅ New farm: "${farmName}" (${typeNames[parseInt(farmType,10)] || 'Standard'})`;
     setTimeout(() => wizLaunchServer(), 800);
@@ -2954,11 +2954,11 @@ const GIVE_ITEMS = {
 function populateGiveItemPlayerDropdown() {
   const sel = document.getElementById('giveItemPlayer');
   if (!sel) return;
-  const players = (lastStatusData?.live?.players || []).filter(p => p.isOnline);
+  const players = (lastStatusData?.live?.players || []).filter(p => !p.isHost);
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select player…</option>' +
     players.map(p =>
-      `<option value="${escapeHtml(p.name)}"${p.name === prev ? ' selected' : ''}>${escapeHtml(p.name)}${p.isHost ? ' (host)' : ''}</option>`
+      `<option value="${escapeHtml(p.name)}"${p.name === prev ? ' selected' : ''}>${escapeHtml(p.name)}${p.isOnline ? '' : ' (offline)'}</option>`
     ).join('');
   _updateGiveItemBtn();
 }
@@ -2991,14 +2991,12 @@ async function giveItemCmd(_btn) {
   if (!player || !itemId) return;
 
   const itemLabel = document.querySelector(`#giveItemId option[value="${CSS.escape(itemId)}"]`)?.textContent || itemId;
-  const isHost    = (lastStatusData?.live?.players || []).find(p => p.name === player)?.isHost ?? false;
-  const command   = `stardrop_giveitem ${player} ${qty} ${quality} ${itemId}`;
-  const data      = await API.post('/api/players/admin-command', { command }).catch(() => null);
+  const command = `stardrop_giveitem ${player} ${qty} ${quality} ${itemId}`;
+  const data    = await API.post('/api/players/admin-command', { command }).catch(() => null);
   if (data?.success) {
-    const dest = isHost ? 'inventory' : 'cabin chest';
-    showToast(`${qty}x ${itemLabel} → ${player}'s ${dest}`, 'success');
+    showToast(`${qty}x ${itemLabel} → ${player}'s cabin chest`, 'success');
   } else {
-    showToast(data?.error || 'Failed — is the server running and player online?', 'error');
+    showToast(data?.error || 'Failed — is the server running?', 'error');
   }
 }
 
