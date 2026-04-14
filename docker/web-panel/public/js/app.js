@@ -1192,28 +1192,48 @@ async function wizCreateNewFarm() {
 
   const val = id => document.getElementById(id)?.value ?? '';
 
-  const farmName     = val('wiz-farm-name').trim()    || 'Stardrop Farm';
-  const farmerName   = val('wiz-farmer-name').trim()  || 'Host';
-  const favoriteThing= val('wiz-favorite-thing').trim()|| 'Farming';
-  const farmType     = val('wiz-farm-type')   || '0';
-  const cabinCount   = val('wiz-cabin-count') || '1';
-  const cabinLayout  = val('wiz-cabin-layout')|| 'separate';
-  const cabinStack   = document.getElementById('wiz-cabin-stack')?.checked ?? false;
-  const moneyStyle   = val('wiz-money-style') || 'shared';
-  const profitMargin = val('wiz-profit-margin')|| 'normal';
-  const moveBuild    = val('wiz-move-build')  || 'off';
-  const ccBundles    = val('wiz-cc-bundles')  || 'normal';
-  const mineRewards  = val('wiz-mine-rewards')|| 'normal';
-  const monsters     = val('wiz-monsters')    || 'false';
-  const year1        = val('wiz-year1')       || 'false';
-  const randomSeed   = val('wiz-random-seed').trim();
-  const acceptPet    = val('wiz-accept-pet')  || 'true';
-  const petSpecies   = val('wiz-pet-species') || 'cat';
-  const petBreed     = val('wiz-pet-breed')   || '0';
-  const petName      = val('wiz-pet-name').trim() || 'Stella';
-  const cave         = val('wiz-cave')        || 'mushrooms';
-  const joja         = val('wiz-joja')        || 'false';
-  const cropSaver    = document.getElementById('wiz-crop-saver')?.checked ?? false;
+  const farmNameInput = document.getElementById('wiz-farm-name');
+  const farmName      = farmNameInput.value.trim();
+  const farmerName    = val('wiz-farmer-name').trim()  || 'Host';
+  const favoriteThing = val('wiz-favorite-thing').trim()|| 'Farming';
+  const farmType      = val('wiz-farm-type')   || '0';
+  const cabinCount    = val('wiz-cabin-count') || '1';
+  const cabinLayout   = val('wiz-cabin-layout')|| 'nearby';
+  const cabinStack    = document.getElementById('wiz-cabin-stack')?.checked ?? false;
+  const moneyStyle    = val('wiz-money-style') || 'shared';
+  const profitMargin  = val('wiz-profit-margin')|| 'normal';
+  const moveBuild     = val('wiz-move-build')  || 'off';
+  const ccBundles     = val('wiz-cc-bundles')  || 'normal';
+  const mineRewards   = val('wiz-mine-rewards')|| 'normal';
+  const monsters      = val('wiz-monsters')    || 'false';
+  const year1         = val('wiz-year1')       || 'false';
+  const randomSeed    = val('wiz-random-seed').trim();
+  const acceptPet     = val('wiz-accept-pet')  || 'true';
+  const petSpecies    = val('wiz-pet-species') || 'dog';
+  const petBreed      = val('wiz-pet-breed')   || '0';
+  const petNameInput  = document.getElementById('wiz-pet-name');
+  const petName       = petNameInput.value.trim();
+  const cave          = val('wiz-cave')        || 'mushrooms';
+  const joja          = val('wiz-joja')        || 'false';
+  const cropSaver     = document.getElementById('wiz-crop-saver')?.checked ?? false;
+
+  // Validate required fields
+  let invalid = false;
+  if (!farmName) {
+    farmNameInput.style.outline = '2px solid #8b5cf6';
+    farmNameInput.focus();
+    invalid = true;
+  }
+  if (acceptPet === 'true' && !petName) {
+    petNameInput.style.outline = '2px solid #8b5cf6';
+    if (!invalid) petNameInput.focus();
+    invalid = true;
+  }
+  if (invalid) {
+    statusEl.style.color = 'var(--accent-error)';
+    statusEl.textContent = 'Please fill in the required fields.';
+    return;
+  }
 
   statusEl.style.color = 'var(--text-secondary)';
   statusEl.textContent = 'Saving farm configuration…';
