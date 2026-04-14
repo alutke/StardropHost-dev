@@ -830,8 +830,9 @@
             <summary>Player Controls</summary>
             <div style="padding-top:10px">
 
-              <div class="admin-cmd-row" style="flex-wrap:wrap;gap:6px">
-                <span class="admin-cmd-label" style="white-space:nowrap">Give Item</span>
+              <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+                <span class="admin-cmd-label" style="margin:0">Give Item</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
                 <select id="giveItemPlayer" class="form-input" style="width:auto" onchange="onGiveItemPlayerChange()">
                   <option value="">Select player…</option>
                 </select>
@@ -858,10 +859,11 @@
                   <option value="4">Iridium</option>
                 </select>
                 <button id="giveItemBtn" class="btn btn-sm btn-primary" onclick="giveItemCmd(this)" disabled>Give</button>
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Items placed in a chest in the player's cabin. Online players get a chat notification.</div>
-              <div id="removeChestRow" style="display:none;margin-top:6px">
-                <button id="removeChestBtn" class="btn btn-sm btn-danger" onclick="removeGiftChestCmd(this)">Remove Chest</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted)">Items placed in a chest in the player's cabin. Online players get a chat notification.</div>
+                <div id="removeChestRow" style="display:none">
+                  <button id="removeChestBtn" class="btn btn-sm btn-danger" onclick="removeGiftChestCmd(this)">Remove Chest</button>
+                </div>
               </div>
 
               <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:10px">
@@ -875,6 +877,7 @@
                   </select>
                   <button id="upgradeCabinBtn" class="btn btn-sm btn-primary" onclick="upgradeCabin()" disabled>Upgrade</button>
                 </div>
+                <div style="font-size:11px;color:var(--text-muted)">Player must be outside their cabin. They will be kicked and need to reconnect to see the changes.</div>
               </div>
 
               <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:10px">

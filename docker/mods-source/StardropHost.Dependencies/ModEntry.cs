@@ -1785,11 +1785,16 @@ namespace StardropHostDependencies
                 try { Helper.Reflection.GetMethod(cabinForItems, "updateLayout").Invoke(); }
                 catch (Exception ex) { Monitor.Log($"[Admin] cabin updateLayout failed: {ex.Message}", LogLevel.Warn); }
 
-                // Only place/relocate chests on the first upgrade — leave them alone after that
                 if (current == 0)
                 {
-                    RelocateGiftChest(cabinForItems);
+                    // First upgrade: place new chests at safe tiles in the new layout
+                    RelocateChestByName(cabinForItems, GiftChestName);
                     if (movedChest != null) PlaceChestSafe(cabinForItems, movedChest);
+                }
+                else
+                {
+                    // Subsequent upgrades: layout changed, relocate all chests to valid tiles
+                    RelocateAllChests(cabinForItems);
                 }
             }
 
@@ -1899,23 +1904,34 @@ namespace StardropHostDependencies
         }
 
         /// <summary>
-        /// Move the gift chest (if present) to a safe tile in the (possibly updated) layout.
+        /// Move a named chest (if present) to a safe tile in the (possibly updated) layout.
         /// </summary>
-        private static void RelocateGiftChest(GameLocation location)
+        private static void RelocateChestByName(GameLocation location, string name)
         {
             Vector2? oldKey = null;
-            Chest?   gift   = null;
+            Chest?   chest  = null;
             foreach (var key in location.objects.Keys)
             {
-                if (location.objects[key] is Chest ch && ch.Name == GiftChestName)
+                if (location.objects[key] is Chest ch && ch.Name == name)
                 {
-                    oldKey = key; gift = ch; break;
+                    oldKey = key; chest = ch; break;
                 }
             }
-            if (gift == null || oldKey == null) return;
+            if (chest == null || oldKey == null) return;
             location.objects.Remove(oldKey.Value);
             var tile = FindSafeTile(location);
-            location.objects[tile] = gift;
+            while (location.objects.ContainsKey(tile))
+                tile = new Vector2(tile.X + 1, tile.Y);
+            location.objects[tile] = chest;
+        }
+
+        /// <summary>
+        /// Relocate all known chests (gift + moved-items) to safe tiles after a layout change.
+        /// </summary>
+        private static void RelocateAllChests(GameLocation location)
+        {
+            RelocateChestByName(location, GiftChestName);
+            RelocateChestByName(location, MovedChestName);
         }
 
         /// <summary>
@@ -2083,11 +2099,16 @@ namespace StardropHostDependencies
             {
                 farmHouse.cribStyle.Value = 0;
 
-                // Only place/relocate chests on the first upgrade — leave them alone after that
                 if (current == 0)
                 {
-                    RelocateGiftChest(farmHouse);
+                    // First upgrade: place new chests at safe tiles in the new layout
+                    RelocateChestByName(farmHouse, GiftChestName);
                     if (movedChest != null) PlaceChestSafe(farmHouse, movedChest);
+                }
+                else
+                {
+                    // Subsequent upgrades: layout changed, relocate all chests to valid tiles
+                    RelocateAllChests(farmHouse);
                 }
             }
 
