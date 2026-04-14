@@ -874,45 +874,40 @@
             </div>
           </div>
           <details class="card admin-cred-details" id="player-commands-card">
-            <summary>Player Commands</summary>
+            <summary>Player Controls</summary>
             <div style="padding-top:10px">
 
-              <div class="admin-cmd-row" style="flex-direction:column;align-items:flex-start;gap:6px">
-                <span class="admin-cmd-label" style="margin:0">Give Item</span>
-                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                  <select id="giveItemPlayer" class="form-input" style="width:auto" onchange="onGiveItemPlayerChange()">
-                    <option value="">Select player…</option>
-                  </select>
-                  <select id="giveItemCategory" class="form-input" style="width:auto" onchange="onGiveItemCategoryChange()">
-                    <option value="">Category…</option>
-                    <option value="books">Books</option>
-                    <option value="mining">Mining &amp; Gems</option>
-                    <option value="farming">Farming</option>
-                    <option value="fishing">Fishing</option>
-                    <option value="misc">Misc / Special</option>
-                  </select>
-                  <select id="giveItemId" class="form-input" style="width:auto" disabled onchange="_updateGiveItemBtn()">
-                    <option value="">Item…</option>
-                  </select>
-                </div>
-                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                  <input id="giveItemQty" type="number" class="form-input" style="width:70px" value="1" min="1" max="999" placeholder="Qty">
-                  <select id="giveItemQuality" class="form-input" style="width:auto">
-                    <option value="0">Normal</option>
-                    <option value="1">Silver</option>
-                    <option value="2">Gold</option>
-                    <option value="4">Iridium</option>
-                  </select>
-                  <button id="giveItemBtn" class="btn btn-sm btn-primary" onclick="giveItemCmd(this)" disabled>Give</button>
-                </div>
-                <div style="font-size:11px;color:var(--text-muted)">Items are placed in a chest in the player's cabin. Online players get a chat notification.</div>
+              <div class="admin-cmd-row" style="flex-wrap:wrap;gap:6px">
+                <span class="admin-cmd-label" style="white-space:nowrap">Give Item</span>
+                <select id="giveItemPlayer" class="form-input" style="width:auto" onchange="onGiveItemPlayerChange()">
+                  <option value="">Select player…</option>
+                </select>
+                <select id="giveItemCategory" class="form-input" style="width:auto" onchange="onGiveItemCategoryChange()">
+                  <option value="">Category…</option>
+                  <option value="books">Books</option>
+                  <option value="mining">Mining &amp; Gems</option>
+                  <option value="farming">Farming</option>
+                  <option value="seeds">Seeds &amp; Saplings</option>
+                  <option value="fishing">Fishing</option>
+                  <option value="food">Food &amp; Cooking</option>
+                  <option value="rings">Rings</option>
+                  <option value="artifacts">Artifacts &amp; Fossils</option>
+                  <option value="misc">Misc / Special</option>
+                </select>
+                <select id="giveItemId" class="form-input" style="width:auto" disabled onchange="_updateGiveItemBtn()">
+                  <option value="">Item…</option>
+                </select>
+                <input id="giveItemQty" type="number" class="form-input" style="width:65px" value="1" min="1" max="999" placeholder="Qty">
+                <select id="giveItemQuality" class="form-input" style="width:auto">
+                  <option value="0">Normal</option>
+                  <option value="1">Silver</option>
+                  <option value="2">Gold</option>
+                  <option value="4">Iridium</option>
+                </select>
+                <button id="giveItemBtn" class="btn btn-sm btn-primary" onclick="giveItemCmd(this)" disabled>Give</button>
+                <button id="removeChestBtn" class="btn btn-sm btn-danger" onclick="removeGiftChestCmd(this)" style="display:none">Remove Chest</button>
               </div>
-
-              <div class="admin-cmd-row" style="margin-top:10px">
-                <span class="admin-cmd-label">Remove Gift Chest</span>
-                <button class="btn btn-sm btn-danger" onclick="removeGiftChestCmd(this)">Remove Chest</button>
-                <span style="font-size:11px;color:var(--text-muted)">Removes gift chest from selected player's cabin</span>
-              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Items placed in a chest in the player's cabin. Online players get a chat notification.</div>
 
             </div>
           </details>
