@@ -17,9 +17,10 @@ const LOG_FILES = {
   game:   'game.log',
 };
 
-// SMAPI-old.txt = previous session (written by SMAPI when it starts a new session)
+// smapi-prev.txt = previous session, copied by crash-monitor.sh before each launch
+// (SMAPI purges all SMAPI-*.txt files on startup via PurgeNormalLogs(), so we preserve it ourselves)
 function getSmapiOldLogPath() {
-  return path.join(path.dirname(config.SMAPI_LOG), 'SMAPI-old.txt');
+  return path.join(config.LOG_DIR, 'smapi-prev.txt');
 }
 
 // Combine previous session + current session with a separator line.

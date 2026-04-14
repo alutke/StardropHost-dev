@@ -2328,9 +2328,9 @@ async function loadFarm() {
       <div class="detail-item" style="position:relative">
         <div class="detail-label">Combined Money</div>
         <div class="detail-value">${data.money != null ? `${data.money.toLocaleString()}g` : '--'}</div>
-        <button class="btn-detail-edit" onclick="openSetMoneyModal(${data.money ?? 0})" title="Set shared money" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;line-height:1;border-radius:4px" onmouseenter="this.style.color='var(--text-primary)'" onmouseleave="this.style.color='var(--text-muted)'">
+        ${!data.separateWallets ? `<button class="btn-detail-edit" onclick="openSetMoneyModal(${data.money ?? 0})" title="Set shared money" style="position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:2px;line-height:1;border-radius:4px" onmouseenter="this.style.color='var(--text-primary)'" onmouseleave="this.style.color='var(--text-muted)'">
           <svg class="icon" style="width:14px;height:14px"><use href="#icon-edit"></use></svg>
-        </button>
+        </button>` : ''}
       </div>
       <div class="detail-item">
         <div class="detail-label">Combined Total Earned</div>
@@ -4647,6 +4647,7 @@ async function _pollChatNotifs() {
     const isDm  = msg.to && msg.to !== 'all';
     const isLog = !msg.from || msg.from === '#0' || msg.from.startsWith('#');
     if (isLog) continue;
+    if (msg.message?.startsWith('/')) continue;
     const channel = isDm ? (msg.isHost ? msg.to : msg.from) : 'world';
     const viewing = currentPage === 'chat' && (
       (isDm && _chatTarget === channel) || (!isDm && _chatTarget === null)
@@ -4949,6 +4950,8 @@ async function loadChatMessages() {
 
     // Skip "Unnamed Farmhand" join noise — real join message appears once name resolves
     if (isLog && msg.message?.includes('Unnamed Farmhand')) continue;
+    // Skip commands (e.g. /movebuildpermissions, /message, /say)
+    if (msg.message?.startsWith('/')) continue;
 
     if (_chatTarget) {
       // DM view: show messages to/from this player, plus log events mentioning them (join/quit/ban)

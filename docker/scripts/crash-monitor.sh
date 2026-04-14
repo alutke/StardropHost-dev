@@ -54,6 +54,17 @@ while true; do
     rm -f "$SMAPI_STDIN"
     mkfifo -m 0600 "$SMAPI_STDIN"
 
+    # Preserve the previous SMAPI log before SMAPI purges it on startup.
+    # SMAPI calls PurgeNormalLogs() at boot and deletes all SMAPI-*.txt files,
+    # so we copy it to our own logs volume first.
+    SMAPI_LOG_FILE="/home/steam/.config/StardewValley/ErrorLogs/SMAPI-latest.txt"
+    SMAPI_PREV_FILE="/home/steam/.local/share/stardrop/logs/smapi-prev.txt"
+    if [ -f "$SMAPI_LOG_FILE" ]; then
+        cp "$SMAPI_LOG_FILE" "$SMAPI_PREV_FILE" 2>/dev/null || true
+    else
+        rm -f "$SMAPI_PREV_FILE"
+    fi
+
     log "Starting game server..."
     ./StardewModdingAPI --server <> "$SMAPI_STDIN"
     EXIT_CODE=$?
