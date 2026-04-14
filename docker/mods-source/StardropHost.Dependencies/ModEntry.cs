@@ -1778,6 +1778,9 @@ namespace StardropHostDependencies
             _buildingMovePermission = savedPerm;
         }
 
+        private const string GiftChestName = "Stardrop Gifts";
+        private static readonly Vector2 GiftChestTile = new(5, 5);
+
         private void OnGiveItemCommand(string cmd, string[] args)
         {
             if (!Context.IsWorldReady || !Context.IsMainPlayer)
@@ -1792,7 +1795,6 @@ namespace StardropHostDependencies
             int    quality    = int.TryParse(args[2], out int ql) ? ql               : 0;
             string itemId     = string.Join(" ", args.Skip(3));
 
-            // Find farmer — host or active farmhand
             Farmer? farmer = Game1.player.Name.Equals(playerName, StringComparison.OrdinalIgnoreCase)
                 ? Game1.player
                 : Game1.getAllFarmhands().FirstOrDefault(f =>
@@ -1817,16 +1819,40 @@ namespace StardropHostDependencies
                 return;
             }
 
-            Item? overflow = farmer.addItemToInventory(item);
-            if (overflow != null)
+            if (farmer.IsLocalPlayer)
             {
-                Game1.createItemDebris(overflow, farmer.getStandingPosition(), farmer.FacingDirection, farmer.currentLocation);
-                Monitor.Log($"[Admin] Gave {quantity}x {item.DisplayName} to {farmer.Name} (inventory full — dropped at feet).", LogLevel.Info);
+                // Host — add directly to inventory, overflow as debris
+                var overflow = farmer.addItemToInventory(item);
+                if (overflow != null)
+                    Game1.createItemDebris(overflow, farmer.getStandingPosition(), farmer.FacingDirection, farmer.currentLocation);
+                Monitor.Log($"[Admin] Gave {quantity}x {item.DisplayName} to host {farmer.Name}.", LogLevel.Info);
             }
             else
             {
-                Monitor.Log($"[Admin] Gave {quantity}x {item.DisplayName} to {farmer.Name}.", LogLevel.Info);
+                PlaceInCabinChest(farmer, item);
             }
+        }
+
+        private void PlaceInCabinChest(Farmer farmer, Item item)
+        {
+            if (Utility.getHomeOfFarmer(farmer) is not Cabin home)
+            {
+                Monitor.Log($"[Admin] stardrop_giveitem: no cabin found for '{farmer.Name}'.", LogLevel.Warn);
+                return;
+            }
+
+            // Re-use existing gift chest anywhere in the cabin, or create one at the fixed tile
+            var chest = home.objects.Values.OfType<Chest>()
+                .FirstOrDefault(c => c.Name == GiftChestName);
+
+            if (chest == null)
+            {
+                chest = new Chest(true) { Name = GiftChestName };
+                home.objects[GiftChestTile] = chest;
+            }
+
+            chest.addItem(item);
+            Monitor.Log($"[Admin] Placed {item.Stack}x {item.DisplayName} in {farmer.Name}'s cabin chest.", LogLevel.Info);
         }
 
         private void OnUpgradeHouseCommand(string cmd, string[] args)
@@ -1862,17 +1888,20 @@ namespace StardropHostDependencies
                 return;
             }
 
-            Game1.player.houseUpgradeLevel.Value = targetLevel;
-
-            if (Game1.getLocationFromName("FarmHouse") is StardewValley.Locations.FarmHouse farmHouse)
+            // Step through each level progressively so setUpHouse places objects correctly at every stage
+            var farmHouse = Game1.getLocationFromName("FarmHouse") as StardewValley.Locations.FarmHouse;
+            for (int lvl = current + 1; lvl <= targetLevel; lvl++)
             {
-                // Reload the interior layout so the bed is placed at the correct position
-                try { Helper.Reflection.GetMethod(farmHouse, "setUpHouse").Invoke(); }
-                catch (Exception ex) { Monitor.Log($"[Admin] setUpHouse failed: {ex.Message}", LogLevel.Warn); }
-
-                // Remove crib
-                farmHouse.cribStyle.Value = 0;
+                Game1.player.houseUpgradeLevel.Value = lvl;
+                if (farmHouse != null)
+                {
+                    try { Helper.Reflection.GetMethod(farmHouse, "setUpHouse").Invoke(); }
+                    catch (Exception ex) { Monitor.Log($"[Admin] setUpHouse (level {lvl}) failed: {ex.Message}", LogLevel.Warn); }
+                }
             }
+
+            if (farmHouse != null)
+                farmHouse.cribStyle.Value = 0;
 
             // Reset sleep point to the new bed position for the upgraded level
             var (bx, by) = GetBedCoords();

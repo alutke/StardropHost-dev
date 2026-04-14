@@ -2991,10 +2991,12 @@ async function giveItemCmd(_btn) {
   if (!player || !itemId) return;
 
   const itemLabel = document.querySelector(`#giveItemId option[value="${CSS.escape(itemId)}"]`)?.textContent || itemId;
+  const isHost    = (lastStatusData?.live?.players || []).find(p => p.name === player)?.isHost ?? false;
   const command   = `stardrop_giveitem ${player} ${qty} ${quality} ${itemId}`;
   const data      = await API.post('/api/players/admin-command', { command }).catch(() => null);
   if (data?.success) {
-    showToast(`Gave ${qty}x ${itemLabel} to ${player}`, 'success');
+    const dest = isHost ? 'inventory' : 'cabin chest';
+    showToast(`${qty}x ${itemLabel} → ${player}'s ${dest}`, 'success');
   } else {
     showToast(data?.error || 'Failed — is the server running and player online?', 'error');
   }
