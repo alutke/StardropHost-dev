@@ -273,4 +273,36 @@ function setFarmName(req, res) {
   }
 }
 
-module.exports = { getFarmOverview, getLiveStatus, setFarmName };
+const AUTOMATION_PATH = path.join(config.DATA_DIR, 'automation.json');
+
+function readAutomation() {
+  try {
+    if (fs.existsSync(AUTOMATION_PATH))
+      return JSON.parse(fs.readFileSync(AUTOMATION_PATH, 'utf-8'));
+  } catch {}
+  return {};
+}
+
+function writeAutomation(data) {
+  fs.mkdirSync(path.dirname(AUTOMATION_PATH), { recursive: true });
+  fs.writeFileSync(AUTOMATION_PATH, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+function getSyncHouse(req, res) {
+  const auto = readAutomation();
+  res.json({ syncHouseWithCabin: auto.SyncHouseWithCabin === true });
+}
+
+function setSyncHouse(req, res) {
+  const enabled = req.body?.enabled === true || req.body?.enabled === 'true';
+  const auto = readAutomation();
+  auto.SyncHouseWithCabin = enabled;
+  try {
+    writeAutomation(auto);
+    res.json({ success: true, syncHouseWithCabin: enabled });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save setting' });
+  }
+}
+
+module.exports = { getFarmOverview, getLiveStatus, setFarmName, getSyncHouse, setSyncHouse };

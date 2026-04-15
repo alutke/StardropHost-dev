@@ -152,6 +152,9 @@ namespace StardropHostDependencies
             catch { }
         }
 
+        // ── House sync state ─────────────────────────────────────────────────
+        private int _houseSyncTick = 0;
+
         // ── Headless Server state ────────────────────────────────────────────
         private readonly Dictionary<string, int> _prevFriendships = new();
 
@@ -509,6 +512,42 @@ namespace StardropHostDependencies
             HandleMinigame();
             HandlePetAndCave();
             HandleFestivalEvents();
+            if (++_houseSyncTick >= 60) { _houseSyncTick = 0; CheckHouseSync(); }
+        }
+
+        private void CheckHouseSync()
+        {
+            // Re-read the flag from disk each time so panel toggle takes effect without a save reload
+            bool sync;
+            try
+            {
+                if (!File.Exists(AutomationConfigPath)) return;
+                var doc = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(AutomationConfigPath));
+                sync = doc.TryGetProperty("SyncHouseWithCabin", out var v) && v.GetBoolean();
+            }
+            catch { return; }
+
+            if (!sync) return;
+
+            int hostLevel = Game1.player.houseUpgradeLevel.Value;
+            if (hostLevel >= 3) return;
+
+            int maxCabinLevel = Game1.getAllFarmhands()
+                .Where(f => f.isCustomized.Value)
+                .Select(f => f.houseUpgradeLevel.Value)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            if (maxCabinLevel <= hostLevel) return;
+
+            // Skip silently if any farmhand is inside — upgrade would kick them
+            bool anyInside = Game1.getOnlineFarmers()
+                .Any(f => !f.IsMainPlayer && f.currentLocation?.Name == "FarmHouse");
+            if (anyInside) return;
+
+            int target = Math.Min(maxCabinLevel, 3);
+            Monitor.Log($"[HouseSync] Auto-upgrading farmhouse {hostLevel}→{target} to match farmhand cabin level.", LogLevel.Info);
+            OnUpgradeHouseCommand("stardrop_upgradehouse", new[] { target.ToString() });
         }
 
         private void HandleMinigame()
@@ -1105,6 +1144,16 @@ namespace StardropHostDependencies
         private void PreventFriendshipDecay()
         {
             if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+
+            // Only needed when farmhands are offline — skip entirely when everyone is connected
+            bool anyOffline = Game1.getAllFarmhands()
+                .Any(f => f.isCustomized.Value &&
+                          !Game1.getOnlineFarmers().Any(o => o.UniqueMultiplayerID == f.UniqueMultiplayerID));
+            if (!anyOffline)
+            {
+                _prevFriendships.Clear();
+                return;
+            }
 
             if (_prevFriendships.Count > 0)
             {
@@ -1797,9 +1846,7 @@ namespace StardropHostDependencies
             // at a safe tile after level 1 and must not be scooped into itself on later upgrades.
             Chest? movedChest = (cabinForItems != null && current == 0) ? CollectItemsToChest(cabinForItems) : null;
 
-            // Apply upgrades sequentially from current+1 up to targetLevel
-            for (int l = current + 1; l <= targetLevel; l++)
-                farmer.houseUpgradeLevel.Value = l;
+            farmer.houseUpgradeLevel.Value = targetLevel;
 
             // Refresh the cabin interior layout immediately
             if (cabinForItems != null)
@@ -2121,14 +2168,11 @@ namespace StardropHostDependencies
             // at a safe tile after level 1 and must not be scooped into itself on later upgrades.
             Chest? movedChest = (farmHouse != null && current == 0) ? CollectItemsToChest(farmHouse) : null;
 
-            for (int lvl = current + 1; lvl <= targetLevel; lvl++)
+            Game1.player.houseUpgradeLevel.Value = targetLevel;
+            if (farmHouse != null)
             {
-                Game1.player.houseUpgradeLevel.Value = lvl;
-                if (farmHouse != null)
-                {
-                    try { Helper.Reflection.GetMethod(farmHouse, "updateLayout").Invoke(); }
-                    catch (Exception ex) { Monitor.Log($"[Admin] updateLayout (level {lvl}) failed: {ex.Message}", LogLevel.Warn); }
-                }
+                try { Helper.Reflection.GetMethod(farmHouse, "updateLayout").Invoke(); }
+                catch (Exception ex) { Monitor.Log($"[Admin] updateLayout (level {targetLevel}) failed: {ex.Message}", LogLevel.Warn); }
             }
 
             if (farmHouse != null)
@@ -2732,6 +2776,7 @@ namespace StardropHostDependencies
         public int    PetBreed               { get; set; } = 0;
         public string PetName                { get; set; } = "Stella";
         public string MushroomsOrBats        { get; set; } = "mushrooms";
+        public bool   SyncHouseWithCabin     { get; set; } = false;
     }
 
     // ════════════════════════════════════════════════════════════════════════

@@ -683,6 +683,17 @@
                   </div>
                 </div>
 
+                <div class="admin-cmd-row">
+                  <div>
+                    <span class="admin-cmd-label">Auto-Sync House Level</span>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Automatically upgrade the host farmhouse to match the highest farmhand cabin level.</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" id="syncHouseToggle" onchange="toggleSyncHouse(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
               </div>
               <div id="farmControlsResult" style="display:none;margin-top:10px;font-size:13px;padding:8px;border-radius:6px"></div>
             </div>

@@ -149,6 +149,8 @@ const farmAPI = require('./api/farm');
 app.get('/api/farm/overview',        auth.verifyMiddleware, farmAPI.getFarmOverview);
 app.get('/api/farm/live',            auth.verifyMiddleware, farmAPI.getLiveStatus);
 app.post('/api/farm/name',           auth.verifyMiddleware, farmAPI.setFarmName);
+app.get('/api/farm/sync-house',      auth.verifyMiddleware, farmAPI.getSyncHouse);
+app.post('/api/farm/sync-house',     auth.verifyMiddleware, farmAPI.setSyncHouse);
 
 // -- Game update (Steam) --
 const gameUpdateAPI = require('./api/game-update');

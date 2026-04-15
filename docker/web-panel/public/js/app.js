@@ -1733,6 +1733,7 @@ function navigateTo(page) {
   switch (page) {
     case 'dashboard': loadDashboard(); loadRemoteStatus(); renderQuickActions(); break;
     case 'farm':
+      _syncHouseLoaded = false;
       loadFarm();
       initCropSaverState();
       if (!farmInterval) farmInterval = setInterval(loadFarm, 60000);
@@ -2202,6 +2203,15 @@ async function loadFarm() {
   const data = await API.get('/api/farm/overview');
   if (!data) return;
 
+  // Load sync-house toggle once per page visit (not on every 60s poll)
+  if (!_syncHouseLoaded) {
+    _syncHouseLoaded = true;
+    API.get('/api/farm/sync-house').then(s => {
+      const cb = document.getElementById('syncHouseToggle');
+      if (cb) cb.checked = s?.syncHouseWithCabin === true;
+    }).catch(() => {});
+  }
+
   const liveEl = document.getElementById('farmLiveData');
   const ccEl   = document.getElementById('farmCCData');
   const infoEl = document.getElementById('farmInfoData');
@@ -2473,7 +2483,8 @@ function setBuildPermissionCmd(btn) {
   worldCmd('say', `/movebuildingpermission ${v}`, null, btn, `Success: Build permissions → ${labels[v] || v}`);
 }
 
-let _houseLevelLocal = null; // tracks applied level between status ticks
+let _houseLevelLocal  = null; // tracks applied level between status ticks
+let _syncHouseLoaded  = false;
 
 function populateUpgradeHouseDropdown() {
   const lvlSel = document.getElementById('upgradeHouseLevel');
@@ -2510,6 +2521,17 @@ function populateUpgradeHouseDropdown() {
   lvlSel.disabled = maxed;
   btn.disabled    = maxed;
   btn.title       = maxed ? 'Farmhouse is fully upgraded' : '';
+}
+
+async function toggleSyncHouse(cb) {
+  const enabled = cb.checked;
+  const r = await API.post('/api/farm/sync-house', { enabled }).catch(() => null);
+  if (r?.success) {
+    showToast(`Auto-Sync House Level ${enabled ? 'enabled' : 'disabled'}`, 'success');
+  } else {
+    showToast('Failed to save setting', 'error');
+    cb.checked = !enabled; // revert
+  }
 }
 
 async function upgradeHouseCmd(btn) {
