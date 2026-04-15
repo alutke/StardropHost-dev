@@ -178,11 +178,8 @@ function getWizardStatus(req, res) {
     return res.json({ completed: true, needsWizard: false });
   }
 
-  // If game files are missing (regardless of completion state or current step),
-  // reset to step 2 so the user can re-provide them. This handles:
-  //   - Completed wizard but game volume was cleared
-  //   - Previous run reached step 6 but game never fully downloaded
-  if (!gamePresent && state.currentStep !== 2) {
+  // Always start from step 2 (game files) — never skip it
+  if (state.currentStep !== 2) {
     state.completed   = false;
     state.currentStep = 2;
     state.steps[2]    = { complete: false };
@@ -643,13 +640,8 @@ function factoryReset(_req, res) {
       }
     } catch {}
 
-    // 5. Reset wizard state — skip step 2 if game files are already present
+    // 5. Reset wizard state — always start from step 2 (game files)
     const freshState = defaultState();
-    if (detectGameFiles()) {
-      freshState.steps[2].complete = true;
-      freshState.steps[2].method   = 'local';
-      freshState.currentStep       = 3;
-    }
     writeState(freshState);
 
     // 6. Restart the game process

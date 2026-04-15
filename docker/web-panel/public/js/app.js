@@ -351,6 +351,8 @@ async function selectFromDirBrowser() {
 let _steamAuthPollTimer = null;
 let _steamDlPollTimer   = null;
 let _steamDlLogLines    = 0;
+let _wizGuardCodePending    = false; // true after steamcmd guard submitted, until new attempt detected
+let _wizLastAttemptStartIdx = 0;     // line index of the last "Steam credentials detected" we acted on
 
 // Step A — initiate Steam login via steam-auth sidecar (this triggers the Guard email)
 async function wizSteamLogin() {
@@ -524,6 +526,8 @@ async function wizTriggerSteamDownload() {
       statusEl.textContent  = '✅ Steam code accepted — starting game download…';
       // Advance to step 3 (download progress screen) and begin polling
       _steamDlLogLines = 0;
+      _wizGuardCodePending = false;
+      _wizLastAttemptStartIdx = 0;
       setTimeout(() => { wizGoToStep(3); wizPollDownloadProgress(); }, 1200);
     } else {
       statusEl.style.color = 'var(--accent-error)';
@@ -820,10 +824,11 @@ async function wizSubmitSteamcmdGuard() {
       const guardRow = document.getElementById('wiz-dl-guard-row');
       if (guardRow) guardRow.style.display = 'none';
       if (input) input.value = '';
-      if (lbl) { lbl.style.color = ''; lbl.textContent = 'Guard code sent — retrying download…'; }
+      if (lbl) { lbl.style.color = ''; lbl.textContent = 'Guard code sent — waiting for download to restart…'; }
       if (bar) bar.style.width = '35%';
-      // Reset log position so we start streaming from the new attempt
-      _steamDlLogLines = 0;
+      // Mark pending — poll will wait for a new "Steam credentials detected" line before
+      // processing sentinels, preventing the old STEAM_GUARD_REQUIRED from re-triggering.
+      _wizGuardCodePending = true;
       // Remove any back button from a previous failed attempt
       const oldBack = document.getElementById('wiz-dl-back-btn');
       if (oldBack) oldBack.parentElement.remove();
@@ -916,6 +921,30 @@ async function wizPollDownloadProgress() {
       // Only check sentinels in lines from the latest attempt onwards —
       // this prevents old STEAM_GUARD_REQUIRED etc. from re-triggering.
       const attemptStart = _wizLatestAttemptStart(log.lines);
+
+      // If a guard code was just submitted, wait for the entrypoint to start a new
+      // attempt (new "Steam credentials detected" line) before checking sentinels.
+      // The entrypoint re-reads runtime.env every 30s, so there's a gap between
+      // the user submitting the code and the next attempt appearing in the log.
+      // Without this, the old STEAM_GUARD_REQUIRED sentinel fires immediately.
+      if (_wizGuardCodePending) {
+        if (attemptStart > _wizLastAttemptStartIdx) {
+          // New attempt detected — clear pending, re-render log from new start
+          _wizGuardCodePending = false;
+          _wizLastAttemptStartIdx = attemptStart;
+          _steamDlLogLines = 0;
+        } else {
+          // Still between attempts — skip sentinel checks, keep polling
+          if (lbl) { lbl.style.color = ''; lbl.textContent = '⏳ Guard code submitted — waiting for download to restart…'; }
+          if (_wizState.currentStep === 3) {
+            _steamDlPollTimer = setTimeout(wizPollDownloadProgress, 4000);
+          }
+          return;
+        }
+      } else {
+        _wizLastAttemptStartIdx = attemptStart;
+      }
+
       const allText = log.lines.slice(attemptStart).map(l => l.text).join('\n');
 
       // Detect steamcmd Guard requirement — show inline input, pause polling.
