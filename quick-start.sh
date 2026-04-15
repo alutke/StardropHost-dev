@@ -516,6 +516,13 @@ setup_instance() {
     NETWORK_SUBNET="172.30.$((INSTANCE_NUM - 1)).0/24"
     SERVER_CONTAINER_IP="172.30.$((INSTANCE_NUM - 1)).10"
 
+    # Generate a unique manager secret for this instance (if not already set)
+    if ! grep -q '^MANAGER_SECRET=' .env 2>/dev/null; then
+        MANAGER_SECRET_VAL=$(openssl rand -hex 32 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' || date +%s%N | sha256sum | head -c 64)
+    else
+        MANAGER_SECRET_VAL=$(grep '^MANAGER_SECRET=' .env | cut -d= -f2-)
+    fi
+
     cat >> .env <<EOF
 
 # --- Instance $INSTANCE_NUM settings (written by quick-start.sh) ---
@@ -526,6 +533,7 @@ VNC_PORT=${VNC_PORT}
 METRICS_PORT=${METRICS_PORT}
 NETWORK_SUBNET=${NETWORK_SUBNET}
 SERVER_IP=${SERVER_CONTAINER_IP}
+MANAGER_SECRET=${MANAGER_SECRET_VAL}
 EOF
 
     print_info "Container prefix: ${CONTAINER_PREFIX}"

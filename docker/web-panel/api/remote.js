@@ -68,12 +68,13 @@ function callManager(method, urlPath, body = null) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
     const url     = new URL(urlPath, MANAGER_URL);
+    const secret  = process.env.MANAGER_SECRET || '';
     const options = {
       hostname: url.hostname,
       port:     url.port || 80,
       path:     url.pathname,
       method,
-      headers:  { 'Content-Type': 'application/json' },
+      headers:  { 'Content-Type': 'application/json', ...(secret ? { 'Authorization': `Bearer ${secret}` } : {}) },
       timeout:  30000,
     };
     if (payload) options.headers['Content-Length'] = Buffer.byteLength(payload);

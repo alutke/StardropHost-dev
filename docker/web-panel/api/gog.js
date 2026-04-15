@@ -59,7 +59,7 @@ function callManager(apiPath, body = {}) {
     const req     = http.request({
       hostname: url.hostname, port: url.port || 80, path: url.pathname,
       method:   'POST',
-      headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload), ...(process.env.MANAGER_SECRET ? { 'Authorization': `Bearer ${process.env.MANAGER_SECRET}` } : {}) },
       timeout:  10000,
     }, (res) => {
       let data = '';

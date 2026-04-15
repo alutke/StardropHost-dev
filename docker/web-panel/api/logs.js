@@ -285,11 +285,13 @@ function getDockerLogs(req, res) {
   const lines = Math.min(parseInt(req.query.lines || '500', 10), 5000);
   const managerUrl = new URL(`/docker-logs?lines=${lines}`, config.MANAGER_URL);
 
+  const secret  = process.env.MANAGER_SECRET || '';
   const request = http.get({
     hostname: managerUrl.hostname,
     port:     managerUrl.port,
     path:     managerUrl.pathname + managerUrl.search,
     timeout:  10000,
+    headers:  secret ? { 'Authorization': `Bearer ${secret}` } : {},
   }, (response) => {
     let data = '';
     response.setEncoding('utf8');

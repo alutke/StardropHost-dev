@@ -37,7 +37,7 @@ function callManager(method, urlPath, body = null) {
     const options = {
       hostname: url.hostname, port: url.port || 80,
       path: url.pathname, method,
-      headers: { 'Content-Type': 'application/json', ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}) },
+      headers: { 'Content-Type': 'application/json', ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}), ...(process.env.MANAGER_SECRET ? { 'Authorization': `Bearer ${process.env.MANAGER_SECRET}` } : {}) },
     };
     const req = http.request(options, (res) => {
       let data = '';

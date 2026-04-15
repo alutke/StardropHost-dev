@@ -562,6 +562,7 @@ function callManager(path, body = {}) {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload),
+        ...(process.env.MANAGER_SECRET ? { 'Authorization': `Bearer ${process.env.MANAGER_SECRET}` } : {}),
       },
       timeout: 5000,
     }, (response) => {

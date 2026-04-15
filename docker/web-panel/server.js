@@ -49,6 +49,22 @@ const server = http.createServer(app);
 app.use(express.json({ limit: '75mb' }));
 app.use(express.urlencoded({ extended: false, limit: '75mb' }));
 
+// ─── Security headers ─────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data:; " +
+    "font-src 'self' data:; " +
+    "connect-src 'self' ws: wss:; " +
+    "frame-ancestors 'none';"
+  );
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  next();
+});
+
 // ─── Routes ──────────────────────────────────────────────────────
 
 // -- Auth (no token required) --

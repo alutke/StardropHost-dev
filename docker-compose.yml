@@ -32,6 +32,7 @@ services:
       - PROJECT_DIR=${PWD}
       - COMPOSE_FILE=${PWD}/docker-compose.yml
       - CONTAINER_PREFIX=${CONTAINER_PREFIX:-stardrop}
+      - MANAGER_SECRET=${MANAGER_SECRET:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}:${PWD}
@@ -83,6 +84,7 @@ services:
     environment:
       - USE_GPU=${USE_GPU:-false}
       - ENABLE_VNC=${ENABLE_VNC:-false}
+      - MANAGER_SECRET=${MANAGER_SECRET:-}
       - VNC_PASSWORD=${VNC_PASSWORD:-stardew1}
       - DISPLAY_PRESET=${DISPLAY_PRESET:-800x600@30}
       - ENABLE_AUTO_BACKUP=${ENABLE_AUTO_BACKUP:-true}

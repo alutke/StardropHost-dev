@@ -12,8 +12,9 @@ const http = require('http');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
-const PORT        = parseInt(process.env.MANAGER_PORT || '18700', 10);
-const PROJECT_DIR = process.env.PROJECT_DIR || '/workspace';
+const PORT           = parseInt(process.env.MANAGER_PORT || '18700', 10);
+const MANAGER_SECRET = process.env.MANAGER_SECRET || '';
+const PROJECT_DIR    = process.env.PROJECT_DIR || '/workspace';
 const COMPOSE_FILE     = process.env.COMPOSE_FILE || `${PROJECT_DIR}/docker-compose.yml`;
 const COMPOSE_OVERRIDE = `${PROJECT_DIR}/docker-compose.override.yml`;
 
@@ -315,6 +316,7 @@ function installInstance() {
 
   const command = [
     'docker run --rm --name stardrop-install',
+    '--network host',
     '-v /var/run/docker.sock:/var/run/docker.sock',
     `-v ${parentDir}:${parentDir}`,
     `-e STARDROP_REAL_HOME=${parentDir}`,
@@ -450,6 +452,14 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     sendJson(res, 200, { ok: true });
     return;
+  }
+
+  if (MANAGER_SECRET) {
+    const authHeader = req.headers['authorization'] || '';
+    if (authHeader !== `Bearer ${MANAGER_SECRET}`) {
+      sendJson(res, 401, { error: 'Unauthorized' });
+      return;
+    }
   }
 
   if (req.method === 'POST' && req.url === '/recreate') {
