@@ -7786,7 +7786,8 @@ async function applyRemoteCompose() {
 
   btn.disabled    = true;
   btn.textContent = 'Applying...';
-  msgEl.style.display = 'none';
+  const msgEl = document.getElementById('remoteApplyMsg');
+  if (msgEl) msgEl.style.display = 'none';
 
   _remoteOptimisticState = 'starting';
   _updateRemoteBadge();

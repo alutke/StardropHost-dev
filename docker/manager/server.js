@@ -133,8 +133,12 @@ const PROFILE_SERVICES = {
 };
 
 function startService(service) {
-  const profile = PROFILE_SERVICES[service] ? `--profile ${PROFILE_SERVICES[service]} ` : '';
-  const command = `docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} ${profile}up -d --no-deps ${service}`;
+  const profile       = PROFILE_SERVICES[service] ? `--profile ${PROFILE_SERVICES[service]} ` : '';
+  const containerName = SERVICE_CONTAINERS[service];
+  // Remove any stale container first — profile services are excluded from the normal
+  // `up -d` so an old container can linger with a dead network reference after reinstall.
+  const rmCmd      = containerName ? `docker rm -f ${containerName} >/dev/null 2>&1 || true && ` : '';
+  const command    = `${rmCmd}docker compose -f ${COMPOSE_FILE} --project-directory ${PROJECT_DIR} ${profile}up -d --no-deps ${service}`;
 
   const child = spawn('sh', ['-lc', command], {
     cwd: PROJECT_DIR, env: buildComposeEnv(), detached: true, stdio: 'ignore',
