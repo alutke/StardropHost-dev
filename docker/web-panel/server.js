@@ -57,7 +57,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data:; " +
     "font-src 'self' data:; " +
-    "connect-src 'self' ws: wss:; " +
+    "connect-src 'self' http: https: ws: wss:; " +
     "frame-ancestors 'none';"
   );
   res.setHeader('X-Content-Type-Options', 'nosniff');
