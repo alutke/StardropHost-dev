@@ -262,7 +262,8 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_growcrops",      "Grow all crops on the Farm N days. Usage: stardrop_growcrops <days>",                      OnGrowCropsCommand);
             helper.ConsoleCommands.Add("stardrop_growgrass",      "Spread grass on the Farm N times. Usage: stardrop_growgrass <times>",                      OnGrowGrassCommand);
             helper.ConsoleCommands.Add("stardrop_growwildtrees",  "Grow all wild trees on the Farm to maturity. Usage: stardrop_growwildtrees",               OnGrowWildTreesCommand);
-            helper.ConsoleCommands.Add("stardrop_fruittrees",     "Add a month of growth to all fruit trees on the Farm. Usage: stardrop_fruittrees",          OnFruitTreesCommand);
+            helper.ConsoleCommands.Add("stardrop_fruittrees",      "Add a month of growth to all fruit trees on the Farm. Usage: stardrop_fruittrees",          OnFruitTreesCommand);
+            helper.ConsoleCommands.Add("stardrop_listfarmhands", "List all farmhands with cabin level, days played, and platform ID. Usage: stardrop_listfarmhands", OnListFarmhandsCommand);
 
             // Player limit — read once at startup from env, enforced every tick in OnUpdateTicked
             var envLimit = Environment.GetEnvironmentVariable("PLAYER_LIMIT");
@@ -924,6 +925,20 @@ namespace StardropHostDependencies
         private void OnPeerDisconnected(object? sender, PeerDisconnectedEventArgs e)
         {
             Monitor.Log($"farmhand {e.Peer.PlayerID} disconnected", LogLevel.Info);
+
+            if (!Context.IsMainPlayer || !Context.IsWorldReady) return;
+
+            // Recycle uncustomized cabin claim — player disconnected mid-character-creation
+            // (crashed during Grandpa intro, etc.). Without this the cabin stays "Taken" forever.
+            foreach (var farmer in Game1.getAllFarmhands())
+            {
+                if (farmer.UniqueMultiplayerID == e.Peer.PlayerID && !farmer.isCustomized.Value)
+                {
+                    farmer.userID.Value = "";
+                    Monitor.Log($"[CabinStack] Recycled uncustomized cabin claim from peer {e.Peer.PlayerID}.", LogLevel.Info);
+                    break;
+                }
+            }
         }
 
         private void OnWarped(object? sender, WarpedEventArgs e)
@@ -2227,6 +2242,27 @@ namespace StardropHostDependencies
             bool enable = args[0].Equals("on", StringComparison.OrdinalIgnoreCase);
             CropSaver.Enabled = enable;
             Monitor.Log($"[CropSaver] {(enable ? "Enabled" : "Disabled")} at runtime.", LogLevel.Info);
+        }
+
+        private void OnListFarmhandsCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady) { Monitor.Log("No active game session.", LogLevel.Warn); return; }
+            var online = Game1.getOnlineFarmers()
+                .Select(f => f.UniqueMultiplayerID)
+                .ToHashSet();
+            var farmhands = Game1.getAllFarmhands().ToList();
+            if (farmhands.Count == 0) { Monitor.Log("[Farmhands] No farmhands found.", LogLevel.Info); return; }
+            Monitor.Log($"[Farmhands] {farmhands.Count} slot(s):", LogLevel.Info);
+            foreach (var f in farmhands)
+            {
+                string status   = online.Contains(f.UniqueMultiplayerID) ? "ONLINE " : "offline";
+                string name     = string.IsNullOrEmpty(f.Name) ? "(unclaimed)" : f.Name;
+                string customized = f.isCustomized.Value ? "" : " [not customized]";
+                Monitor.Log(
+                    $"  [{status}] {name}{customized} | cabin lv.{f.houseUpgradeLevel.Value} | " +
+                    $"days: {f.stats.DaysPlayed} | id: {f.UniqueMultiplayerID}",
+                    LogLevel.Info);
+            }
         }
 
         /// <summary>
