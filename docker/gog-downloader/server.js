@@ -61,6 +61,7 @@ function appendLog(text) {
       if (pct === _lastProgressPct) continue;
       _lastProgressPct = pct;
     }
+    process.stdout.write(line + '\n');
     try { fs.appendFileSync(LOG_FILE, line + '\n'); } catch {}
   }
 }
@@ -176,10 +177,10 @@ async function extractGogInstaller() {
   try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
 
   await new Promise(resolve => {
-    // GOG .sh installers are zip archives with a shell header — extract with unzip
-    // rather than running the MojoSetup binary (glibc-only, won't run on Alpine/musl).
-    const proc = spawn('unzip', ['-o', installerPath, '-d', extractDir], {
+    // GOG MojoSetup installers support --installpath to override destination
+    const proc = spawn('bash', [installerPath, '--', `--installpath=${extractDir}`], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, HOME: '/tmp' }, // prevent installer writing to ~/GOG Games
     });
     proc.stdout.on('data', d => appendLog(d.toString()));
     proc.stderr.on('data', d => appendLog(d.toString()));
