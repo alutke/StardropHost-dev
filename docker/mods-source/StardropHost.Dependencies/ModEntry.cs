@@ -267,6 +267,7 @@ namespace StardropHostDependencies
             helper.ConsoleCommands.Add("stardrop_growwildtrees",  "Grow all wild trees on the Farm to maturity. Usage: stardrop_growwildtrees",               OnGrowWildTreesCommand);
             helper.ConsoleCommands.Add("stardrop_fruittrees",      "Add a month of growth to all fruit trees on the Farm. Usage: stardrop_fruittrees",          OnFruitTreesCommand);
             helper.ConsoleCommands.Add("stardrop_listfarmhands", "List all farmhands with cabin level, days played, and platform ID. Usage: stardrop_listfarmhands", OnListFarmhandsCommand);
+            helper.ConsoleCommands.Add("stardrop_teleport", "Teleport a farmhand to a location. Usage: stardrop_teleport <playerName> <locationName> <tileX> <tileY>", OnTeleportCommand);
 
             // Player limit — read once at startup from env, enforced every tick in OnUpdateTicked
             var envLimit = Environment.GetEnvironmentVariable("PLAYER_LIMIT");
@@ -2307,6 +2308,59 @@ namespace StardropHostDependencies
                     $"days: {f.stats.DaysPlayed} | id: {f.UniqueMultiplayerID}",
                     LogLevel.Info);
             }
+        }
+
+        private void OnTeleportCommand(string cmd, string[] args)
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer)
+            {
+                Monitor.Log("[Admin] stardrop_teleport requires an active hosted session.", LogLevel.Warn);
+                return;
+            }
+            if (args.Length < 4)
+            {
+                Monitor.Log("Usage: stardrop_teleport <playerName> <locationName> <tileX> <tileY>", LogLevel.Info);
+                return;
+            }
+
+            string playerName  = args[0];
+            string locationName = args[1];
+            if (!short.TryParse(args[2], out short tileX) || !short.TryParse(args[3], out short tileY))
+            {
+                Monitor.Log("[Admin] stardrop_teleport: tileX and tileY must be integers.", LogLevel.Error);
+                return;
+            }
+
+            Farmer target = Game1.getAllFarmhands()
+                .FirstOrDefault(f => f.Name.Equals(playerName, StringComparison.OrdinalIgnoreCase));
+            if (target == null)
+            {
+                Monitor.Log($"[Admin] stardrop_teleport: farmhand '{playerName}' not found.", LogLevel.Error);
+                return;
+            }
+
+            GameLocation dest = Game1.getLocationFromName(locationName);
+            if (dest == null)
+            {
+                Monitor.Log($"[Admin] stardrop_teleport: location '{locationName}' not found.", LogLevel.Error);
+                return;
+            }
+
+            // GameServer.warpFarmer is private — use reflection.
+            // It sets farmer.currentLocation + Position, then calls sendLocation (Type 3 / activeLocation)
+            // to the client, which triggers a proper loading screen + map swap on their end.
+            var method = Game1.server?.GetType().GetMethod(
+                "warpFarmer",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (method == null)
+            {
+                Monitor.Log("[Admin] stardrop_teleport: could not find GameServer.warpFarmer via reflection.", LogLevel.Error);
+                return;
+            }
+
+            method.Invoke(Game1.server, new object[] { target, tileX, tileY, dest.NameOrUniqueName, dest.isStructure.Value });
+            Monitor.Log($"[Admin] Teleported '{target.Name}' to {dest.NameOrUniqueName} ({tileX},{tileY}).", LogLevel.Info);
         }
 
         /// <summary>
