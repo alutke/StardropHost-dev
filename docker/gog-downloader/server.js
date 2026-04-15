@@ -177,10 +177,10 @@ async function extractGogInstaller() {
   try { fs.rmSync(extractDir, { recursive: true, force: true }); } catch {}
 
   await new Promise(resolve => {
-    // GOG MojoSetup installers support --installpath to override destination
-    const proc = spawn('bash', [installerPath, '--', `--installpath=${extractDir}`], {
+    // MojoSetup is glibc-linked and can't run on Alpine (musl).
+    // GOG .sh installers are zip archives with a shell header — unzip extracts the data directly.
+    const proc = spawn('unzip', ['-o', installerPath, '-d', extractDir], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, HOME: '/tmp' }, // prevent installer writing to ~/GOG Games
     });
     proc.stdout.on('data', d => appendLog(d.toString()));
     proc.stderr.on('data', d => appendLog(d.toString()));

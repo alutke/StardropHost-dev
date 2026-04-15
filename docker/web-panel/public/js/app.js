@@ -572,6 +572,18 @@ function wizGogOnRedirectInput() {
   if (btn) btn.disabled = !input?.value?.trim();
 }
 
+// Reset back to phase 1 so the user can get a fresh auth link
+function wizGogReset() {
+  document.getElementById('wiz-gog-phase1').style.display = '';
+  document.getElementById('wiz-gog-phase2').style.display = 'none';
+  const redirectInput = document.getElementById('wiz-gog-redirect');
+  if (redirectInput) redirectInput.value = '';
+  const statusEl = document.getElementById('wiz-gog-status');
+  if (statusEl) { statusEl.style.color = 'var(--text-muted)'; statusEl.textContent = ''; }
+  const btn = document.getElementById('wiz-gog-login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Download'; }
+}
+
 // Phase 2: login + start download
 async function wizGogLogin() {
   const redirectInput = document.getElementById('wiz-gog-redirect');

@@ -23,7 +23,7 @@ FROM php:8.4-alpine
 ENV CONFIG_DIRECTORY=/Configs
 ENV DOWNLOAD_DIRECTORY=/Downloads
 
-RUN apk add --no-cache libxml2-dev sqlite-dev nodejs bash \
+RUN apk add --no-cache libxml2-dev sqlite-dev nodejs bash unzip \
     && docker-php-ext-install simplexml pcntl pdo_sqlite \
     && echo 'memory_limit = -1' > /usr/local/etc/php/conf.d/docker-php-memory-limit.ini
 
