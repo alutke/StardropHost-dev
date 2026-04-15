@@ -226,7 +226,7 @@ print_info "Only modified files (scripts, web panel, config) are rebuilt."
 print_info "The dashboard stays online during this step."
 echo ""
 
-if ! $COMPOSE_CMD build stardrop-server stardrop-manager stardrop-steam-auth; then
+if ! $COMPOSE_CMD build stardrop-server stardrop-manager stardrop-steam-auth stardrop-gog-downloader; then
     echo ""
     print_error "Build failed — dashboard is still running, no downtime occurred."
     echo ""
