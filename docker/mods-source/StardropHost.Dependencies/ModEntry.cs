@@ -757,6 +757,7 @@ namespace StardropHostDependencies
             if (Game1.otherFarmers.Count == 0) return;
             if (Game1.CurrentEvent?.isFestival == true || _warpingToFestival) return;
             if (Game1.whereIsTodaysFest == null) return;
+            if (!IsInFestivalTimeWindow()) return;
             if (!CheckOthersReadyForFestival("festivalStart")) return;
 
             _festivalLogThrottle++;
@@ -787,9 +788,13 @@ namespace StardropHostDependencies
             if (Game1.CurrentEvent?.isFestival != true || _startedFestivalEnd) return;
             if (!CheckOthersReadyForFestival("festivalEnd")) return;
 
-            Monitor.Log("[Festival] Players ready to leave — triggering end dialogue.", LogLevel.Info);
-            Game1.CurrentEvent.TryStartEndFestivalDialogue(Game1.player);
+            Monitor.Log("[Festival] Players ready to leave — joining festivalEnd ready check.", LogLevel.Info);
             _startedFestivalEnd = true;
+            Game1.activeClickableMenu = new ReadyCheckDialog("festivalEnd", true, who =>
+            {
+                Game1.exitActiveMenu();
+                GoToBed();
+            });
         }
 
         private void HandleFestivalEvents()
@@ -800,22 +805,23 @@ namespace StardropHostDependencies
             _festivalEventTick++;
             _festivalTimeoutTick++;
 
-            // After 30s at the festival, auto-start the mini-event by answering the host NPC
+            // After 30s at the festival, auto-start the mini-event — match reference mod exactly:
+            // call answerDialogueQuestion(Lewis, "yes") via SMAPI reflection.
             const int AutoStartTicks = 30;
             if (!_festivalEventStarted && _festivalEventTick >= AutoStartTicks)
             {
-                try
+                var lewis = Game1.getCharacterFromName("Lewis");
+                if (lewis != null)
                 {
-                    var festivalHost = Helper.Reflection
-                        .GetField<NPC>(Game1.CurrentEvent, "festivalHost").GetValue();
-                    if (festivalHost != null)
+                    try
                     {
-                        Game1.CurrentEvent.answerDialogueQuestion(festivalHost, "yes");
+                        Helper.Reflection.GetMethod(Game1.CurrentEvent, "answerDialogueQuestion")
+                            .Invoke(lewis, "yes");
                         Monitor.Log("[Festival] Auto-started festival mini-event.", LogLevel.Info);
+                        _festivalEventStarted = true;
                     }
+                    catch (Exception ex) { Monitor.Log($"[Festival] Auto-start failed: {ex.Message}", LogLevel.Warn); }
                 }
-                catch (Exception ex) { Monitor.Log($"[Festival] Auto-start failed: {ex.Message}", LogLevel.Warn); }
-                _festivalEventStarted = true;
             }
 
             // Safety timeout — leave festival after 90 minutes game time (if players leave it)
@@ -883,9 +889,12 @@ namespace StardropHostDependencies
                 return;
             }
             Game1.chatBox?.textBoxEnter("Leaving festival.");
-            try { Game1.CurrentEvent.TryStartEndFestivalDialogue(Game1.player); }
-            catch { }
             _startedFestivalEnd = true;
+            Game1.activeClickableMenu = new ReadyCheckDialog("festivalEnd", true, who =>
+            {
+                Game1.exitActiveMenu();
+                GoToBed();
+            });
         }
 
         private void HandleChatSleepCommand()
@@ -931,6 +940,25 @@ namespace StardropHostDependencies
                        (d == 27 && s == "fall")   ||
                        (d ==  8 && s == "winter") ||
                        (d == 25 && s == "winter");
+            }
+            catch { return false; }
+        }
+
+        private static bool IsInFestivalTimeWindow()
+        {
+            try
+            {
+                int d = Game1.dayOfMonth;
+                string s = Game1.currentSeason;
+                int t = Game1.timeOfDay;
+                // Evening festivals: Dance of Jellies (Summer 28) and Spirit's Eve (Fall 27)
+                if ((d == 28 && s == "summer") || (d == 27 && s == "fall"))
+                    return t >= 2200 && t <= 2400;
+                // Stardew Valley Fair runs until 3PM
+                if (d == 16 && s == "fall")
+                    return t >= 900 && t <= 1500;
+                // All other daytime festivals
+                return t >= 900 && t <= 1400;
             }
             catch { return false; }
         }

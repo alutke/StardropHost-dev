@@ -348,7 +348,7 @@ function startBackupJob() {
   const farmSlug     = getFarmSlug();
   const backupName   = `${farmSlug}-manual-backup-${timestamp}.zip`;
   const backupPath   = path.join(config.BACKUPS_DIR, backupName);
-  const totalEntries = Math.max(1, countEntries(config.SAVES_DIR) + 1);
+  const totalEntries = Math.max(1, countEntries(config.CONFIG_DIR) + 1);
   const taskId       = `backup-${Date.now()}`;
 
   const initialStatus = {
@@ -363,10 +363,10 @@ function startBackupJob() {
 
   const tarProc = spawn('zip', [
     '-r', backupPath,
-    path.basename(config.SAVES_DIR),
+    path.basename(config.CONFIG_DIR),
     '-x', '*/ErrorLogs/*',
   ], {
-    cwd: path.dirname(config.SAVES_DIR),
+    cwd: path.dirname(config.CONFIG_DIR),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
