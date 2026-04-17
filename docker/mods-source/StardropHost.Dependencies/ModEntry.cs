@@ -511,6 +511,8 @@ namespace StardropHostDependencies
         {
             if (!Context.IsMainPlayer || !Context.IsWorldReady) return;
             HandleMinigame();
+            HandleShippingMenu();
+            HandleAutoPause();
             HandlePetAndCave();
             HandleFestivalEvents();
             if (++_houseSyncTick >= 60) { _houseSyncTick = 0; CheckHouseSync(); }
@@ -553,10 +555,11 @@ namespace StardropHostDependencies
 
         private void HandleMinigame()
         {
-            // Minigames block isGameAvailable() and prevent farmhands from connecting.
-            // Force-quit any active minigame, including festival minigames — the host
-            // doesn't participate, and quitting on the host side unblocks the ready check.
+            // Minigames (e.g. the intro bus ride on a new save) block isGameAvailable()
+            // and prevent farmhands from connecting. Force-quit any active minigame.
+            // Festival minigames are left running so farmhands can participate.
             if (Game1.currentMinigame == null) return;
+            if (Game1.CurrentEvent?.isFestival == true) return;
 
             Monitor.Log($"[Automation] Clearing minigame: {Game1.currentMinigame.GetType().Name}.", LogLevel.Info);
             Game1.currentMinigame.forceQuit();
@@ -658,15 +661,37 @@ namespace StardropHostDependencies
         private void HandleSewersKey()
         {
             if (Game1.player.hasRustyKey) return;
-            var museum = Game1.getLocationFromName("ArchaeologyHouse") as LibraryMuseum;
-            if (museum == null) return;
-            int donated = museum.museumPieces.Count();
-            if (donated >= 60)
+            if (LibraryMuseum.totalArtifacts < 60) return;
+            Game1.player.eventsSeen.Add("295672");
+            Game1.player.eventsSeen.Add("66");
+            Game1.player.hasRustyKey = true;
+            Monitor.Log($"[Automation] Rusty key granted ({LibraryMuseum.totalArtifacts} artifacts donated).", LogLevel.Info);
+        }
+
+        private void HandleShippingMenu()
+        {
+            if (Game1.activeClickableMenu is not ShippingMenu menu) return;
+            int introTimer = Helper.Reflection.GetField<int>(menu, "introTimer").GetValue();
+            int currentPage = Helper.Reflection.GetField<int>(menu, "currentPage").GetValue();
+            bool outro = Helper.Reflection.GetField<bool>(menu, "outro").GetValue();
+            if (introTimer <= 0 && currentPage == -1 && !outro)
             {
-                Game1.player.eventsSeen.Add("295672");
-                Game1.player.eventsSeen.Add("66");
-                Game1.player.hasRustyKey = true;
-                Monitor.Log($"[Automation] Rusty key granted ({donated} artifacts donated).", LogLevel.Info);
+                Monitor.Log("[Automation] Clicking OK on ShippingMenu.", LogLevel.Info);
+                Helper.Reflection.GetMethod(menu, "okClicked").Invoke();
+            }
+        }
+
+        private void HandleAutoPause()
+        {
+            if (Game1.otherFarmers.Count >= 1)
+            {
+                // At least one player online — unpause (respect client pause request if any)
+                Game1.netWorldState.Value.IsPaused = false;
+            }
+            else if (!IsFestivalToday())
+            {
+                // No players — pause during normal hours, unpause after 2500 so pass-out fires
+                Game1.netWorldState.Value.IsPaused = Game1.timeOfDay is >= 610 and <= 2500;
             }
         }
 
@@ -736,16 +761,27 @@ namespace StardropHostDependencies
 
             _festivalLogThrottle++;
             if (_festivalLogThrottle % 60 == 0)
-                Monitor.Log($"[Festival] Players ready for festival — warping host.", LogLevel.Info);
+                Monitor.Log($"[Festival] Players ready for festival — joining.", LogLevel.Info);
 
             _warpingToFestival = true;
-            Game1.netReady.SetLocalReady("festivalStart", true);
 
-            var req = Game1.getLocationRequest(Game1.whereIsTodaysFest);
-            req.OnWarp += delegate { _warpingToFestival = false; };
+            // Use ReadyCheckDialog so the warp fires inside the multiplayer ready-check
+            // callback — same pattern as the original AlwaysOnServer mod. Warping directly
+            // via warpFarmer before the check resolves breaks minigame sync (causes 1/2 lock).
+            Game1.player.team.SetLocalReady("festivalStart", true);
             int x = -1, y = -1;
             Utility.getDefaultWarpLocation(Game1.whereIsTodaysFest, ref x, ref y);
-            Game1.warpFarmer(req, x, y, 2);
+            string dest = Game1.whereIsTodaysFest;
+            Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
+            {
+                Game1.exitActiveMenu();
+                Game1.warpFarmer(dest, x, y, 2);
+                _warpingToFestival    = false;
+                _festivalEventStarted = false;
+                _festivalEventTick    = 0;
+                _festivalTimeoutTick  = 0;
+                Monitor.Log($"[Festival] Host warped to {dest}.", LogLevel.Info);
+            });
         }
 
         private void HandleFestivalLeave()
@@ -770,7 +806,7 @@ namespace StardropHostDependencies
 
             // After 30s at the festival, auto-start the mini-event by answering the host NPC
             const int AutoStartTicks = 30;
-            if (!_festivalEventStarted && _festivalEventTick == AutoStartTicks)
+            if (!_festivalEventStarted && _festivalEventTick >= AutoStartTicks)
             {
                 try
                 {
@@ -794,6 +830,94 @@ namespace StardropHostDependencies
                 try { Game1.CurrentEvent.TryStartEndFestivalDialogue(Game1.player); }
                 catch { }
                 _startedFestivalEnd = true;
+            }
+        }
+
+        // ── Festival chat commands ────────────────────────────────────────────
+
+        private void HandleChatFestivalCommand()
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+            if (Game1.whereIsTodaysFest == null)
+            {
+                Game1.chatBox?.textBoxEnter("No festival today.");
+                return;
+            }
+            if (Game1.CurrentEvent?.isFestival == true)
+            {
+                Game1.chatBox?.textBoxEnter("Already at the festival.");
+                return;
+            }
+            Game1.chatBox?.textBoxEnter("Heading to the festival.");
+            // Force the warp by treating all players as ready
+            _warpingToFestival = true;
+            Game1.player.team.SetLocalReady("festivalStart", true);
+            int x = -1, y = -1;
+            Utility.getDefaultWarpLocation(Game1.whereIsTodaysFest, ref x, ref y);
+            string dest = Game1.whereIsTodaysFest;
+            Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
+            {
+                Game1.exitActiveMenu();
+                Game1.warpFarmer(dest, x, y, 2);
+                _warpingToFestival    = false;
+                _festivalEventStarted = false;
+                _festivalEventTick    = 0;
+                _festivalTimeoutTick  = 0;
+            });
+        }
+
+        private void HandleChatEventCommand()
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+            if (Game1.CurrentEvent?.isFestival != true)
+            {
+                Game1.chatBox?.textBoxEnter("Not at a festival.");
+                return;
+            }
+            // Force the auto-start tick threshold so HandleFestivalEvents fires next second
+            _festivalEventStarted = false;
+            _festivalEventTick    = 9999;
+            Game1.chatBox?.textBoxEnter("Starting festival event now.");
+        }
+
+        private void HandleChatLeaveCommand()
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+            if (Game1.CurrentEvent?.isFestival != true)
+            {
+                Game1.chatBox?.textBoxEnter("Not at a festival.");
+                return;
+            }
+            Game1.chatBox?.textBoxEnter("Leaving festival.");
+            try { Game1.CurrentEvent.TryStartEndFestivalDialogue(Game1.player); }
+            catch { }
+            _startedFestivalEnd = true;
+        }
+
+        private void HandleChatSleepCommand()
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+            if (_hasTriggeredSleep)
+            {
+                Game1.chatBox?.textBoxEnter("Already going to bed.");
+                return;
+            }
+            Game1.chatBox?.textBoxEnter("Going to bed.");
+            GoToBed();
+            _hasTriggeredSleep = true;
+        }
+
+        private void HandleChatUnstickCommand()
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer) return;
+            Game1.chatBox?.textBoxEnter("Warping host to farmhouse.");
+            if (Game1.player.currentLocation is FarmHouse)
+                Game1.warpFarmer("Farm", 64, 15, false);
+            else
+            {
+                var fh = Game1.getLocationFromName("FarmHouse") as FarmHouse;
+                var bed = fh?.GetPlayerBedSpot() ?? new Point(9, 9);
+                Game1.warpFarmer("FarmHouse", bed.X, bed.Y, false);
             }
         }
 
@@ -918,13 +1042,8 @@ namespace StardropHostDependencies
 
             if (e.NewMenu == null) return;
 
-            // ShippingMenu → auto-click OK
-            if (e.NewMenu is ShippingMenu sm)
-            {
-                try { Helper.Reflection.GetMethod(sm, "okClicked").Invoke(); }
-                catch (Exception ex) { Monitor.Log($"ShippingMenu: {ex.Message}", LogLevel.Warn); }
-                return;
-            }
+            // ShippingMenu has a 3.5s intro animation — handled by HandleShippingMenu() polling each second
+            if (e.NewMenu is ShippingMenu) return;
 
             // LevelUpMenu → do NOT auto-handle (auto-clicking causes skill auto-level to 10)
             if (e.NewMenu is LevelUpMenu) return;
@@ -1583,14 +1702,47 @@ namespace StardropHostDependencies
                 // Skip host's own messages — already logged by OnSayCommand / OnTellCommand.
                 if (sourceFarmer != 0 && sourceFarmer == Game1.player?.UniqueMultiplayerID) return;
 
-                // Cabin position command — farmhands only (sourceFarmer != 0 and not host)
+                // Farmhand chat commands — any non-host player
                 if (sourceFarmer != 0 && sourceFarmer != Game1.player?.UniqueMultiplayerID)
                 {
                     var parts = message.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length > 0 && parts[0].Equals("move_cabin", StringComparison.OrdinalIgnoreCase))
+                    string cmd = parts.Length > 0 ? parts[0].ToLowerInvariant() : "";
+
+                    if (cmd == "move_cabin")
                     {
                         string? typeArg = parts.Length > 1 ? parts[1].Trim() : null;
                         _instance?.HandleCabinCommand(sourceFarmer, typeArg);
+                        return;
+                    }
+
+                    // !festival — host joins today's festival
+                    if (cmd == "!festival")
+                    {
+                        _instance?.HandleChatFestivalCommand();
+                        return;
+                    }
+                    // !event — start the festival mini-event now (skip countdown)
+                    if (cmd == "!event")
+                    {
+                        _instance?.HandleChatEventCommand();
+                        return;
+                    }
+                    // !leave — leave the current festival
+                    if (cmd == "!leave")
+                    {
+                        _instance?.HandleChatLeaveCommand();
+                        return;
+                    }
+                    // !sleep — host goes to bed now (if time allows)
+                    if (cmd == "!sleep")
+                    {
+                        _instance?.HandleChatSleepCommand();
+                        return;
+                    }
+                    // !unstick — warp host back to farmhouse if stuck
+                    if (cmd == "!unstick")
+                    {
+                        _instance?.HandleChatUnstickCommand();
                         return;
                     }
                 }

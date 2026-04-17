@@ -39,10 +39,10 @@ RUN dpkg --add-architecture i386 && \
            /usr/share/lintian/* /usr/share/locale/* \
            /tmp/* /var/tmp/*
 
-# -- Install Node.js 20 LTS (Ubuntu 22.04 ships Node 12 which lacks optional chaining) --
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+# -- Install Node.js 20 LTS via official binary tarball (faster + smaller than nodesource) --
+RUN curl -fsSL https://nodejs.org/dist/v20.19.1/node-v20.19.1-linux-x64.tar.xz \
+        | tar -xJ -C /usr/local --strip-components=1 --no-same-owner \
+        && node --version
 
 # -- Create user and directories --
 RUN useradd -m -s /bin/bash steam && \
