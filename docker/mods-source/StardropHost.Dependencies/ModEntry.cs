@@ -113,6 +113,8 @@ namespace StardropHostDependencies
         private bool _winterFeastAvailable;    private int  _winterFeastCountDown;
         private int  _festivalTicksForReset;
         private bool _startedFestivalEnd;
+        private bool _eventCommandUsed;
+        private bool _clientPaused;
 
         // ── Security config (blocklist/allowlist from web panel) ────────────────
         private const string SecurityConfigPath = "/home/steam/web-panel/data/security.json";
@@ -509,14 +511,46 @@ namespace StardropHostDependencies
             // Festival warp — called every clock tick during festival hours, matching reference
             if (hasFarmhands)
             {
-                if      (d == 13 && season == "spring") EggFestival();
-                else if (d == 24 && season == "spring") FlowerDance();
-                else if (d == 11 && season == "summer") Luau();
-                else if (d == 28 && season == "summer") DanceOfTheMoonlightJellies();
-                else if (d == 16 && season == "fall")   StardewValleyFair();
-                else if (d == 27 && season == "fall")   SpiritsEve();
-                else if (d ==  8 && season == "winter") FestivalOfIce();
-                else if (d == 25 && season == "winter") FeastOfWinterStar();
+                if (d == 13 && season == "spring")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Egg Festival Today!"); SendChatMessage("I will not be in bed until after 2:00 P.M."); }
+                    EggFestival();
+                }
+                else if (d == 24 && season == "spring")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Flower Dance Today."); SendChatMessage("I will not be in bed until after 2:00 P.M."); }
+                    FlowerDance();
+                }
+                else if (d == 11 && season == "summer")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Luau Today!"); SendChatMessage("I will not be in bed until after 2:00 P.M."); }
+                    Luau();
+                }
+                else if (d == 28 && season == "summer")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Dance of the Moonlight Jellies Tonight!"); SendChatMessage("I will not be in bed until after 12:00 A.M."); }
+                    DanceOfTheMoonlightJellies();
+                }
+                else if (d == 16 && season == "fall")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Stardew Valley Fair Today!"); SendChatMessage("I will not be in bed until after 3:00 P.M."); }
+                    StardewValleyFair();
+                }
+                else if (d == 27 && season == "fall")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Spirit's Eve Tonight!"); SendChatMessage("I will not be in bed until after 12:00 A.M."); }
+                    SpiritsEve();
+                }
+                else if (d == 8 && season == "winter")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Festival of Ice Today!"); SendChatMessage("I will not be in bed until after 2:00 P.M."); }
+                    FestivalOfIce();
+                }
+                else if (d == 25 && season == "winter")
+                {
+                    if (e.NewTime >= 600 && e.NewTime <= 630) { SendChatMessage("Feast of the Winter Star Today!"); SendChatMessage("I will not be in bed until after 2:00 P.M."); }
+                    FeastOfWinterStar();
+                }
                 else if (Game1.timeOfDay >= AutoSleepTime && !_hasTriggeredSleep && !_isSleepInProgress)
                 {
                     GoToBed();
@@ -709,14 +743,40 @@ namespace StardropHostDependencies
         {
             if (Game1.otherFarmers.Count >= 1)
             {
-                // At least one player online — unpause (respect client pause request if any)
-                Game1.netWorldState.Value.IsPaused = false;
+                Game1.netWorldState.Value.IsPaused = _clientPaused;
             }
             else if (!IsFestivalToday())
             {
                 // No players — pause during normal hours, unpause after 2500 so pass-out fires
                 Game1.netWorldState.Value.IsPaused = Game1.timeOfDay is >= 610 and <= 2500;
             }
+
+            // !pause / !unpause chat commands (matches reference clientsCanPause feature)
+            try
+            {
+                var messages = Helper.Reflection.GetField<List<ChatMessage>>(Game1.chatBox, "messages").GetValue();
+                if (messages.Count > 0)
+                {
+                    string text = ChatMessage.makeMessagePlaintext(messages[messages.Count - 1].message, true);
+                    string[] parts = text.Split(' ');
+                    if (parts.Length >= 2)
+                    {
+                        if (parts[1] == "!pause")
+                        {
+                            Game1.netWorldState.Value.IsPaused = true;
+                            _clientPaused = true;
+                            SendChatMessage("Game Paused");
+                        }
+                        else if (parts[1] == "!unpause")
+                        {
+                            Game1.netWorldState.Value.IsPaused = false;
+                            _clientPaused = false;
+                            SendChatMessage("Game UnPaused");
+                        }
+                    }
+                }
+            }
+            catch { }
         }
 
         private void HandleFishingRod()
@@ -772,6 +832,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 900 && Game1.timeOfDay <= 1400)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -782,6 +843,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 1410)
             {
                 _eggHuntAvailable = false;
+                Game1.options.setServerMode("online");
                 _eggHuntCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -792,6 +854,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 900 && Game1.timeOfDay <= 1400)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -802,6 +865,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 1410)
             {
                 _flowerDanceAvailable = false;
+                Game1.options.setServerMode("online");
                 _flowerDanceCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -812,6 +876,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 900 && Game1.timeOfDay <= 1400)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -822,6 +887,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 1410)
             {
                 _luauSoupAvailable = false;
+                Game1.options.setServerMode("online");
                 _luauSoupCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -832,6 +898,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 2200 && Game1.timeOfDay <= 2400)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -842,6 +909,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 2410)
             {
                 _jellyDanceAvailable = false;
+                Game1.options.setServerMode("online");
                 _jellyDanceCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -852,6 +920,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 900 && Game1.timeOfDay <= 1500)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -862,6 +931,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 1510)
             {
                 _grangeDisplayAvailable = false;
+                Game1.options.setServerMode("online");
                 _grangeDisplayCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -872,6 +942,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 2200 && Game1.timeOfDay <= 2350)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -882,6 +953,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 2400)
             {
                 _goldenPumpkinAvailable = false;
+                Game1.options.setServerMode("online");
                 _goldenPumpkinCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -892,6 +964,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 900 && Game1.timeOfDay <= 1400)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -902,6 +975,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 1410)
             {
                 _iceFishingAvailable = false;
+                Game1.options.setServerMode("online");
                 _iceFishingCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -912,6 +986,7 @@ namespace StardropHostDependencies
         {
             if (Game1.timeOfDay >= 900 && Game1.timeOfDay <= 1400)
             {
+                Game1.netReady.SetLocalReady("festivalStart", true);
                 Game1.activeClickableMenu = new ReadyCheckDialog("festivalStart", true, who =>
                 {
                     Game1.exitActiveMenu();
@@ -922,6 +997,7 @@ namespace StardropHostDependencies
             else if (Game1.timeOfDay >= 1410)
             {
                 _winterFeastAvailable = false;
+                Game1.options.setServerMode("online");
                 _winterFeastCountDown = 0;
                 _festivalTicksForReset = 0;
                 GoToBed();
@@ -931,9 +1007,13 @@ namespace StardropHostDependencies
         private void LeaveFestival()
         {
             _startedFestivalEnd = true;
+            bool isSpiritsEve = Game1.dayOfMonth == 27 && Game1.currentSeason == "fall";
+            Game1.netReady.SetLocalReady("festivalEnd", true);
             Game1.activeClickableMenu = new ReadyCheckDialog("festivalEnd", true, who =>
             {
                 Game1.exitActiveMenu();
+                Game1.timeOfDay = isSpiritsEve ? 2400 : 2200;
+                Game1.shouldTimePass();
                 GoToBed();
             });
         }
@@ -946,6 +1026,7 @@ namespace StardropHostDependencies
 
             if (_eggHuntAvailable)
             {
+                if (_eventCommandUsed) { _eggHuntCountDown = 0; _eventCommandUsed = false; }
                 _eggHuntCountDown++;
                 if (_eggHuntCountDown == 1)
                     SendChatMessage("The Egg Hunt will begin in 1 minute.");
@@ -961,6 +1042,7 @@ namespace StardropHostDependencies
 
             if (_flowerDanceAvailable)
             {
+                if (_eventCommandUsed) { _flowerDanceCountDown = 0; _eventCommandUsed = false; }
                 _flowerDanceCountDown++;
                 if (_flowerDanceCountDown == 1)
                     SendChatMessage("The Flower Dance will begin in 1 minute.");
@@ -976,15 +1058,22 @@ namespace StardropHostDependencies
 
             if (_luauSoupAvailable)
             {
-                _luauSoupCountDown++;
-                if (_luauSoupCountDown == 1)
-                    SendChatMessage("The Soup Tasting will begin in 1 minute.");
-                if (_luauSoupCountDown == 61 && lewis != null)
+                if (_eventCommandUsed)
                 {
+                    _luauSoupCountDown = 0;
                     var item = ItemRegistry.Create("(O)268", 1, 3);
                     try { Helper.Reflection.GetMethod(new Event(), "addItemToLuauSoup").Invoke(item, Game1.player); } catch { }
-                    try { Helper.Reflection.GetMethod(Game1.CurrentEvent, "answerDialogueQuestion").Invoke(lewis, "yes"); } catch { }
+                    _eventCommandUsed = false;
                 }
+                _luauSoupCountDown++;
+                if (_luauSoupCountDown == 1)
+                {
+                    SendChatMessage("The Soup Tasting will begin in 1 minute.");
+                    var item = ItemRegistry.Create("(O)268", 1, 3);
+                    try { Helper.Reflection.GetMethod(new Event(), "addItemToLuauSoup").Invoke(item, Game1.player); } catch { }
+                }
+                if (_luauSoupCountDown == 61 && lewis != null)
+                    try { Helper.Reflection.GetMethod(Game1.CurrentEvent, "answerDialogueQuestion").Invoke(lewis, "yes"); } catch { }
                 if (_luauSoupCountDown >= 65)
                 {
                     _festivalTicksForReset++;
@@ -995,6 +1084,7 @@ namespace StardropHostDependencies
 
             if (_jellyDanceAvailable)
             {
+                if (_eventCommandUsed) { _jellyDanceCountDown = 0; _eventCommandUsed = false; }
                 _jellyDanceCountDown++;
                 if (_jellyDanceCountDown == 1)
                     SendChatMessage("The Dance of the Moonlight Jellies will begin in 1 minute.");
@@ -1010,6 +1100,7 @@ namespace StardropHostDependencies
 
             if (_grangeDisplayAvailable)
             {
+                if (_eventCommandUsed) { _grangeDisplayCountDown = 0; _eventCommandUsed = false; }
                 _grangeDisplayCountDown++;
                 _festivalTicksForReset++;
                 if (_grangeDisplayCountDown == 1)
@@ -1034,6 +1125,7 @@ namespace StardropHostDependencies
 
             if (_iceFishingAvailable)
             {
+                if (_eventCommandUsed) { _iceFishingCountDown = 0; _eventCommandUsed = false; }
                 _iceFishingCountDown++;
                 if (_iceFishingCountDown == 1)
                     SendChatMessage("The Ice Fishing Contest will begin in 1 minute.");
@@ -1095,14 +1187,14 @@ namespace StardropHostDependencies
                 return;
             }
             int d = Game1.dayOfMonth; string s = Game1.currentSeason;
-            if      (d == 13 && s == "spring") { _eggHuntAvailable    = true; }
-            else if (d == 24 && s == "spring") { _flowerDanceAvailable = true; }
-            else if (d == 11 && s == "summer") { _luauSoupAvailable    = true; }
-            else if (d == 28 && s == "summer") { _jellyDanceAvailable  = true; }
-            else if (d == 16 && s == "fall")   { _grangeDisplayAvailable = true; }
-            else if (d == 27 && s == "fall")   { _goldenPumpkinAvailable = true; }
-            else if (d ==  8 && s == "winter") { _iceFishingAvailable  = true; }
-            else if (d == 25 && s == "winter") { _winterFeastAvailable = true; }
+            if      (d == 13 && s == "spring") { _eventCommandUsed = true; _eggHuntAvailable    = true; }
+            else if (d == 24 && s == "spring") { _eventCommandUsed = true; _flowerDanceAvailable = true; }
+            else if (d == 11 && s == "summer") { _eventCommandUsed = true; _luauSoupAvailable    = true; }
+            else if (d == 28 && s == "summer") { _eventCommandUsed = true; _jellyDanceAvailable  = true; }
+            else if (d == 16 && s == "fall")   { _eventCommandUsed = true; _grangeDisplayAvailable = true; }
+            else if (d == 27 && s == "fall")   { _eventCommandUsed = true; _goldenPumpkinAvailable = true; }
+            else if (d ==  8 && s == "winter") { _eventCommandUsed = true; _iceFishingAvailable  = true; }
+            else if (d == 25 && s == "winter") { _eventCommandUsed = true; _winterFeastAvailable = true; }
         }
 
         private void HandleChatLeaveCommand()
