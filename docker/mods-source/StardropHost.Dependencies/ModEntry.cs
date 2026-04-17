@@ -765,10 +765,6 @@ namespace StardropHostDependencies
 
             _warpingToFestival = true;
 
-            // Use ReadyCheckDialog so the warp fires inside the multiplayer ready-check
-            // callback — same pattern as the original AlwaysOnServer mod. Warping directly
-            // via warpFarmer before the check resolves breaks minigame sync (causes 1/2 lock).
-            Game1.player.team.SetLocalReady("festivalStart", true);
             int x = -1, y = -1;
             Utility.getDefaultWarpLocation(Game1.whereIsTodaysFest, ref x, ref y);
             string dest = Game1.whereIsTodaysFest;
@@ -849,9 +845,7 @@ namespace StardropHostDependencies
                 return;
             }
             Game1.chatBox?.textBoxEnter("Heading to the festival.");
-            // Force the warp by treating all players as ready
             _warpingToFestival = true;
-            Game1.player.team.SetLocalReady("festivalStart", true);
             int x = -1, y = -1;
             Utility.getDefaultWarpLocation(Game1.whereIsTodaysFest, ref x, ref y);
             string dest = Game1.whereIsTodaysFest;
