@@ -8,6 +8,7 @@ const path = require('path');
 const { execSync, spawnSync } = require('child_process');
 const http  = require('http');
 const https = require('https');
+const dgram = require('dgram');
 const config      = require('../server');
 const savesAPI    = require('./saves');
 const playersAPI  = require('./players');
@@ -70,10 +71,154 @@ const MAX_HISTORY = 240;
 // -- WebSocket subscribers --
 const statusSubscribers = new Set();
 
+// Persistent stop/sleep flags are stored in the panel data volume so state
+// survives container recreation and crash-monitor can coordinate with the UI.
+const STOP_FLAG  = `${config.DATA_DIR}/server-stopped`;
+const SLEEP_FLAG = `${config.DATA_DIR}/server-sleeping.json`;
+
 // -- Cache --
 let cachedStatus = null;
 let cacheTime = 0;
 const CACHE_TTL = 3000;
+
+// -- Sleep state --
+let _lastPlayerActivityAt = Date.now();
+let _autoWakeSocket = null;
+let _autoWakeActive = false;
+let _autoWakeError = '';
+let _lastAutoWakeAt = 0;
+
+function truthy(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return /^(true|1|yes|y|on)$/i.test(String(value).trim());
+}
+
+function readRuntimeEnv() {
+  const env = {};
+  try {
+    if (!fs.existsSync(config.ENV_FILE)) return env;
+    for (const line of fs.readFileSync(config.ENV_FILE, 'utf-8').split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const index = trimmed.indexOf('=');
+      if (index === -1) continue;
+      env[trimmed.slice(0, index).trim()] = trimmed.slice(index + 1).trim();
+    }
+  } catch {}
+  return env;
+}
+
+function sleepConfig() {
+  const runtimeEnv = readRuntimeEnv();
+  const value = (key, fallback = '') => runtimeEnv[key] ?? process.env[key] ?? fallback;
+  const idleMinutes = Number.parseFloat(value('SLEEP_IDLE_MINUTES', value('AUTO_SLEEP_MINUTES', '10')));
+  return {
+    enabled: truthy(value('ENABLE_GAME_SLEEP'), false),
+    autoWake: truthy(value('ENABLE_AUTO_WAKE'), true),
+    idleMinutes: Number.isFinite(idleMinutes) ? Math.max(1, idleMinutes) : 10,
+    checkSeconds: Math.max(10, Number.parseInt(value('SLEEP_CHECK_SECONDS', '30'), 10) || 30),
+    gamePort: Number.parseInt(value('AUTO_WAKE_PORT', '24642'), 10) || 24642,
+  };
+}
+
+function readSleepState() {
+  try {
+    if (!fs.existsSync(SLEEP_FLAG)) return null;
+    return JSON.parse(fs.readFileSync(SLEEP_FLAG, 'utf-8'));
+  } catch {
+    return { sleeping: true };
+  }
+}
+
+function writeSleepState(reason = 'idle') {
+  try {
+    fs.mkdirSync(path.dirname(SLEEP_FLAG), { recursive: true });
+    fs.writeFileSync(SLEEP_FLAG, JSON.stringify({
+      sleeping: true,
+      reason,
+      sleptAt: new Date().toISOString(),
+      wakeOnConnect: sleepConfig().autoWake,
+    }, null, 2), 'utf-8');
+  } catch {}
+}
+
+function clearSleepState() {
+  try { if (fs.existsSync(SLEEP_FLAG)) fs.unlinkSync(SLEEP_FLAG); } catch {}
+}
+
+function setLiveServerState(serverState) {
+  try {
+    if (!fs.existsSync(config.LIVE_FILE)) return;
+    const live = JSON.parse(fs.readFileSync(config.LIVE_FILE, 'utf-8'));
+    live.serverState = serverState;
+    live.timestamp = Math.floor(Date.now() / 1000);
+    fs.writeFileSync(config.LIVE_FILE, JSON.stringify(live), 'utf-8');
+  } catch {}
+}
+
+function sleepServerInternal(reason = 'idle') {
+  fs.writeFileSync(STOP_FLAG, '');
+  writeSleepState(reason);
+  stopAutoWakeListener();
+  spawnSync('sh', ['-lc', 'pkill -f "StardewModdingAPI|Stardew Valley" >/dev/null 2>&1 || true'], {
+    encoding: 'utf-8',
+    timeout: 5000,
+  });
+  savesAPI.triggerTaggedBackup('sleep');
+  setLiveServerState('sleeping');
+  cachedStatus = null;
+  startAutoWakeListener();
+}
+
+function wakeServerInternal(reason = 'manual') {
+  clearSleepState();
+  if (fs.existsSync(STOP_FLAG)) fs.unlinkSync(STOP_FLAG);
+  stopAutoWakeListener();
+  _lastPlayerActivityAt = Date.now();
+  cachedStatus = null;
+  console.log(`[sleep] Wake requested (${reason})`);
+}
+
+function stopAutoWakeListener() {
+  if (_autoWakeSocket) {
+    try { _autoWakeSocket.close(); } catch {}
+  }
+  _autoWakeSocket = null;
+  _autoWakeActive = false;
+}
+
+function startAutoWakeListener() {
+  const cfg = sleepConfig();
+  if (!cfg.enabled || !cfg.autoWake || !fs.existsSync(SLEEP_FLAG) || _autoWakeSocket) return;
+
+  const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+  _autoWakeSocket = socket;
+  _autoWakeError = '';
+
+  socket.on('error', (err) => {
+    _autoWakeError = err.message;
+    console.error('[sleep] Auto-wake listener error:', err.message);
+    stopAutoWakeListener();
+  });
+
+  socket.on('message', (_msg, rinfo) => {
+    const now = Date.now();
+    if (now - _lastAutoWakeAt < 15000) return;
+    _lastAutoWakeAt = now;
+    console.log(`[sleep] Wake packet received from ${rinfo.address}:${rinfo.port}`);
+    wakeServerInternal('auto-wake');
+  });
+
+  try {
+    socket.bind(cfg.gamePort, '0.0.0.0', () => {
+      _autoWakeActive = true;
+      console.log(`[sleep] Auto-wake listening on UDP ${cfg.gamePort}`);
+    });
+  } catch (err) {
+    _autoWakeError = err.message;
+    stopAutoWakeListener();
+  }
+}
 
 // Log lines that are safe to suppress — not real errors in a server environment
 const LOG_SUPPRESS = [
@@ -212,11 +357,25 @@ function collectStatus(req = null) {
   if (cachedStatus && now - cacheTime < CACHE_TTL) return cachedStatus;
 
   const requestHost = req?.headers?.['x-forwarded-host'] || req?.headers?.['host'] || '';
+  const sleepState = readSleepState();
+  const sleepCfg = sleepConfig();
 
   const status = {
     timestamp: new Date().toISOString(),
     gameRunning: false,
-    stoppedByUser: fs.existsSync(STOP_FLAG),
+    stoppedByUser: fs.existsSync(STOP_FLAG) && !sleepState,
+    sleeping: !!sleepState,
+    sleep: {
+      enabled: sleepCfg.enabled,
+      autoWake: sleepCfg.autoWake,
+      idleMinutes: sleepCfg.idleMinutes,
+      sleeping: !!sleepState,
+      reason: sleepState?.reason || null,
+      sleptAt: sleepState?.sleptAt || null,
+      idleSeconds: Math.max(0, Math.floor((now - _lastPlayerActivityAt) / 1000)),
+      listenerActive: _autoWakeActive,
+      listenerError: _autoWakeError || null,
+    },
     uptime: 0,
     players: { online: 0, max: 8 },
     cpu: 0,
@@ -346,7 +505,7 @@ function collectStatus(req = null) {
     // pgrep found nothing — SMAPI not running; override stale status/live file data
     status.gameRunning = false;
     status.cpu = 0;
-    if (status.live) status.live.serverState = 'offline';
+    if (status.live) status.live.serverState = status.sleeping ? 'sleeping' : 'offline';
   }
 
   // -- Container memory (always read — shows usage even when game is stopped) --
@@ -420,6 +579,10 @@ function collectStatus(req = null) {
   const hints = extractLogHints();
   if (status.players.online === 0 && hints.players > 0) status.players.online = hints.players;
   if (hints.paused) status.paused = true;
+  if (status.players.online > 0) {
+    _lastPlayerActivityAt = now;
+    status.sleep.idleSeconds = 0;
+  }
 
   // -- Script health check --
   if (!status.scriptsHealthy) {
@@ -539,6 +702,39 @@ setInterval(() => {
   }
 }, 5000);
 
+function evaluateSleep() {
+  const cfg = sleepConfig();
+  if (!cfg.enabled) {
+    stopAutoWakeListener();
+    return;
+  }
+
+  if (fs.existsSync(SLEEP_FLAG)) {
+    if (cfg.autoWake) startAutoWakeListener();
+    else stopAutoWakeListener();
+    return;
+  }
+
+  let status;
+  try { status = collectStatus(); } catch { return; }
+  if (!status.gameRunning || status.stoppedByUser || status.sleeping) return;
+
+  const playersOnline = Number(status.players?.online || 0);
+  if (playersOnline > 0) {
+    _lastPlayerActivityAt = Date.now();
+    return;
+  }
+
+  const idleMs = Date.now() - _lastPlayerActivityAt;
+  if (idleMs >= cfg.idleMinutes * 60 * 1000) {
+    console.log(`[sleep] No players connected for ${cfg.idleMinutes} minute(s); sleeping game`);
+    sleepServerInternal('idle');
+  }
+}
+
+setInterval(evaluateSleep, sleepConfig().checkSeconds * 1000);
+setTimeout(evaluateSleep, 10000);
+
 // -- Helper: call manager container --
 function callManager(path, body = {}) {
   return new Promise((resolve, reject) => {
@@ -600,6 +796,9 @@ function subscribeStatus(ws) {
 // Restart game process only (not container)
 function restartServer(req, res) {
   try {
+    clearSleepState();
+    stopAutoWakeListener();
+    if (fs.existsSync(STOP_FLAG)) fs.unlinkSync(STOP_FLAG);
     // Mark live-status.json as offline so UI shows "Restarting..." not "Running" during shutdown
     try {
       if (fs.existsSync(config.LIVE_FILE)) {
@@ -621,12 +820,11 @@ function restartServer(req, res) {
   }
 }
 
-// Persistent stop flag — stored in data volume so state survives container recreation (update.sh)
-const STOP_FLAG = `${config.DATA_DIR}/server-stopped`;
-
 // Stop game process — set stop flag so crash-monitor won't restart, then kill SMAPI
 function stopServer(req, res) {
   try {
+    clearSleepState();
+    stopAutoWakeListener();
     fs.writeFileSync(STOP_FLAG, '');
     spawnSync('sh', ['-lc', 'pkill -f "StardewModdingAPI|Stardew Valley" >/dev/null 2>&1 || true'],
       { encoding: 'utf-8', timeout: 5000 });
@@ -649,11 +847,31 @@ function stopServer(req, res) {
 // Start game process — remove stop flag so crash-monitor resumes its loop
 function startServer(req, res) {
   try {
-    if (fs.existsSync(STOP_FLAG)) fs.unlinkSync(STOP_FLAG);
-    cachedStatus = null;
+    wakeServerInternal(fs.existsSync(SLEEP_FLAG) ? 'manual-wake' : 'manual-start');
     res.json({ success: true, message: 'Game start initiated' });
   } catch (e) {
     res.status(500).json({ error: 'Failed to start server', details: e.message });
+  }
+}
+
+function sleepServer(req, res) {
+  try {
+    if (!sleepConfig().enabled && req.body?.force !== true) {
+      return res.status(400).json({ error: 'Game sleep is disabled in configuration' });
+    }
+    sleepServerInternal('manual');
+    res.json({ success: true, message: 'Game sleep initiated' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to sleep server', details: e.message });
+  }
+}
+
+function wakeServer(req, res) {
+  try {
+    wakeServerInternal('manual-wake');
+    res.json({ success: true, message: 'Game wake initiated' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to wake server', details: e.message });
   }
 }
 
@@ -761,6 +979,8 @@ module.exports = {
   subscribeStatus,
   startServer,
   stopServer,
+  sleepServer,
+  wakeServer,
   restartServer,
   restartContainer,
   updateServer,

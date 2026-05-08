@@ -57,6 +57,14 @@ const CONFIG_SCHEMA = {
     { key: 'ENABLE_CRASH_RESTART', label: 'Auto Crash Restart', type: 'boolean', default: 'true' },
     { key: 'MAX_CRASH_RESTARTS',   label: 'Max Restarts',       type: 'number',  default: '3' },
   ],
+  'Game Sleep': [
+    { key: 'ENABLE_GAME_SLEEP', label: 'Sleep when empty', type: 'boolean', default: 'false',
+      description: 'Stops the game process after the server has no connected players.' },
+    { key: 'SLEEP_IDLE_MINUTES', label: 'Sleep delay (minutes)', type: 'number', default: '10', min: 1, max: 1440,
+      description: 'How long the game must be empty before it sleeps.' },
+    { key: 'ENABLE_AUTO_WAKE', label: 'Wake on player connect', type: 'boolean', default: 'true',
+      description: 'While sleeping, listens on the game UDP port and wakes when a player tries to connect.' },
+  ],
   'Monitoring': [
     { key: 'ENABLE_LOG_MONITOR',  label: 'Log Monitor',   type: 'boolean', default: 'true' },
     { key: 'METRICS_PORT',        label: 'Metrics Port',  type: 'number',  default: '9090' },
@@ -275,10 +283,15 @@ function updateConfig(req, res) {
 
     writeEnvFile(normalized);
 
+    const sleepKeys = new Set(['ENABLE_GAME_SLEEP', 'SLEEP_IDLE_MINUTES', 'ENABLE_AUTO_WAKE']);
+    const needsRestart = Object.keys(normalized).some(key => !sleepKeys.has(key));
+
     res.json({
       success: true,
-      message: 'Configuration saved. Recreate the container to apply changes.',
-      needsRestart: true,
+      message: needsRestart
+        ? 'Configuration saved. Recreate the container to apply changes.'
+        : 'Sleep configuration saved.',
+      needsRestart,
     });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update config', details: e.message });
