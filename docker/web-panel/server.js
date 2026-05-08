@@ -82,6 +82,8 @@ app.get( '/api/status',              auth.verifyMiddleware, statusAPI.getStatus)
 // -- Server control --
 app.post('/api/server/start',        auth.verifyMiddleware, statusAPI.startServer);
 app.post('/api/server/stop',         auth.verifyMiddleware, statusAPI.stopServer);
+app.post('/api/server/sleep',        auth.verifyMiddleware, statusAPI.sleepServer);
+app.post('/api/server/wake',         auth.verifyMiddleware, statusAPI.wakeServer);
 app.post('/api/server/restart',      auth.verifyMiddleware, statusAPI.restartServer);
 app.post('/api/server/update',       auth.verifyMiddleware, statusAPI.updateServer);
 app.post('/api/container/restart',   auth.verifyMiddleware, statusAPI.restartContainer);

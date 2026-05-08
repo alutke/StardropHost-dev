@@ -1871,9 +1871,10 @@ function saveQuickActions(ids) {
 function _qaButtonDef(id) {
   if (id === 'toggle-server') {
     const running = !!(lastStatusData?.gameRunning);
+    const sleeping = !!lastStatusData?.sleeping;
     return running
       ? { label: 'Stop Server',  icon: 'icon-screen',  cls: 'btn-danger',  onclick: 'stopServer()',  disabled: isTransitioning }
-      : { label: 'Start Server', icon: 'icon-refresh', cls: 'btn-success', onclick: 'startServer()', disabled: isTransitioning };
+      : { label: sleeping ? 'Wake Server' : 'Start Server', icon: 'icon-refresh', cls: 'btn-success', onclick: 'startServer()', disabled: isTransitioning };
   }
   if (id === 'toggle-remote') {
     if (!lastRemoteData?.configured) {
@@ -2068,6 +2069,7 @@ function updateDashboardUI(data) {
 
   const gameRunning = !!data.gameRunning;
   const liveRunning = data.live?.serverState === 'running';
+  const sleeping = !!data.sleeping || data.live?.serverState === 'sleeping';
 
   // Clear flags on settled states
   if (!gameRunning) isStopping = false;
@@ -2082,16 +2084,18 @@ function updateDashboardUI(data) {
 
   // "Starting..." on fresh container boot: SMAPI not yet found but wasn't stopped by user.
   // systemUptime < 90s covers the gap between container start and SMAPI being detected by pgrep.
-  const bootStarting = !gameRunning && !data.stoppedByUser && (data.containerUptime || 0) < 90;
+  const bootStarting = !gameRunning && !sleeping && !data.stoppedByUser && (data.containerUptime || 0) < 90;
 
   // Priority: Stopped > Stopping > Restarting > Starting > Running
-  const realStopped = !gameRunning && !isGameRestarting && !isStarting && !bootStarting;
-  const statusText  = realStopped      ? 'Stopped'
+  const realStopped = !gameRunning && !sleeping && !isGameRestarting && !isStarting && !bootStarting;
+  const statusText  = sleeping         ? 'Sleeping'
+    : realStopped                      ? 'Stopped'
     : isStopping                       ? 'Stopping...'
     : isGameRestarting                 ? 'Restarting...'
     : (isStarting || bootStarting || (gameRunning && !liveRunning)) ? 'Starting...'
     :                                    'Running';
-  const statusClass = realStopped      ? 'offline'
+  const statusClass = sleeping         ? 'sleeping'
+    : realStopped                      ? 'offline'
     : (isStopping || isGameRestarting || isStarting || bootStarting || !liveRunning) ? 'restarting'
     :                                    'running';
   const starting = isStopping || isGameRestarting || isStarting || bootStarting || (gameRunning && !liveRunning);
@@ -5500,7 +5504,7 @@ function _buildConfigRow(item) {
     valueHtml = `<span style="color:var(--text-muted)">${item.sensitive ? '••••••••' : escapeHtml(item.value || '--')}</span>`;
   } else if (item.type === 'boolean') {
     const checked = item.value === 'true' ? 'checked' : '';
-    valueHtml = `<label class="toggle"><input type="checkbox" data-key="${item.key}" ${checked} onchange="configChanged()"><span class="toggle-slider"></span></label>`;
+    valueHtml = `<label class="toggle"><input type="checkbox" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}" ${checked} onchange="configChanged()"><span class="toggle-slider"></span></label>`;
   } else if (item.options?.length) {
     const opts = item.options.map(o => {
       const val = typeof o === 'object' ? o.value : o;
@@ -5508,10 +5512,10 @@ function _buildConfigRow(item) {
       const sel = val === (item.value ?? '') ? ' selected' : '';
       return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(lbl)}</option>`;
     }).join('');
-    valueHtml = `<select class="input" data-key="${item.key}" style="width:220px" onchange="configChanged()">${opts}</select>`;
+    valueHtml = `<select class="input" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}" style="width:220px" onchange="configChanged()">${opts}</select>`;
   } else if (item.viewable) {
     valueHtml = `<div class="password-wrapper">
-      <input type="password" class="input" data-key="${item.key}" value="${escapeHtml(item.value || '')}"
+      <input type="password" class="input" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}" value="${escapeHtml(item.value || '')}"
         placeholder="${escapeHtml(item.default || '')}"${item.maxLength ? ` maxlength="${item.maxLength}"` : ''}
         style="width:150px" oninput="configChanged()">
       <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" title="Show password">
@@ -5521,7 +5525,7 @@ function _buildConfigRow(item) {
   } else if (item.sensitive) {
     valueHtml = `<input type="password" class="input" data-key="${item.key}" placeholder="••••••••" style="width:150px" onchange="configChanged()">`;
   } else {
-    valueHtml = `<input type="${item.type === 'number' ? 'number' : 'text'}" class="input" data-key="${item.key}"
+    valueHtml = `<input type="${item.type === 'number' ? 'number' : 'text'}" class="input" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}"
       value="${escapeHtml(item.value || '')}" placeholder="${escapeHtml(item.default || '')}"
       style="width:150px" oninput="configChanged()">`;
   }
@@ -5585,15 +5589,20 @@ async function loadConfig() {
     if (group.name === 'Server') {
       const running     = lastStatusData !== null && !!(lastStatusData.gameRunning);
       const liveRunning = lastStatusData?.live?.serverState === 'running';
-      const bootStarting = lastStatusData !== null && !running && !lastStatusData.stoppedByUser && (lastStatusData.containerUptime || 0) < 90;
+      const sleeping    = !!lastStatusData?.sleeping || lastStatusData?.live?.serverState === 'sleeping';
+      const bootStarting = lastStatusData !== null && !running && !sleeping && !lastStatusData.stoppedByUser && (lastStatusData.containerUptime || 0) < 90;
       const stopping    = isStopping;
       const starting    = isStarting || isGameRestarting || bootStarting || (running && !liveRunning);
-      const realStopped = lastStatusData !== null && !running && !isGameRestarting && !isStarting && !bootStarting;
-      const statusText  = lastStatusData === null ? 'Loading…'
+      const realStopped = lastStatusData !== null && !running && !sleeping && !isGameRestarting && !isStarting && !bootStarting;
+      let statusText  = lastStatusData === null ? 'Loading…'
         : stopping ? 'Stopping…' : isGameRestarting ? 'Restarting…' : starting ? 'Starting…'
         : running ? 'Running' : 'Stopped';
-      const statusCls   = lastStatusData === null ? 'restarting'
+      let statusCls   = lastStatusData === null ? 'restarting'
         : realStopped ? 'offline' : (stopping || isGameRestarting || starting) ? 'restarting' : 'running';
+      if (sleeping) {
+        statusText = 'Sleeping';
+        statusCls = 'sleeping';
+      }
 
       let remText, remCls;
       if (_remoteOptimisticState === 'starting') {
@@ -5622,7 +5631,8 @@ async function loadConfig() {
              <span class="status-dot ${statusCls}"></span>${escapeHtml(statusText)}
            </span>
            <button id="serverToggleBtn" class="btn btn-sm ${running ? 'btn-danger' : 'btn-success'}" type="button"
-             onclick="${running ? 'stopServer()' : 'startServer()'}"${_dis}>${running ? 'Stop Server' : 'Start Server'}</button>
+             onclick="${running ? 'stopServer()' : 'startServer()'}"${_dis}>${running ? 'Stop Server' : (sleeping ? 'Wake Server' : 'Start Server')}</button>
+           ${running && lastStatusData?.sleep?.enabled ? `<button class="btn btn-sm btn-secondary" type="button" onclick="sleepServer()"${_dis}>Sleep</button>` : ''}
            <button class="btn btn-sm btn-warning" type="button" onclick="restartServer()"${_dis}>Restart</button>
          </div>`;
 
@@ -5791,14 +5801,22 @@ function togglePasswordVisibility(btn) {
 async function saveConfig() {
   const updates = {};
   document.querySelectorAll('[data-key]').forEach(el => {
-    updates[el.dataset.key] = el.type === 'checkbox' ? String(el.checked) : el.value;
+    const value = el.type === 'checkbox' ? String(el.checked) : el.value;
+    if (el.dataset.original !== undefined && value === el.dataset.original) return;
+    updates[el.dataset.key] = value;
   });
   if (!Object.keys(updates).length) return;
 
   const data = await API.put('/api/config', updates);
   if (data?.success) {
     document.getElementById('saveConfigBtn').style.display = 'none';
-    showRestartModal('Configuration saved. Restart the container to apply changes.');
+    if (data.needsRestart === false) {
+      showToast(data.message || 'Configuration saved', 'success');
+      loadConfig();
+      API.get('/api/status').then(updateDashboardUI).catch(() => null);
+    } else {
+      showRestartModal('Configuration saved. Restart the container to apply changes.');
+    }
   } else {
     showToast(data?.error || 'Failed to save config', 'error');
   }
@@ -5822,23 +5840,23 @@ async function loadVnc() {
       let ctrl = '';
       if (item.type === 'boolean') {
         const chk = item.value === 'true' ? 'checked' : '';
-        ctrl = `<label class="toggle"><input type="checkbox" data-key="${item.key}" ${chk} onchange="configChanged()"><span class="toggle-slider"></span></label>`;
+        ctrl = `<label class="toggle"><input type="checkbox" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}" ${chk} onchange="configChanged()"><span class="toggle-slider"></span></label>`;
       } else if (item.options?.length) {
         const opts = item.options.map(o => {
           const val = typeof o === 'object' ? o.value : o;
           const lbl = typeof o === 'object' ? o.label : o;
           return `<option value="${escapeHtml(val)}"${val === (item.value ?? '') ? ' selected' : ''}>${escapeHtml(lbl)}</option>`;
         }).join('');
-        ctrl = `<select class="input" data-key="${item.key}" style="width:180px" onchange="configChanged()">${opts}</select>`;
+        ctrl = `<select class="input" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}" style="width:180px" onchange="configChanged()">${opts}</select>`;
       } else if (item.viewable) {
         ctrl = `<div class="password-wrapper">
-          <input type="password" class="input" data-key="${item.key}" value="${escapeHtml(item.value || '')}"
+          <input type="password" class="input" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}" value="${escapeHtml(item.value || '')}"
             placeholder="${escapeHtml(item.default || '')}"${item.maxLength ? ` maxlength="${item.maxLength}"` : ''}
             style="width:150px" oninput="configChanged()">
           <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" title="Show password">
             ${icon('eye','icon')}</button></div>`;
       } else {
-        ctrl = `<input type="${item.type === 'number' ? 'number' : 'text'}" class="input" data-key="${item.key}"
+        ctrl = `<input type="${item.type === 'number' ? 'number' : 'text'}" class="input" data-key="${item.key}" data-original="${escapeHtml(String(item.value ?? ''))}"
           value="${escapeHtml(item.value || '')}" placeholder="${escapeHtml(item.default || '')}"
           style="width:150px" oninput="configChanged()">`;
       }
@@ -6045,15 +6063,29 @@ async function restartServer() {
 }
 
 async function startServer() {
-  if (!confirm('Start the server?')) return;
+  const waking = !!lastStatusData?.sleeping;
+  if (!confirm(waking ? 'Wake the server?' : 'Start the server?')) return;
   const data = await API.post('/api/server/start').catch(() => null);
   if (data?.success) {
     isStarting = true;
-    if (lastStatusData) updateDashboardUI({ ...lastStatusData, stoppedByUser: false });
-    showToast('Server starting...', 'info');
+    if (lastStatusData) updateDashboardUI({ ...lastStatusData, stoppedByUser: false, sleeping: false });
+    showToast(waking ? 'Server waking...' : 'Server starting...', 'info');
     _pollServerState(true, 60000);
   } else {
     showToast(data?.error || 'Failed to start server', 'error');
+  }
+}
+
+async function sleepServer() {
+  if (!confirm('Sleep the server? Players will be disconnected.')) return;
+  const data = await API.post('/api/server/sleep', { force: true }).catch(() => null);
+  if (data?.success) {
+    isStopping = true;
+    if (lastStatusData) updateDashboardUI({ ...lastStatusData, sleeping: true });
+    showToast('Server sleeping...', 'info');
+    _pollServerState(false, 35000);
+  } else {
+    showToast(data?.error || 'Failed to sleep server', 'error');
   }
 }
 
@@ -6108,7 +6140,8 @@ function updateServerToggleBtn(transitioning = false) {
   const btn = document.getElementById('serverToggleBtn');
   if (!btn) return;
   const running = !!(lastStatusData?.gameRunning);
-  btn.textContent = running ? 'Stop Server' : 'Start Server';
+  const sleeping = !!lastStatusData?.sleeping;
+  btn.textContent = running ? 'Stop Server' : (sleeping ? 'Wake Server' : 'Start Server');
   btn.className   = `btn btn-sm ${running ? 'btn-danger' : 'btn-success'}`;
   btn.onclick     = running ? stopServer : startServer;
   btn.disabled    = transitioning;
