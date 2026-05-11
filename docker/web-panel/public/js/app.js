@@ -1517,6 +1517,11 @@ let _remoteOptimisticState = null;  // 'starting' | 'stopping' | null
 let _remoteYaml            = '';
 let _remoteAddressCache    = { game: '', dashboard: '' };
 let _cachedLanIp           = '';
+let _deploymentMode        = 'local';
+
+function isExternalComposeMode() {
+  return _deploymentMode === 'external-compose' || isExternalComposeMode();
+}
 let _networkDetailsCached  = false;
 let _configRevealTimer     = null;
 let _configCountdownTimer  = null;
@@ -1625,10 +1630,14 @@ async function _detectAndApplyMultiInstance() {
   } catch {}
 }
 
-function init() {
+async function init() {
   applyTheme();
+  try {
+    const cfg = await API.get('/api/config');
+    if (cfg?.deploymentMode) _deploymentMode = cfg.deploymentMode;
+  } catch {}
   _checkIncomingPeers();
-  _detectAndApplyMultiInstance();
+  if (!isExternalComposeMode()) _detectAndApplyMultiInstance();
   setupNavigation();
   setupCopyable();
   setupWebSocket();
@@ -1734,7 +1743,7 @@ function setupNavigation() {
 
 function _updateServersNav() {
   const item = document.getElementById('nav-servers-item');
-  if (item) item.style.display = _serversEnabled ? '' : 'none';
+  if (item) item.style.display = (_serversEnabled && !isExternalComposeMode()) ? '' : 'none';
 }
 
 function navigateTo(page) {
@@ -1894,7 +1903,10 @@ function renderQuickActions() {
   if (qasDragSrcId) return; // don't interrupt active drag
   const container = document.getElementById('quickActionsContainer');
   if (!container) return;
-  const ids       = getQuickActions().filter(id => QUICK_ACTION_DEFS[id]);
+  let ids       = getQuickActions().filter(id => QUICK_ACTION_DEFS[id]);
+  if (isExternalComposeMode()) {
+    ids = ids.filter(id => id !== 'check-update' && id !== 'toggle-remote');
+  }
   const editClass = quickActionsEditMode ? ' editing' : '';
   container.innerHTML = ids.map(id => {
     const def = _qaButtonDef(id);
@@ -1977,7 +1989,10 @@ function renderQuickActionsPickerList() {
   const list = document.getElementById('quickActionsPickerList');
   if (!list) return;
   const added     = new Set(getQuickActions());
-  const available = Object.entries(QUICK_ACTION_DEFS).filter(([id]) => !added.has(id));
+  let available = Object.entries(QUICK_ACTION_DEFS).filter(([id]) => !added.has(id));
+  if (isExternalComposeMode()) {
+    available = available.filter(([id]) => id !== 'check-update' && id !== 'toggle-remote');
+  }
   if (available.length === 0) {
     list.innerHTML = '<div class="empty-state" style="padding:12px 0">All actions already added.</div>';
     return;
@@ -2042,6 +2057,7 @@ function _populateRamOptions(totalMB) {
 
 function updateDashboardUI(data) {
   lastStatusData = data;
+  if (data?.deploymentMode) _deploymentMode = data.deploymentMode;
 
   // Farm name in sidebar
   const farmNameEl = document.getElementById('sidebarFarmName');
@@ -2173,6 +2189,7 @@ function updateDashboardUI(data) {
   // Panel update notification (dashboard + config tab)
   function _renderPanelNotif(el) {
     if (!el) return;
+    if (isExternalComposeMode()) { el.style.display = 'none'; return; }
     if (liveRunning && data.panelUpdateAvailable) {
       const info = data.panelUpdateInfo || {};
       const sub  = info.message ? `"${info.message.substring(0, 60)}${info.message.length > 60 ? '…' : ''}"` : 'A new version is available';
@@ -7625,6 +7642,9 @@ async function _checkPeerRemoteStatus() {
 }
 
 async function loadRemoteStatus() {
+  const composeCard = document.getElementById('remoteComposeCard');
+  if (composeCard) composeCard.style.display = isExternalComposeMode() ? 'none' : '';
+
   const loading    = document.getElementById('remoteLoading');
   const noConfig   = document.getElementById('remoteNoConfig');
   const configured = document.getElementById('remoteConfigured');
@@ -7802,7 +7822,15 @@ function _renderRemoteServices(services, anyRunning) {
   const el       = document.getElementById('remoteServiceStatus');
   const startBtn = document.getElementById('remoteStartBtn');
   const stopBtn  = document.getElementById('remoteStopBtn');
+  const removeBtn = document.getElementById('remoteRemoveBtn');
   if (!el) return;
+
+  if (isExternalComposeMode()) {
+    if (startBtn)  startBtn.style.display  = 'none';
+    if (stopBtn)   stopBtn.style.display   = 'none';
+    if (removeBtn) removeBtn.style.display = 'none';
+    return;
+  }
 
   const isConnecting = !anyRunning && !!lastRemoteData?.remoteActive;
   if (startBtn) startBtn.style.display = (anyRunning || isConnecting) ? 'none' : '';

@@ -13,7 +13,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 LABEL maintainer="tomomotto" \
       description="StardropHost - Stardew Valley dedicated server with web UI" \
-      version="1.0.0"
+      version="1.0.0" \
+      org.opencontainers.image.source="https://github.com/alutke/StardropHost-dev"
 
 # -- Install dependencies --
 RUN dpkg --add-architecture i386 && \

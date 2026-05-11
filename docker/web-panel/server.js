@@ -24,6 +24,7 @@ const CONFIG_DIR  = process.env.CONFIG_DIR     || '/home/steam/.config/StardewVa
 const SMAPI_LOG   = process.env.SMAPI_LOG      || '/home/steam/.config/StardewValley/ErrorLogs/SMAPI-latest.txt';
 const ENV_FILE    = process.env.ENV_FILE       || '/home/steam/web-panel/data/runtime.env';
 const MANAGER_URL = process.env.MANAGER_URL    || 'http://stardrop-manager:18700';
+const DEPLOYMENT_MODE = process.env.DEPLOYMENT_MODE || 'local';
 
 const config = {
   PORT,
@@ -38,6 +39,7 @@ const config = {
   SMAPI_LOG,
   ENV_FILE,
   MANAGER_URL,
+  DEPLOYMENT_MODE,
 };
 module.exports = config;
 

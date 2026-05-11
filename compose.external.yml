@@ -1,0 +1,207 @@
+# ===========================================
+# StardropHost | compose.external.yml
+# ===========================================
+# External Compose deployment file for image-
+# based Docker Compose stacks.
+#
+# Architecture:
+#   GitHub repo -> GitHub Actions -> GHCR
+#   -> external compose tool -> remote Docker host
+#
+# The Docker host does NOT need git, source
+# checkout, or local build context.
+#
+# Prerequisites on the Docker host:
+#   - /srv/stardrophost/data/ directories created
+#   - Docker host logged into GHCR (if images are private)
+#   - .env file supplied by the deployment tool
+#
+# Usage:
+#   docker compose -f compose.external.yml up -d
+# ===========================================
+# External Compose deployment file for remote
+# Docker host deployment.
+#
+# Architecture:
+#   GitHub repo -> GitHub Actions -> GHCR
+#   -> external compose tool -> remote Docker host
+#
+# The Docker host does NOT need git, source
+# checkout, or local build context.
+#
+# Prerequisites on the Docker host:
+#   - /srv/stardrophost/data/ directories created
+#   - Docker host logged into GHCR (if images are private)
+#   - .env file supplied by the deployment tool
+#
+# Usage:
+#   docker compose -f compose.external.yml up -d
+# ===========================================
+
+networks:
+  stardrop-net:
+    name: ${CONTAINER_PREFIX:-stardrop}-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${NETWORK_SUBNET:-172.30.0.0/24}
+
+services:
+
+  # --- Manager ---
+  # Sidecar with Docker socket access for container
+  # lifecycle control from the web panel.
+  # In external-compose mode this uses pure docker commands
+  # (no docker compose, no repo checkout required).
+  stardrop-manager:
+    image: ghcr.io/alutke/stardrophost-dev-manager:latest
+    container_name: ${CONTAINER_PREFIX:-stardrop}-manager
+    restart: unless-stopped
+    networks:
+      - stardrop-net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - TZ=${TZ:-Europe/London}
+      - CONTAINER_PREFIX=${CONTAINER_PREFIX:-stardrop}
+      - MANAGER_SECRET=${MANAGER_SECRET:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    security_opt:
+      - "no-new-privileges:true"
+
+  # --- Init ---
+  # One-shot root container that creates data
+  # directories and fixes ownership (UID 1000:1000).
+  stardrop-init:
+    image: ghcr.io/alutke/stardrophost-dev:latest
+    container_name: ${CONTAINER_PREFIX:-stardrop}-init
+    user: root
+    entrypoint: ["/home/steam/scripts/init-container.sh"]
+    networks:
+      - stardrop-net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - TZ=${TZ:-Europe/London}
+      - USE_GPU=${USE_GPU:-false}
+    volumes:
+      - /srv/stardrophost/data/saves:/home/steam/.config/StardewValley:rw
+      - /srv/stardrophost/data/game:/home/steam/stardewvalley:rw
+      - /srv/stardrophost/data/logs:/home/steam/.local/share/stardrop/logs:rw
+      - /srv/stardrophost/data/backups:/home/steam/.local/share/stardrop/backups:rw
+      - /srv/stardrophost/data/panel:/home/steam/web-panel/data:rw
+      - /srv/stardrophost/data/custom-mods:/home/steam/custom-mods:rw
+    security_opt:
+      - "no-new-privileges:true"
+
+  # --- Server ---
+  # Main container: Stardew Valley + SMAPI + web panel.
+  stardrop-server:
+    image: ghcr.io/alutke/stardrophost-dev:latest
+    container_name: ${CONTAINER_PREFIX:-stardrop}
+    restart: unless-stopped
+    networks:
+      stardrop-net:
+        ipv4_address: ${SERVER_IP:-172.30.0.10}
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      stardrop-manager:
+        condition: service_started
+      stardrop-init:
+        condition: service_completed_successfully
+    environment:
+      - TZ=${TZ:-Europe/London}
+      - USE_GPU=${USE_GPU:-false}
+      - ENABLE_VNC=${ENABLE_VNC:-false}
+      - MANAGER_SECRET=${MANAGER_SECRET:-}
+      - VNC_PASSWORD=${VNC_PASSWORD:-stardew1}
+      - DISPLAY_PRESET=${DISPLAY_PRESET:-800x600@30}
+      - ENABLE_AUTO_BACKUP=${ENABLE_AUTO_BACKUP:-true}
+      - ENABLE_CRASH_RESTART=${ENABLE_CRASH_RESTART:-true}
+      - ENABLE_LOG_MONITOR=${ENABLE_LOG_MONITOR:-true}
+      - ENABLE_GAME_SLEEP=${ENABLE_GAME_SLEEP:-false}
+      - SLEEP_IDLE_MINUTES=${SLEEP_IDLE_MINUTES:-10}
+      - ENABLE_AUTO_WAKE=${ENABLE_AUTO_WAKE:-true}
+      - METRICS_PORT=${METRICS_PORT:-9090}
+      - SERVER_PASSWORD=${SERVER_PASSWORD:-}
+      - SAVE_NAME=${SAVE_NAME:-}
+      - PANEL_PORT=${PANEL_PORT:-18642}
+      - GAME_PORT=${GAME_PORT:-24642}
+      - SERVER_MODE=${SERVER_MODE:-lan}
+      - STEAM_AUTH_URL=http://stardrop-steam-auth:18700
+      - CPU_LIMIT=${CPU_LIMIT:-}
+      - MEMORY_LIMIT=${MEMORY_LIMIT:-}
+      - DEPLOYMENT_MODE=external-compose
+    ports:
+      - "${GAME_PORT:-24642}:24642/udp"
+      - "${VNC_PORT:-5900}:5900"
+      - "${METRICS_PORT:-9090}:9090"
+      - "${PANEL_PORT:-18642}:${PANEL_PORT:-18642}"
+    volumes:
+      - /srv/stardrophost/data/saves:/home/steam/.config/StardewValley:rw
+      - /srv/stardrophost/data/game:/home/steam/stardewvalley:rw
+      - /srv/stardrophost/data/logs:/home/steam/.local/share/stardrop/logs:rw
+      - /srv/stardrophost/data/backups:/home/steam/.local/share/stardrop/backups:rw
+      - /srv/stardrophost/data/panel:/home/steam/web-panel/data:rw
+      - /srv/stardrophost/data/custom-mods:/home/steam/custom-mods:rw
+      - /proc:/host-proc:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-0}'
+          memory: '${MEMORY_LIMIT:-0}'
+    security_opt:
+      - "no-new-privileges:true"
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "StardewModdingAPI"]
+      interval: 30s
+      timeout: 10s
+      start_period: 900s
+      retries: 3
+
+  # --- Steam Auth ---
+  # Steam login + 2FA sidecar. Credentials are memory-only.
+  stardrop-steam-auth:
+    image: ghcr.io/alutke/stardrophost-dev-steam-auth:latest
+    container_name: ${CONTAINER_PREFIX:-stardrop}-steam-auth
+    restart: unless-stopped
+    networks:
+      - stardrop-net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - TZ=${TZ:-Europe/London}
+      - STEAM_AUTH_PORT=18700
+    security_opt:
+      - "no-new-privileges:true"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18700/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # --- GOG Downloader ---
+  # GOG download sidecar. Credentials are ephemeral.
+  stardrop-gog-downloader:
+    image: ghcr.io/alutke/stardrophost-dev-gog-downloader:latest
+    container_name: ${CONTAINER_PREFIX:-stardrop}-gog-downloader
+    restart: unless-stopped
+    networks:
+      - stardrop-net
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - TZ=${TZ:-Europe/London}
+      - GOG_AUTH_PORT=18701
+    volumes:
+      - /srv/stardrophost/data/game:/Downloads
+    security_opt:
+      - "no-new-privileges:true"

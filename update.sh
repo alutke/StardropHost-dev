@@ -2,6 +2,16 @@
 # ===========================================
 # StardropHost | update.sh
 # ===========================================
+# LEGACY — This script is for local development
+# and traditional deployments where the repository
+# is cloned directly onto the Docker host.
+#
+# For external Compose deployments, updates are
+# handled by GitHub Actions publishing new images
+# to GHCR, followed by the deployment tool
+# redeploying the stack. Do not use this script
+# in production external Compose environments.
+#
 # Pulls the latest code from GitHub and does
 # an incremental Docker rebuild — only layers
 # that changed are rebuilt, so this is fast

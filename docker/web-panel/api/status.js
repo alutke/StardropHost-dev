@@ -10,6 +10,8 @@ const http  = require('http');
 const https = require('https');
 const dgram = require('dgram');
 const config      = require('../server');
+
+const DEPLOYMENT_MODE = process.env.DEPLOYMENT_MODE || 'local';
 const savesAPI    = require('./saves');
 const playersAPI  = require('./players');
 
@@ -684,6 +686,8 @@ function collectStatus(req = null) {
     const vncState = JSON.parse(fs.readFileSync(path.join(config.DATA_DIR, 'vnc-state.json'), 'utf-8'));
     status.vncEnabled = vncState.enabled === true;
   } catch { status.vncEnabled = false; }
+
+  status.deploymentMode = DEPLOYMENT_MODE;
 
   return status;
 }

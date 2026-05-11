@@ -2,6 +2,17 @@
 # ===========================================
 # StardropHost | quick-start.sh
 # ===========================================
+# LEGACY — This script clones the repository
+# directly onto the Docker host and builds
+# images locally. It is for local development
+# and traditional self-hosted deployments.
+#
+# For external Compose deployments, use
+# compose.external.yml and the GHCR images.
+# Do not run this script on an externally managed
+# host; it will fail because git and source
+# checkout are not required or available.
+#
 # One-command setup script. Does everything:
 #   1. Installs Docker (if not already present)
 #   2. Downloads StardropHost from GitHub

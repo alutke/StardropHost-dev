@@ -1,0 +1,87 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# GitHub
+.github
+
+# Documentation
+docs
+*.md
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Data directories (mounted at runtime)
+data
+data-*
+
+# Logs
+logs
+*.log
+
+# Node.js
+docker/**/node_modules
+docker/**/npm-debug.log
+docker/**/package-lock.json
+web-panel/node_modules
+web-panel/npm-debug.log
+web-panel/package-lock.json
+
+# Build artifacts
+build
+dist
+target
+bin
+obj
+
+# C# / .NET
+*.dll
+*.exe
+*.pdb
+*.nuget
+.nuget
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Test files
+tests
+test
+__tests__
+
+# Scripts that are not needed in the image
+update.sh
+quick-start.sh
+scripts/rebuild-fresh.sh
+scripts/verify-deployment.sh
+scripts/health-check.sh
+
+# Compose files that are not used inside the image
+docker-compose*.yml
+compose*.yml
+
+# CI/CD files not needed in image
+*.yml
+*.yaml
+!.github
+
+# Misc
+coverage
+.nyc_output

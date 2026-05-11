@@ -242,7 +242,8 @@ function getConfig(req, res) {
 
   const serverMode = (env.SERVER_MODE || process.env.SERVER_MODE || 'lan')
     .replace(/['"]/g, '').trim() || 'lan';
-  res.json({ groups, serverMode });
+  const deploymentMode = process.env.DEPLOYMENT_MODE || 'local';
+  res.json({ groups, serverMode, deploymentMode });
 }
 
 function updateConfig(req, res) {

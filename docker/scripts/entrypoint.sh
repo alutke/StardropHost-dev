@@ -422,10 +422,11 @@ else
 fi
 
 # -- Step 3.5: Build StardropDashboard mod --
-# Runs here because game files + SMAPI are now in place, providing the
-# DLLs (StardewValley.dll, StardewModdingAPI.dll) that ModBuildConfig
-# needs. NuGet packages were pre-restored into the image during docker build
-# so this works without internet access.
+# These mods are built at container startup (not image build time) because
+# they reference StardewValley.dll, which is only available via the mounted
+# game volume. In external-compose deployments the game files live on the host at
+# /srv/stardrophost/data/game and are not baked into the image.
+# NuGet packages were pre-restored during docker build so this works offline.
 log_step "Step 3.5: Building StardropDashboard mod..."
 
 SD_SRC="/home/steam/mod-source/StardropDashboard"
